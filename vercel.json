@@ -1,0 +1,5 @@
+{
+  "rewrites": [
+    { "source": "/pexels/:path*", "destination": "https://videos.pexels.com/:path*" }
+  ]
+}
