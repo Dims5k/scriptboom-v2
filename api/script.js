@@ -9,18 +9,17 @@ Ton : ${String(tone).slice(0, 60)}. Longueur : environ ${nWords} mots (${d} seco
 Règles : commence par une accroche forte dès la première phrase ; phrases courtes et orales ; tutoiement ; finis par une phrase qui pousse à s'abonner ou commenter.
 Réponds UNIQUEMENT avec le texte à lire, sans titre, sans guillemets, sans indications de mise en scène, sans emojis.`;
   try {
-    const r = await fetch('https://api.anthropic.com/v1/messages', {
+    const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01'
+        'x-goog-api-key': process.env.GEMINI_API_KEY
       },
-      body: JSON.stringify({ model: 'claude-sonnet-5', max_tokens: 1000, messages: [{ role: 'user', content: prompt }] })
+      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
     });
     const data = await r.json();
     if (!r.ok) return res.status(500).json({ error: data?.error?.message || 'Erreur API' });
-    const script = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n').trim();
+    const script = (data.candidates?.[0]?.content?.parts || []).map(p => p.text || '').join('').trim();
     return res.status(200).json({ script });
   } catch (e) {
     return res.status(500).json({ error: 'Serveur injoignable' });
