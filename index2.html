@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ScriptBoom</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#000; --panel:#141414; --panel2:#1c1c1c; --line:#2a2a2a;
+  --text:#f2f2f2; --muted:#9a9a9a; --green:#1ed760; --green-deep:#169c46; --danger:#ff6b6b;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+html,body{margin:0;background:var(--bg);color:var(--text)}
+body{font:16px/1.5 Figtree,system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1040px;margin:0 auto;padding:28px 20px 60px}
+header{display:flex;align-items:baseline;justify-content:space-between;gap:16px;margin-bottom:28px}
+.logo{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:clamp(34px,7vw,52px);letter-spacing:-.03em;color:var(--green);margin:0;line-height:1}
+.tag{color:var(--muted);font-size:15px;margin:6px 0 0}
+.grid{display:grid;grid-template-columns:1fr 340px;gap:28px;align-items:start}
+@media (max-width:820px){.grid{grid-template-columns:1fr}.stage-col{position:static!important}.phone{max-width:250px}}
+.step{background:var(--panel);border-radius:22px;padding:20px;margin-bottom:14px}
+.step h2{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:22px;margin:0 0 4px;display:flex;gap:10px;align-items:center}
+.num{width:28px;height:28px;border-radius:50%;background:var(--green);color:#000;display:grid;place-items:center;font-size:15px;flex:none}
+.hint{color:var(--muted);font-size:14px;margin:0 0 14px}
+label{display:block;font-size:14px;color:var(--muted);margin:10px 0 6px}
+input[type=text],textarea,select{width:100%;background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:14px;padding:12px 14px;font:inherit}
+textarea{min-height:170px;resize:vertical;line-height:1.55}
+input:focus,textarea:focus,select:focus{outline:2px solid var(--green);outline-offset:1px;border-color:transparent}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.row>*{flex:1 1 140px}
+.btn{appearance:none;border:0;border-radius:999px;padding:13px 22px;font:600 16px Figtree,sans-serif;cursor:pointer;background:var(--green);color:#000;transition:transform .12s,background .15s}
+.btn:hover{background:#3be475}
+.btn:active{transform:scale(.97)}
+.btn:focus-visible{outline:3px solid #fff;outline-offset:2px}
+.btn.ghost{background:transparent;color:var(--text);border:1.5px solid var(--line)}
+.btn.ghost:hover{border-color:var(--green);color:var(--green)}
+.btn[disabled]{opacity:.45;cursor:not-allowed;transform:none}
+.big{width:100%;padding:17px;font-size:18px}
+.pills{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.pill{background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:999px;padding:7px 13px;font:500 14px Figtree,sans-serif;cursor:pointer}
+.pill[aria-pressed=true]{background:var(--green);color:#000;border-color:var(--green)}
+.drop{display:flex;align-items:center;justify-content:center;gap:10px;border:1.5px dashed #3a3a3a;border-radius:16px;padding:18px;color:var(--muted);cursor:pointer;text-align:center}
+.drop:hover{border-color:var(--green);color:var(--text)}
+.drop input{position:absolute;opacity:0;width:1px;height:1px}
+.msg{font-size:14px;margin:10px 0 0;min-height:1.2em}
+.msg.err{color:var(--danger)}
+.msg.ok{color:var(--green)}
+.meta{font-size:13px;color:var(--muted);margin-top:6px}
+/* stage */
+.stage-col{position:sticky;top:calc(env(safe-area-inset-top,0px) + 16px)}
+.phone{position:relative;aspect-ratio:9/16;width:100%;max-width:340px;margin:0 auto;border-radius:30px;overflow:hidden;background:#0d0d0d;border:1px solid var(--line)}
+.phone video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.empty{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:30px;color:#6d6d6d;font-size:15px}
+.cap{position:absolute;left:8%;right:8%;bottom:22%;text-align:center;font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:26px;line-height:1.15;color:#fff;text-shadow:0 2px 0 #000,0 0 14px rgba(0,0,0,.9);-webkit-text-stroke:1px #000;letter-spacing:-.01em}
+.cap .on{color:var(--green)}
+.bar{position:absolute;left:0;top:0;height:4px;background:var(--green);width:0}
+.stage-actions{max-width:340px;margin:14px auto 0;display:flex;gap:10px}
+.stage-actions .btn{flex:1}
+.note{max-width:340px;margin:12px auto 0;color:var(--muted);font-size:13px;text-align:center}
+@media (prefers-reduced-motion:reduce){.btn{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1 class="logo">ScriptBoom</h1>
+      <p class="tag">Un sujet, une voix, ta vidéo. Prêt à poster.</p>
+    </div>
+  </header>
+
+  <div class="grid">
+    <main>
+      <section class="step" aria-labelledby="s1">
+        <h2 id="s1"><span class="num">1</span>Le script</h2>
+        <p class="hint">Donne un sujet, ScriptBoom écrit un script court pour TikTok, Reels ou Shorts. Tu peux aussi écrire le tien.</p>
+        <label for="topic">Sujet</label>
+        <input id="topic" type="text" placeholder="Ex. : l'histoire cachée de la Tour Eiffel">
+        <div class="pills" role="group" aria-label="Durée">
+          <button class="pill" data-dur="20" aria-pressed="false">20 s</button>
+          <button class="pill" data-dur="35" aria-pressed="true">35 s</button>
+          <button class="pill" data-dur="60" aria-pressed="false">60 s</button>
+        </div>
+        <div class="pills" role="group" aria-label="Ton">
+          <button class="pill" data-tone="mystérieux et captivant" aria-pressed="true">Mystère</button>
+          <button class="pill" data-tone="énergique et fun" aria-pressed="false">Fun</button>
+          <button class="pill" data-tone="pédagogique et clair" aria-pressed="false">Éducatif</button>
+          <button class="pill" data-tone="motivant et intense" aria-pressed="false">Motivation</button>
+        </div>
+        <div style="margin-top:14px"><button class="btn big" id="gen">Générer le script</button></div>
+        <label for="script">Script</label>
+        <textarea id="script" placeholder="Ton script apparaîtra ici. Tu peux le modifier librement."></textarea>
+        <p class="meta" id="count">0 mot · environ 0 s</p>
+        <p class="msg" id="genMsg" role="status"></p>
+      </section>
+
+      <section class="step" aria-labelledby="s2">
+        <h2 id="s2"><span class="num">2</span>La voix</h2>
+        <p class="hint">Choisis la voix qui lira ton script.</p>
+        <div class="row">
+          <div><label for="voice">Voix</label><select id="voice"></select></div>
+          <div><label for="rate">Vitesse</label>
+            <select id="rate"><option value="0.95">Posée</option><option value="1.05" selected>Normale</option><option value="1.2">Rapide</option></select></div>
+        </div>
+        <div style="margin-top:14px"><button class="btn ghost" id="listen">Écouter la voix</button></div>
+        <p class="msg" id="voiceMsg" role="status"></p>
+      </section>
+
+      <section class="step" aria-labelledby="s3">
+        <h2 id="s3"><span class="num">3</span>La vidéo de fond</h2>
+        <p class="hint">Une vidéo verticale de ta galerie. Elle tourne en boucle, sans son, derrière la voix.</p>
+        <label class="drop" id="dropLbl">
+          <input type="file" id="file" accept="video/*">
+          <span id="dropTxt">Choisir une vidéo</span>
+        </label>
+      </section>
+    </main>
+
+    <aside class="stage-col" aria-label="Aperçu">
+      <div class="phone">
+        <div class="bar" id="bar"></div>
+        <video id="vid" playsinline muted loop></video>
+        <div class="empty" id="empty">Ajoute un script et une vidéo, puis lance l'aperçu.</div>
+        <div class="cap" id="cap" aria-live="off"></div>
+      </div>
+      <div class="stage-actions">
+        <button class="btn" id="play">Lancer l'aperçu</button>
+        <button class="btn ghost" id="stop" disabled>Stop</button>
+      </div>
+      <p class="msg" id="playMsg" role="status" style="text-align:center"></p>
+      <p class="note">Aperçu avec sous-titres animés. L'export MP4 avec voix pro arrive à l'étape suivante.</p>
+    </aside>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+let dur = 35, tone = "mystérieux et captivant", voices = [], playing = false, timer = null, videoURL = null;
+
+// pills
+document.querySelectorAll('[data-dur]').forEach(b => b.onclick = () => {
+  document.querySelectorAll('[data-dur]').forEach(x => x.setAttribute('aria-pressed','false'));
+  b.setAttribute('aria-pressed','true'); dur = +b.dataset.dur;
+});
+document.querySelectorAll('[data-tone]').forEach(b => b.onclick = () => {
+  document.querySelectorAll('[data-tone]').forEach(x => x.setAttribute('aria-pressed','false'));
+  b.setAttribute('aria-pressed','true'); tone = b.dataset.tone;
+});
+
+// word count
+function words(t){ return t.trim() ? t.trim().split(/\s+/) : []; }
+function updateCount(){
+  const n = words($('script').value).length;
+  $('count').textContent = `${n} mot${n>1?'s':''} · environ ${Math.round(n/2.6)} s`;
+}
+$('script').addEventListener('input', updateCount);
+
+// script generation (serveur Vercel : /api/script)
+$('gen').onclick = async () => {
+  const topic = $('topic').value.trim();
+  const msg = $('genMsg');
+  if (!topic) { msg.className='msg err'; msg.textContent='Écris d\'abord un sujet.'; $('topic').focus(); return; }
+  const btn = $('gen'); btn.disabled = true; btn.textContent = 'Écriture en cours…';
+  msg.className='msg'; msg.textContent='';
+  try {
+    const r = await fetch('/api/script', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ topic, dur, tone }) });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'Erreur');
+    $('script').value = data.script; updateCount();
+    msg.className='msg ok'; msg.textContent='Script prêt. Modifie-le si tu veux.';
+  } catch(e) {
+    msg.className='msg err'; msg.textContent='La génération a échoué : ' + (e.message || 'erreur inconnue');
+  } finally { btn.disabled=false; btn.textContent='Générer le script'; }
+};
+
+// voices
+function loadVoices(){
+  if (!('speechSynthesis' in window)) { $('voiceMsg').className='msg err'; $('voiceMsg').textContent='Ce navigateur ne peut pas lire de voix. Ouvre la page dans Safari ou Chrome.'; return; }
+  const all = speechSynthesis.getVoices();
+  voices = all.filter(v => v.lang && v.lang.toLowerCase().startsWith('fr'));
+  if (!voices.length) voices = all;
+  const sel = $('voice'); const prev = sel.value; sel.innerHTML='';
+  voices.forEach((v,i) => { const o=document.createElement('option'); o.value=i; o.textContent=`${v.name} (${v.lang})`; sel.appendChild(o); });
+  if (prev && sel.options[prev]) sel.value = prev;
+}
+if ('speechSynthesis' in window){ loadVoices(); speechSynthesis.onvoiceschanged = loadVoices; }
+
+function utter(text){
+  const u = new SpeechSynthesisUtterance(text);
+  const v = voices[+$('voice').value]; if (v){ u.voice=v; u.lang=v.lang; } else u.lang='fr-FR';
+  u.rate = +$('rate').value; return u;
+}
+$('listen').onclick = () => {
+  if (!('speechSynthesis' in window)) return;
+  speechSynthesis.cancel();
+  const t = $('script').value.trim() || "Salut, voici la voix qui lira ton script.";
+  speechSynthesis.speak(utter(t.split(/(?<=[.!?])\s+/)[0]));
+};
+
+// video
+$('file').onchange = e => {
+  const f = e.target.files[0]; if (!f) return;
+  if (videoURL) URL.revokeObjectURL(videoURL);
+  videoURL = URL.createObjectURL(f);
+  const v = $('vid'); v.src = videoURL; v.currentTime = 0.1;
+  $('empty').hidden = true; $('dropTxt').textContent = f.name;
+};
+
+// preview with synced captions
+function chunks(ws){ const out=[]; for(let i=0;i<ws.length;i+=4) out.push([i,Math.min(i+4,ws.length)]); return out; }
+function renderCap(ws, idx){
+  const cs = chunks(ws); const c = cs.find(([a,b]) => idx>=a && idx<b); if(!c) return;
+  $('cap').innerHTML = ws.slice(c[0],c[1]).map((w,j)=>`<span class="${c[0]+j===idx?'on':''}">${w.replace(/</g,'&lt;')}</span>`).join(' ');
+}
+function stopAll(){
+  playing=false; clearInterval(timer); timer=null;
+  if ('speechSynthesis' in window) speechSynthesis.cancel();
+  $('vid').pause(); $('cap').textContent=''; $('bar').style.width='0';
+  $('play').disabled=false; $('stop').disabled=true;
+}
+$('stop').onclick = stopAll;
+
+$('play').onclick = () => {
+  const text = $('script').value.trim(), m = $('playMsg');
+  if (!text || !$('vid').src) { m.className='msg err'; m.textContent = !text && !$('vid').src ? 'Il manque le script et la vidéo.' : !text ? 'Il manque le script (étape 1).' : 'Il manque la vidéo de fond (étape 3).'; return; }
+  if (!('speechSynthesis' in window)) { m.className='msg err'; m.textContent='La voix n\'est pas disponible dans ce navigateur.'; return; }
+  m.textContent=''; stopAll(); playing=true;
+  $('play').disabled=true; $('stop').disabled=false;
+  const ws = words(text);
+  // map char offsets to word index
+  const starts=[]; let pos=0; ws.forEach(w=>{ const i=text.indexOf(w,pos); starts.push(i); pos=i+w.length; });
+  const est = ws.length / (2.6 * +$('rate').value) * 1000;
+  const v=$('vid'); v.currentTime=0; v.play().catch(()=>{});
+  const u = utter(text);
+  let gotBoundary=false, t0=0, cur=0;
+  u.onstart = () => { t0=performance.now(); renderCap(ws,0);
+    timer=setInterval(()=>{ const p=Math.min(1,(performance.now()-t0)/est); $('bar').style.width=(p*100)+'%';
+      if(!gotBoundary){ const i=Math.min(ws.length-1,Math.floor(p*ws.length)); if(i!==cur){cur=i;renderCap(ws,i);} } },80); };
+  u.onboundary = e => { if(e.name && e.name!=='word') return; gotBoundary=true;
+    let i=starts.findIndex((s,k)=> e.charIndex>=s && (k===starts.length-1 || e.charIndex<starts[k+1]));
+    if(i>=0 && i!==cur){cur=i;renderCap(ws,i);} };
+  u.onend = () => { if(playing){ $('bar').style.width='100%'; setTimeout(stopAll,400); } };
+  u.onerror = () => { if(playing) stopAll(); };
+  speechSynthesis.speak(u);
+};
+</script>
+</body>
+</html>
