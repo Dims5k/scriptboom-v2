@@ -27,7 +27,7 @@ const FORMATS = {
   saviezvous: "Format « Le saviez-vous ? » : commence par l'équivalent de « Le saviez-vous ? » dans la langue demandée, puis donne 1 ou 2 faits surprenants liés au sujet, chacun suivi de son explication (pourquoi ou comment ça marche)."
 };
 
-async function askGemini(prompt, json) {
+async function askGemini(prompt, json, images = []) {
   let lastError = 'Erreur API';
   for (const model of MODELS) {
     try {
@@ -35,7 +35,7 @@ async function askGemini(prompt, json) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-goog-api-key': process.env.GEMINI_API_KEY },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
+          contents: [{ parts: [...images.map(im => ({ inline_data: { mime_type: im.mime, data: im.data } })), { text: prompt }] }],
           ...(json ? { generationConfig: { responseMimeType: 'application/json' } } : {})
         })
       });
@@ -74,6 +74,24 @@ Propose 10 sujets de vidéos précis et accrocheurs, qui donnent envie de regard
 Réponds en JSON : {"ideas":["...", "..."]}`, true);
       const ideas = (Array.isArray(out) ? out : out.ideas || []).filter(x => typeof x === 'string').slice(0, 10);
       return res.status(200).json({ ideas });
+    }
+
+    if (mode === 'coach') {
+      // Analyse des captures de statistiques TikTok / Instagram du créateur
+      const images = (Array.isArray(b.images) ? b.images : []).slice(0, 4)
+        .filter(im => im && typeof im.data === 'string' && /^image\/(jpeg|png|webp)$/.test(im.mime) && im.data.length < 1500000);
+      if (!images.length) return res.status(400).json({ error: 'Ajoute au moins une capture de tes statistiques' });
+      const out = await askGemini(`Tu es un coach expert de la croissance sur TikTok, Instagram Reels et YouTube Shorts, pour les vidéos courtes sans visage. Repère d'abord de quelle plateforme viennent les captures, et adapte ton analyse à ses indicateurs (ex. : « Vidéo regardée en entier » sur TikTok, « Taux de rétention » ou « Vues vs swipes » sur YouTube Shorts, « Durée de visionnage moyenne » et « Taux de saut » sur Instagram).
+Voici ${images.length} capture(s) des statistiques d'une ou plusieurs vidéos courtes du créateur (vues, temps de visionnage moyen, pourcentage de vidéo regardée en entier, courbe de fidélisation, sources de trafic, abonnés gagnés…).${b.note ? ` Précisions du créateur : "${clean(b.note, 400)}".` : ''}
+1. Lis précisément les chiffres visibles. N'invente aucun chiffre : si une donnée n'est pas lisible, ne la cite pas.
+2. Diagnostique où et pourquoi les spectateurs décrochent (accroche, longueur, rythme, sujet, visuel, restriction de diffusion…).
+3. Donne des règles concrètes et directement applicables à l'écriture des PROCHAINS scripts (accroche, durée, structure, fin).
+Écris en français, simple et direct, en tutoyant le créateur.
+Réponds en JSON : {"summary":"2 phrases maximum sur ce que disent les chiffres","numbers":["chiffre clé lu sur la capture, avec son sens"],"problems":["problème principal et sa cause"],"rules":["règle courte pour les prochains scripts, à l'impératif"],"duration":20}
+"rules" : 3 à 5 règles. "duration" : la durée conseillée pour les prochaines vidéos, 20, 35 ou 60.`, true, images);
+      const list = (x, n) => (Array.isArray(x) ? x : []).filter(v => typeof v === 'string' && v.trim()).map(v => clean(v, 220)).slice(0, n);
+      return res.status(200).json({ summary: clean(out.summary, 400), numbers: list(out.numbers, 6), problems: list(out.problems, 4),
+        rules: list(out.rules, 5), duration: [20, 35, 60].includes(Number(out.duration)) ? Number(out.duration) : null });
     }
 
     if (mode === 'week') {
@@ -116,11 +134,17 @@ Réponds en JSON : {"title":"...","caption":"...","hashtags":["#..."]}`, true);
     }
 
     // mode "script"
-    const topic = clean(b.topic, 300).trim();
+    const reply = b.reply && typeof b.reply.text === 'string' && b.reply.text.trim()
+      ? { user: clean(b.reply.user, 40).replace(/^@/, '').trim(), text: clean(b.reply.text, 400).trim() } : null;
+    const topic = reply ? reply.text : clean(b.topic, 300).trim();
     if (!topic) return res.status(400).json({ error: 'Sujet manquant' });
+    const coach = (Array.isArray(b.coach) ? b.coach : []).filter(x => typeof x === 'string').map(x => clean(x, 220)).slice(0, 5);
+    const coachTxt = coach.length ? `\nConseils tirés des vraies statistiques du créateur (à respecter en priorité) :\n- ${coach.join('\n- ')}` : '';
+    const replyTxt = reply ? `\nC'est une VIDÉO DE RÉPONSE à ce commentaire laissé par ${reply.user ? '@' + reply.user : 'un abonné'} : "${reply.text}".
+La bulle du commentaire sera affichée à l'écran. La première phrase réagit directement au commentaire (sans le relire en entier), puis tu réponds vraiment à la question ou à la remarque avec des explications, et tu finis en invitant les gens à poser leurs questions en commentaire.` : '';
     const d = [20, 35, 60].includes(Number(b.dur)) ? Number(b.dur) : 35;
     const nWords = Math.round(d * 2.6);
-    const series = !!b.series;
+    const series = !!b.series && !reply;
     // Moins d'éléments quand la vidéo est courte, pour avoir le temps d'expliquer chacun
     const nTop = d <= 35 ? 3 : 5;
     const top = b.format === 'top5'
@@ -136,7 +160,7 @@ Chaque script ne contient QUE le texte à lire : pas de titre, pas de guillemets
 
     let parts;
     if (series) {
-      const out = await askGemini(`Écris une SÉRIE de 2 vidéos verticales (TikTok/Reels/Shorts) en ${lang} sur le sujet : "${topic}". Chaque partie est une voix off d'environ ${nWords} mots (${d} secondes).
+      const out = await askGemini(`Écris une SÉRIE de 2 vidéos verticales (TikTok/Reels/Shorts) en ${lang} sur le sujet : "${topic}".${coachTxt} Chaque partie est une voix off d'environ ${nWords} mots (${d} secondes).
 Ton : ${clean(b.tone, 60) || 'captivant'}.
 ${format}${top}
 ${depth}
@@ -147,7 +171,7 @@ ${style}
 Réponds en JSON : {"part1":{"hook":"...","script":"...","keywords":["..."]},"part2":{"hook":"...","script":"...","keywords":["..."]}}`, true);
       parts = [out.part1 || {}, out.part2 || {}];
     } else {
-      const out = await askGemini(`Écris un script de voix off en ${lang} pour une vidéo verticale (TikTok/Reels/Shorts) sur le sujet : "${topic}".
+      const out = await askGemini(`Écris un script de voix off en ${lang} pour une vidéo verticale (TikTok/Reels/Shorts) sur le sujet : "${topic}".${replyTxt}${coachTxt}
 Ton : ${clean(b.tone, 60) || 'captivant'}. Longueur : environ ${nWords} mots (${d} secondes lues à voix haute).
 ${format}${top}
 ${depth}
