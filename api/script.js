@@ -76,6 +76,29 @@ Réponds en JSON : {"ideas":["...", "..."]}`, true);
       return res.status(200).json({ ideas });
     }
 
+    if (mode === 'week') {
+      const niche = clean(b.niche, 120).trim();
+      if (!niche) return res.status(400).json({ error: 'Niche manquante' });
+      const out = await askGemini(`Tu es le stratège d'un créateur TikTok sans visage. Niche : "${niche}".
+Prépare son planning de 7 vidéos pour la semaine (1 par jour), en ${lang}. Varie les formats et les angles, et commence par les sujets les plus accrocheurs.
+Pour chaque vidéo :
+- "topic" : le sujet précis et intrigant, en une ligne (c'est lui qu'on donnera ensuite au générateur de script) ;
+- "format" : un parmi "histoire", "fait", "top5", "saviezvous", "citation" ;
+- "dur" : 20 ou 35 (60 seulement pour une histoire riche) ;
+- "tone" : un parmi "mystérieux et captivant", "énergique et fun", "pédagogique et clair", "motivant et intense" ;
+- "voice" : une voix parmi Kore (femme assurée), Aoede (femme légère), Leda (femme jeune), Sulafat (femme chaleureuse), Puck (homme dynamique), Charon (homme posé), Fenrir (homme énergique), Orus (homme grave), adaptée au sujet ;
+- "why" : en français, une phrase courte qui dit pourquoi ce sujet va accrocher.
+Réponds en JSON : {"week":[{"topic":"...","format":"...","dur":20,"tone":"...","voice":"...","why":"..."}]}`, true);
+      const F = ['histoire', 'fait', 'top5', 'saviezvous', 'citation'], T = ['mystérieux et captivant', 'énergique et fun', 'pédagogique et clair', 'motivant et intense'];
+      const V = ['Kore', 'Aoede', 'Leda', 'Sulafat', 'Puck', 'Charon', 'Fenrir', 'Orus'];
+      const week = (Array.isArray(out) ? out : out.week || []).filter(x => x && typeof x.topic === 'string').slice(0, 7).map(x => ({
+        topic: clean(x.topic, 200), format: F.includes(x.format) ? x.format : 'fait', dur: [20, 35, 60].includes(Number(x.dur)) ? Number(x.dur) : 20,
+        tone: T.includes(x.tone) ? x.tone : T[0], voice: V.includes(x.voice) ? x.voice : 'Kore', why: clean(x.why, 160)
+      }));
+      if (!week.length) throw new Error('Planning vide');
+      return res.status(200).json({ week });
+    }
+
     if (mode === 'caption') {
       const script = clean(b.script, 2500).trim();
       if (!script) return res.status(400).json({ error: 'Script manquant' });
@@ -108,6 +131,7 @@ Réponds en JSON : {"title":"...","caption":"...","hashtags":["#..."]}`, true);
 Rétention : juste après l'accroche, annonce ce que le spectateur va gagner s'il reste jusqu'au bout, et garde la révélation la plus forte pour la fin.`;
     const style = `Règles : phrases courtes et orales ; tutoiement (ou l'équivalent naturel dans la langue). ${facts}
 Chaque script ne contient QUE le texte à lire : pas de titre, pas de guillemets, pas d'indications de mise en scène, pas d'emojis, pas de numérotation du type « 1. ».
+"keywords" : 3 à 6 mots importants du script (chiffres, noms, mots forts), écrits exactement comme dans le script, un seul mot par élément ; ils seront colorés dans les sous-titres.
 "hook" : une accroche visuelle choc et très courte (3 à 6 mots, pas une simple reformulation du sujet ; elle crée un manque ou une surprise) à afficher en gros à l'écran pendant les 2 premières secondes, dans la même langue.`;
 
     let parts;
@@ -120,7 +144,7 @@ ${hookRules}
 Partie 1 : pose le mystère et donne de vraies infos, mais garde la réponse ou la révélation la plus forte pour la partie 2. Elle se termine OBLIGATOIREMENT par un suspense puis une phrase du type « La suite dans la partie 2, abonne-toi pour ne pas la rater. »
 Partie 2 : commence par « Partie 2 » (ou l'équivalent dans la langue) et un rappel d'une phrase, puis livre la révélation promise, et finit par une question qui pousse à commenter.
 ${style}
-Réponds en JSON : {"part1":{"hook":"...","script":"..."},"part2":{"hook":"...","script":"..."}}`, true);
+Réponds en JSON : {"part1":{"hook":"...","script":"...","keywords":["..."]},"part2":{"hook":"...","script":"...","keywords":["..."]}}`, true);
       parts = [out.part1 || {}, out.part2 || {}];
     } else {
       const out = await askGemini(`Écris un script de voix off en ${lang} pour une vidéo verticale (TikTok/Reels/Shorts) sur le sujet : "${topic}".
@@ -130,10 +154,11 @@ ${depth}
 ${hookRules}
 Finis par une phrase qui pousse à s'abonner ou commenter.
 ${style}
-Réponds en JSON : {"hook":"...","script":"..."}`, true);
+Réponds en JSON : {"hook":"...","script":"...","keywords":["..."]}`, true);
       parts = [out];
     }
-    parts = parts.map(p => ({ script: clean(p.script, 3000).trim(), hook: clean(p.hook, 80).trim() }));
+    parts = parts.map(p => ({ script: clean(p.script, 3000).trim(), hook: clean(p.hook, 80).trim(),
+      keywords: (Array.isArray(p.keywords) ? p.keywords : []).filter(k => typeof k === 'string' && k.trim()).map(k => clean(k.trim(), 30)).slice(0, 8) }));
     if (!parts[0].script || (series && !parts[1].script)) throw new Error('Script vide');
 
     // Vérification des faits : une 2e lecture corrige les chiffres, dates et affirmations douteuses
