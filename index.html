@@ -133,6 +133,14 @@ body{overflow-x:hidden}
   .idea-card:before{content:"";position:absolute;left:50%;top:8px;width:40px;height:4px;margin-left:-20px;border-radius:2px;background:#333}
   .panel.dragging,.idea-card.dragging{transition:none!important;animation:none!important}
 }
+.tour{position:fixed;inset:0;z-index:85}
+.tour-spot{position:fixed;border-radius:24px;box-shadow:0 0 0 9999px rgba(0,0,0,.72);border:2px solid var(--green);transition:all .35s cubic-bezier(.2,.8,.2,1);pointer-events:none}
+.tour-bubble{position:fixed;width:min(320px,calc(100vw - 32px));background:#111;border:1px solid #2a2a2a;border-radius:20px;padding:18px;box-shadow:0 20px 50px rgba(0,0,0,.6);transition:top .35s,left .35s;animation:sbIn .3s ease}
+.tour-bubble p{margin:6px 0 14px;font:500 16px/1.45 Figtree,sans-serif;color:#eaeaea}
+.tour-n{font:700 12px Figtree,sans-serif;color:var(--green);letter-spacing:.06em}
+.tour-actions{display:flex;justify-content:space-between;align-items:center}
+.tour-skip{appearance:none;background:none;border:0;color:#8a8a8a;font:600 14px Figtree,sans-serif;cursor:pointer;padding:8px 4px}
+.tour .ok-btn{display:grid}
 .reset-bar{appearance:none;width:min(360px,100%);height:50px;margin-top:-4px;border-radius:25px;border:1.5px solid #ff4d4f;background:rgba(255,77,79,.08);color:#ff6b6b;font:700 15px Figtree,sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:background .15s,color .15s}
 .reset-bar:hover{background:#ff4d4f;color:#fff}.reset-bar:active{transform:scale(.98)}
 .confirm{position:fixed;inset:0;z-index:90;background:rgba(0,0,0,.7);display:grid;place-items:center;padding:16px;animation:sbIn .2s ease}
@@ -224,7 +232,7 @@ body{overflow-x:hidden}
       <button id="sbgBtn" type="submit">Entrer</button>
     </form>
     <p id="sbgErr"></p>
-    <p class="sbg-foot">Pas encore invité ? Suis Script Boom sur TikTok pour faire partie des premiers.</p>
+    <p class="sbg-foot">Pas encore invité ? <a href="/bienvenue" style="color:#1ed760;font-weight:700">Rejoins la liste d'attente →</a></p>
   </div>
 </div>
 <style>
@@ -300,6 +308,7 @@ body{overflow-x:hidden}
           <button class="pill" data-dur="60" aria-pressed="false">60 s</button>
         </div>
     <span class="grow"></span>
+    <button class="icon-btn" id="tourBtn" aria-label="Revoir la visite guidée" title="Visite guidée"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17.5v.01"/></svg></button>
     <button class="icon-btn" data-open="coach" aria-label="Coach : mes stats" title="Coach"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19h16M7 16v-4M12 16V8M17 16v-7"/></svg></button>
     <button class="icon-btn" data-open="hist" aria-label="Mes vidéos" title="Mes vidéos"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg></button>
     <button class="btn ghost" id="installBtn" hidden>Installer</button>
@@ -408,6 +417,14 @@ body{overflow-x:hidden}
         <label for="kw">Mots en couleur dans les sous-titres (les chiffres le sont toujours)</label>
         <input id="kw" type="text" placeholder="Ex. : cœur, cerveau, dopamine">
         <p class="msg" id="genMsg" role="status"></p>
+        <details class="ideas" id="trBox">
+          <summary>🌍 Refaire cette vidéo dans une autre langue</summary>
+          <p class="sub" style="margin-top:6px">Le script, l'accroche et les mots en couleur sont traduits. Il suffit ensuite de régénérer la voix.</p>
+          <label for="trLang">Nouvelle langue</label>
+          <select id="trLang"><option value="fr">Français</option><option value="en">English</option><option value="es">Español</option><option value="pt">Português</option><option value="de">Deutsch</option><option value="it">Italiano</option><option value="ar">العربية</option><option value="tr">Türkçe</option><option value="nl">Nederlands</option></select>
+          <button class="btn" id="trBtn" style="width:100%;margin-top:10px">Traduire la vidéo</button>
+          <p class="msg" id="trMsg" role="status"></p>
+        </details>
         <ul class="fixes" id="fixList" hidden></ul>
       </section>
 <section class="step" data-panel="voix" aria-labelledby="s2" hidden>
@@ -592,6 +609,14 @@ body{overflow-x:hidden}
       <p>Tu es sûr de vouloir revenir à zéro ? Le script, la voix, les fonds et la vidéo seront effacés.<br>Tes réglages, ton historique et ta semaine sont gardés.</p>
       <button class="confirm-yes" id="rcYes">Oui, tout effacer</button>
       <button class="btn ghost" id="rcNo" style="width:100%">Annuler</button>
+    </div>
+  </div>
+  <div class="tour" id="tour" hidden>
+    <div class="tour-spot" id="tourSpot"></div>
+    <div class="tour-bubble" id="tourBubble" role="dialog" aria-live="polite">
+      <div class="tour-n" id="tourN">1 / 4</div>
+      <p id="tourText"></p>
+      <div class="tour-actions"><button class="tour-skip" id="tourSkip">Passer</button><button class="ok-btn" id="tourNext">Suivant</button></div>
     </div>
   </div>
   <div class="boomfx" id="boomFx" hidden><div class="rays"></div><b>BOOM</b><span>Ta vidéo est prête</span></div>
@@ -1919,6 +1944,71 @@ $('rcYes').onclick = () => {
   if (!isMobile()) openPanel('script'); else closePanel();
   $('topic').focus({ preventScroll: true });
 };
+
+// ---------- Refaire la vidéo dans une autre langue ----------
+const LANG_NAME = { fr:'français', en:'anglais', es:'espagnol', pt:'portugais', de:'allemand', it:'italien', ar:'arabe', tr:'turc', nl:'néerlandais' };
+$('trBtn').onclick = async () => {
+  const to = $('trLang').value, from = lang(), m = $('trMsg'), btn = $('trBtn');
+  const src = splitSentences($('script').value);
+  if (!src.length){ m.className = 'msg err'; m.textContent = "Il faut d'abord un script."; return; }
+  if (to === from){ m.className = 'msg err'; m.textContent = 'Le script est déjà dans cette langue.'; return; }
+  const hook = $('hook').value.trim(), kwTxt = kwList().join(', ');
+  btn.disabled = true; btn.textContent = 'Traduction…'; m.className = 'msg'; m.textContent = '';
+  try {
+    const r = await fetch('/api/script', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ mode:'translate', from, to, sentences: [...src, hook || '-', kwTxt || '-'] }) });
+    const d = await r.json(); if (!r.ok) throw new Error(d.error || 'Erreur');
+    const out = d.sentences || [];
+    const newScript = out.slice(0, src.length).join(' ');
+    const newHook = hook ? out[src.length] : '', newKw = kwTxt ? out[src.length + 1] : '';
+    keepEdits();
+    $('lang').value = to; $('script').value = newScript; $('hook').value = newHook || ''; $('kw').value = newKw && newKw !== '-' ? newKw : '';
+    parts = [{ script: newScript, hook: $('hook').value, keywords: kwList() }]; part = 0; $('partBox').hidden = true;
+    if ($('capLang').value === to) $('capLang').value = '';
+    capTr = null; capWords = []; updateCount(); if (!running) drawFrame(previewT());
+    if ($('topic').value && !/\(\w\w\)$/.test($('topic').value)) $('topic').value += ' (' + to.toUpperCase() + ')';
+    histId = Date.now().toString(36); saveHistory(); track('traduction-' + to);
+    m.className = 'msg ok'; m.textContent = `Vidéo traduite en ${LANG_NAME[to]} ✓ Génère maintenant la voix (tu peux garder la même).`;
+    $('genMsg').textContent = '';
+  } catch(e){ m.className = 'msg err'; m.textContent = 'La traduction a échoué : ' + (e.message || 'erreur inconnue'); }
+  finally { btn.disabled = false; btn.textContent = 'Traduire la vidéo'; }
+};
+
+// ---------- Visite guidée (première ouverture, puis bouton ?) ----------
+const TOUR = [
+  { el: () => document.querySelector('.orbit'), text: "Voici ton Labo. Ta vidéo est au centre : touche un élément autour d'elle pour le préparer (script, voix, images, style, son)." },
+  { el: () => isMobile() ? $('ideaStrip') : $('ideaCard'), text: "À court d'idées ? Ici, ScriptBoom te propose des sujets, ta semaine entière de vidéos, ou une réponse en vidéo à un commentaire." },
+  { el: () => document.querySelector('.recipe'), text: "La recette te montre ce qui est prêt. Chaque élément terminé passe au vert, et le contour de la vidéo se remplit." },
+  { el: () => $('export'), text: "Quand tout est vert, appuie sur BOOM : ta vidéo est assemblée et prête à poster. Bonne création !" }
+];
+let tourI = 0;
+function tourShow(){
+  const st = TOUR[tourI], el = st.el(); if (!el){ tourEnd(); return; }
+  el.scrollIntoView({ block: 'center', behavior: 'instant' });
+  setTimeout(() => {
+    const r = el.getBoundingClientRect(), pad = 8, spot = $('tourSpot'), b = $('tourBubble');
+    Object.assign(spot.style, { left: (r.left - pad) + 'px', top: (r.top - pad) + 'px', width: (r.width + pad*2) + 'px', height: (r.height + pad*2) + 'px' });
+    $('tourN').textContent = `${tourI + 1} / ${TOUR.length}`; $('tourText').textContent = st.text;
+    $('tourNext').textContent = tourI === TOUR.length - 1 ? "C'est parti !" : 'Suivant';
+    const bw = b.offsetWidth || 320, bh = b.offsetHeight || 170, vw = window.innerWidth, vh = window.innerHeight;
+    let top = r.bottom + pad + 12; if (top + bh > vh - 12) top = Math.max(12, r.top - pad - 12 - bh);
+    if (top < 12) top = Math.min(vh - bh - 12, Math.max(12, r.top + 20));
+    const left = Math.min(vw - bw - 16, Math.max(16, r.left + r.width/2 - bw/2));
+    b.style.top = top + 'px'; b.style.left = left + 'px';
+  }, 60);
+}
+function tourStart(){ closePanel(); closeIdeas(); tourI = 0; $('tour').hidden = false; tourShow(); }
+function tourEnd(){ $('tour').hidden = true; try { localStorage.setItem('sb_tour', '1'); } catch(e){} if (!isMobile()) openPanel(panelNow || 'script'); }
+$('tourNext').onclick = () => { if (++tourI >= TOUR.length) tourEnd(); else tourShow(); };
+$('tourSkip').onclick = tourEnd;
+$('tourBtn').onclick = tourStart;
+window.addEventListener('resize', () => { if (!$('tour').hidden) tourShow(); });
+(function autoTour(){
+  let seen = false; try { seen = !!localStorage.getItem('sb_tour'); } catch(e){}
+  if (seen) return;
+  const wait = () => { const gate = $('sbGate'); if (gate && getComputedStyle(gate).display !== 'none') return setTimeout(wait, 700); setTimeout(tourStart, 700); };
+  wait();
+})();
 
 drawFrame(0);
 </script>

@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/bienvenue",
+      "destination": "/bienvenue.html"
+    },
+    {
       "source": "/pexels/:path*",
       "destination": "https://videos.pexels.com/:path*"
     },
