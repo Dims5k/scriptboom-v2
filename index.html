@@ -229,6 +229,7 @@ body{overflow-x:hidden}
     <p class="sbg-sub">Entre l'email avec lequel tu as été invité.</p>
     <form id="sbgForm" autocomplete="on">
       <input id="sbgEmail" type="email" inputmode="email" autocomplete="email" placeholder="ton@email.com" required>
+      <input id="sbgCode" type="password" autocomplete="current-password" autocapitalize="off" placeholder="Code d'accès (si on t'en a donné un)" style="margin-top:10px">
       <button id="sbgBtn" type="submit">Entrer</button>
     </form>
     <p id="sbgErr"></p>
@@ -276,9 +277,9 @@ body{overflow-x:hidden}
   document.getElementById('sbgForm').addEventListener('submit',function(ev){
     ev.preventDefault();
     var btn=document.getElementById('sbgBtn'), err=document.getElementById('sbgErr');
-    var email=document.getElementById('sbgEmail').value.trim();
+    var email=document.getElementById('sbgEmail').value.trim(), code=document.getElementById('sbgCode').value.trim();
     btn.disabled=true; err.textContent='';
-    realFetch('/api/access',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email})})
+    realFetch('/api/access',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email,code:code})})
       .then(function(r){ return r.json().catch(function(){return {};}).then(function(d){ return {ok:r.ok,d:d}; }); })
       .then(function(x){ if(x.ok && x.d.token){ save(x.d.token); unlock(); } else { err.textContent=x.d.error||'Accès refusé'; } })
       .catch(function(){ err.textContent='Connexion impossible, réessaie.'; })
@@ -374,7 +375,7 @@ body{overflow-x:hidden}
         <button class="btn ghost" id="back" style="flex-basis:100%">Retour à l'éditeur</button>
       </div>
       <p class="msg" id="playMsg" role="status" style="text-align:center"></p>
-      <p class="note">L'export se fait en temps réel : garde l'écran allumé et la page ouverte jusqu'à la fin. Si tu n'entends rien pendant l'aperçu, désactive le mode silencieux.</p>
+      <p class="note">L'export se fait en temps réel : garde l'écran allumé et la page ouverte jusqu'à la fin. Si tu n'entends rien pendant l'aperçu, désactive le mode silencieux. <a href="/confidentialite" style="color:#8a8a8a">Confidentialité</a></p>
     </div>
     <div class="panel" id="panel" hidden>
       <div class="panel-bar"><h2 id="panelTitle">Le script</h2><button class="ok-btn only-mobile" id="panelClose">OK</button></div>
