@@ -212,6 +212,7 @@ details.ideas summary{cursor:pointer;color:var(--green);font-weight:600;font-siz
             <select id="capWords"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4" selected>4</option></select></div>
         </div>
         <label class="check"><input type="checkbox" id="capUpper"> Tout en majuscules</label>
+        <label class="check"><input type="checkbox" id="wmOn" checked> Logo ScriptBoom en bas de la vidéo</label>
         <label style="margin-top:16px">Mouvement</label>
         <div class="pills" role="group" aria-label="Mouvement" style="margin-top:0">
           <button class="pill" data-fx="aucun" aria-pressed="false">Aucun</button>
@@ -539,7 +540,7 @@ function wordAt(t){ let i = 0; while (i+1 < capStarts.length && capStarts[i+1] <
 let capStyle = 'classique', fx = 'doux';
 pick('[data-cap]','cap', v => { capStyle = v; if (!running) drawFrame(previewT()); });
 pick('[data-fx]','fx', v => { fx = v; if (!running) drawFrame(previewT()); });
-['capPos','capWords','capUpper'].forEach(id => $(id).addEventListener('change', () => { if (!running) drawFrame(previewT()); }));
+['capPos','capWords','capUpper','wmOn'].forEach(id => $(id).addEventListener('change', () => { if (!running) drawFrame(previewT()); }));
 $('hook').addEventListener('input', () => { if (!running) drawFrame(0.6); });
 function previewT(){ return audioBuf ? Math.min(audioBuf.duration * 0.3, 4) : 0; }
 
@@ -632,7 +633,7 @@ function drawFrame(t){
     if (!hookOn) drawCaption(wordAt(t));
   }
   if (audioBuf){ g.fillStyle = '#1ed760'; g.fillRect(0, 0, W*Math.min(1, t/audioBuf.duration), 8); }
-  if (wmImg.complete && wmImg.naturalWidth){
+  if ($('wmOn').checked && wmImg.complete && wmImg.naturalWidth){
     const ww = W*0.15, wh = ww * wmImg.naturalHeight / wmImg.naturalWidth;
     g.save(); g.globalAlpha = 0.85; g.drawImage(wmImg, W - ww - 30, H - wh - 36, ww, wh); g.restore();
   }
