@@ -97,23 +97,63 @@ Réponds en JSON : {"title":"...","caption":"...","hashtags":["#..."]}`, true);
     if (!topic) return res.status(400).json({ error: 'Sujet manquant' });
     const d = [20, 35, 60].includes(Number(b.dur)) ? Number(b.dur) : 35;
     const nWords = Math.round(d * 2.6);
+    const series = !!b.series;
     // Moins d'éléments quand la vidéo est courte, pour avoir le temps d'expliquer chacun
-    const nTop = d <= 20 ? 3 : d <= 35 ? 3 : 5;
-    const top = b.format === 'top5' ? ` Fais un Top ${nTop} (pas plus), annoncé comme « Top ${nTop} » ou l'équivalent dans la langue.` : '';
+    const nTop = d <= 35 ? 3 : 5;
+    const top = b.format === 'top5'
+      ? (series ? ` Fais un Top ${nTop * 2 > 6 ? 6 : nTop * 2} réparti sur les 2 parties : la partie 1 va du dernier au milieu, la partie 2 finit par le n°1.`
+                : ` Fais un Top ${nTop} (pas plus), annoncé comme « Top ${nTop} » ou l'équivalent dans la langue.`) : '';
     const depth = `Profondeur : le spectateur doit APPRENDRE quelque chose. Chaque affirmation est immédiatement suivie de son explication : le pourquoi ou le comment, avec un mécanisme simple, un exemple concret ou un ordre de grandeur connu. Interdit : aligner des affirmations sans les expliquer. Mieux vaut moins d'idées bien expliquées que beaucoup d'idées survolées.`;
-    const out = await askGemini(`Écris un script de voix off en ${lang} pour une vidéo verticale (TikTok/Reels/Shorts) sur le sujet : "${topic}".
+    const hookRules = `Accroche (le plus important : la moitié des gens partent après 1 seconde) : la toute première phrase fait 8 mots maximum et balance directement l'info la plus choquante, une promesse forte ou une question qui pique la curiosité. Jamais d'introduction du type « Aujourd'hui on va parler de », « Si tu venais de », « Tu t'es déjà demandé ». Exemples de bon style : « Ton cerveau te ment chaque matin. », « Cette poudre blanche change tes muscles. ».
+Rétention : juste après l'accroche, annonce ce que le spectateur va gagner s'il reste jusqu'au bout, et garde la révélation la plus forte pour la fin.`;
+    const style = `Règles : phrases courtes et orales ; tutoiement (ou l'équivalent naturel dans la langue). ${facts}
+Chaque script ne contient QUE le texte à lire : pas de titre, pas de guillemets, pas d'indications de mise en scène, pas d'emojis, pas de numérotation du type « 1. ».
+"hook" : une accroche visuelle choc et très courte (3 à 6 mots, pas une simple reformulation du sujet ; elle crée un manque ou une surprise) à afficher en gros à l'écran pendant les 2 premières secondes, dans la même langue.`;
+
+    let parts;
+    if (series) {
+      const out = await askGemini(`Écris une SÉRIE de 2 vidéos verticales (TikTok/Reels/Shorts) en ${lang} sur le sujet : "${topic}". Chaque partie est une voix off d'environ ${nWords} mots (${d} secondes).
+Ton : ${clean(b.tone, 60) || 'captivant'}.
+${format}${top}
+${depth}
+${hookRules}
+Partie 1 : pose le mystère et donne de vraies infos, mais garde la réponse ou la révélation la plus forte pour la partie 2. Elle se termine OBLIGATOIREMENT par un suspense puis une phrase du type « La suite dans la partie 2, abonne-toi pour ne pas la rater. »
+Partie 2 : commence par « Partie 2 » (ou l'équivalent dans la langue) et un rappel d'une phrase, puis livre la révélation promise, et finit par une question qui pousse à commenter.
+${style}
+Réponds en JSON : {"part1":{"hook":"...","script":"..."},"part2":{"hook":"...","script":"..."}}`, true);
+      parts = [out.part1 || {}, out.part2 || {}];
+    } else {
+      const out = await askGemini(`Écris un script de voix off en ${lang} pour une vidéo verticale (TikTok/Reels/Shorts) sur le sujet : "${topic}".
 Ton : ${clean(b.tone, 60) || 'captivant'}. Longueur : environ ${nWords} mots (${d} secondes lues à voix haute).
 ${format}${top}
 ${depth}
-Accroche (le plus important : la moitié des gens partent après 1 seconde) : la toute première phrase fait 8 mots maximum et balance directement l'info la plus choquante, une promesse forte ou une question qui pique la curiosité. Jamais d'introduction du type « Aujourd'hui on va parler de », « Si tu venais de », « Tu t'es déjà demandé ». Exemples de bon style : « Ton cerveau te ment chaque matin. », « Cette poudre blanche change tes muscles. ».
-Rétention : juste après l'accroche, annonce ce que le spectateur va gagner s'il reste jusqu'au bout, et garde la révélation la plus forte pour la fin.
-Règles : phrases courtes et orales ; tutoiement (ou l'équivalent naturel dans la langue) ; finis par une phrase qui pousse à s'abonner ou commenter. ${facts}
-Le script ne contient QUE le texte à lire : pas de titre, pas de guillemets, pas d'indications de mise en scène, pas d'emojis, pas de numérotation du type « 1. ».
-Donne aussi "hook" : une accroche visuelle choc et très courte (3 à 6 mots, pas une simple reformulation du sujet ; elle crée un manque ou une surprise) à afficher en gros à l'écran pendant les 2 premières secondes, dans la même langue.
+${hookRules}
+Finis par une phrase qui pousse à s'abonner ou commenter.
+${style}
 Réponds en JSON : {"hook":"...","script":"..."}`, true);
-    const script = clean(out.script, 3000).trim();
-    if (!script) throw new Error('Script vide');
-    return res.status(200).json({ script, hook: clean(out.hook, 80).trim() });
+      parts = [out];
+    }
+    parts = parts.map(p => ({ script: clean(p.script, 3000).trim(), hook: clean(p.hook, 80).trim() }));
+    if (!parts[0].script || (series && !parts[1].script)) throw new Error('Script vide');
+
+    // Vérification des faits : une 2e lecture corrige les chiffres, dates et affirmations douteuses
+    let fixes = [];
+    if (b.check !== false) {
+      try {
+        const chk = await askGemini(`Tu es vérificateur de faits pour des vidéos de vulgarisation. Voici ${parts.length > 1 ? 'les scripts' : 'le script'} (en ${lang}) :
+${parts.map((p, k) => `--- SCRIPT ${k + 1} ---\n${p.script}`).join('\n')}
+Relis chaque affirmation. Si un chiffre, une date, un nom ou une affirmation est faux, exagéré ou incertain, corrige-le ou reformule-le de façon plus générale et prudente. Ne touche à rien d'autre : garde le style, l'accroche, le ton, la longueur et la fin. Si tout est correct, renvoie les scripts à l'identique.
+Réponds en JSON : {"scripts":["script 1 corrigé"${parts.length > 1 ? ', "script 2 corrigé"' : ''}],"fixes":["courte description de chaque correction, en français (vide si aucune)"]}`, true);
+        const fixed = Array.isArray(chk.scripts) ? chk.scripts : [];
+        parts.forEach((p, k) => {
+          const f = clean(fixed[k], 3000).trim();
+          // On n'accepte la correction que si elle garde à peu près la même longueur
+          if (f && f.length > p.script.length * 0.7 && f.length < p.script.length * 1.3) p.script = f;
+        });
+        fixes = (chk.fixes || []).filter(x => typeof x === 'string' && x.trim()).map(x => clean(x, 200)).slice(0, 6);
+      } catch (e) { /* si la vérification échoue, on garde le script tel quel */ }
+    }
+    return res.status(200).json({ ...parts[0], part2: series ? parts[1] : null, fixes });
   } catch (e) {
     return res.status(500).json({ error: e.message || 'Erreur' });
   }
