@@ -50,6 +50,7 @@ nav .grow{flex:1}
 h1{font-size:clamp(42px,7vw,76px);line-height:.98;letter-spacing:-.035em;margin:0 0 18px;font-weight:900}
 h1 em{font-style:normal;color:var(--green)}
 .lead{font-size:clamp(17px,2.2vw,20px);color:#cfcfcf;margin:0 0 28px;max-width:34ch}
+.safe-note{color:#e8e8e8;font-size:14px;font-weight:600;margin:14px 0 0}
 .cta-row{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
 .small{font-size:14px;color:var(--muted)}
 /* le labo animé */
@@ -141,6 +142,7 @@ footer{padding:40px 0 60px;color:var(--muted);font-size:14px;display:flex;gap:16
         <a class="btn btn-offer" href="#rejoindre">Je réserve ma place à −50 %</a>
         <span class="small"><s>7,99 €</s> <b style="color:#f6c343">3,99 €/mois</b>, à vie</span>
       </div>
+      <p class="safe-note">🔒 Inscription par email uniquement. Aucun paiement avant le lancement.</p>
     </div>
     <div class="labo" aria-hidden="true">
       <div class="phone"><div class="phone-in"><i class="bar"></i><div class="hk">Ton cœur peut se briser</div><div class="cp">Un <span>chagrin</span> peut abîmer ton cœur</div><img src="/logo.png" alt=""></div></div>
@@ -196,6 +198,7 @@ footer{padding:40px 0 60px;color:var(--muted);font-size:14px;display:flex;gap:16
         </div>
         <input class="hp" id="website" type="text" tabindex="-1" autocomplete="off" aria-hidden="true">
         <button class="btn" type="submit" id="go">Je rejoins la liste d'attente</button>
+        <p class="safe-note" style="text-align:center">🔒 Inscription par email uniquement. Aucun paiement avant le lancement.</p>
         <p class="small" style="margin:6px 0 0;text-align:center">Tu recevras un email au lancement, rien d'autre. Désinscription en un clic. <a href="/confidentialite">Confidentialité</a></p>
       </form>
       <p id="msg" role="status"></p>
