@@ -373,7 +373,10 @@ function pick(sel, attr, cb){ document.querySelectorAll(sel).forEach(b => b.oncl
   document.querySelectorAll(sel).forEach(x => x.setAttribute('aria-pressed','false'));
   b.setAttribute('aria-pressed','true'); cb(b.dataset[attr]);
 }); }
-pick('[data-dur]','dur', v => dur = +v);
+pick('[data-dur]','dur', v => { dur = +v; topLabel(); });
+// Le bouton affiche Top 3 pour les vidéos courtes (20 s, 35 s) et Top 5 pour 60 s
+function topLabel(){ const b = document.querySelector('[data-format="top5"]'); if (b) b.textContent = dur >= 60 ? 'Top 5' : 'Top 3'; }
+topLabel();
 pick('[data-tone]','tone', v => tone = v);
 let format = 'libre';
 const FORMAT_TONE = { histoire:'mystérieux et captivant', fait:'mystérieux et captivant', top5:'énergique et fun', citation:'motivant et intense', saviezvous:'pédagogique et clair' };
