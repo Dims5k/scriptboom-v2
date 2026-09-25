@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>ScriptBoom</title>
+<link rel="icon" type="image/png" href="/icon.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="theme-color" content="#000000">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet">
@@ -20,6 +23,7 @@ body{font:16px/1.5 Figtree,system-ui,-apple-system,sans-serif;-webkit-font-smoot
 .wrap{max-width:1040px;margin:0 auto;padding:28px 16px 60px}
 header{margin-bottom:28px}
 .logo{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:clamp(34px,7vw,52px);letter-spacing:-.03em;color:var(--green);margin:0;line-height:1}
+.logo img{display:block;height:clamp(40px,9vw,64px);width:auto}
 .tag{color:var(--muted);font-size:15px;margin:6px 0 0}
 .grid{display:grid;grid-template-columns:1fr 340px;gap:28px;align-items:start}
 @media (max-width:820px){.grid{grid-template-columns:1fr}.stage-col{position:static!important}.phone{max-width:250px}}
@@ -95,7 +99,7 @@ details.ideas summary{cursor:pointer;color:var(--green);font-weight:600;font-siz
 <body>
 <div class="wrap">
   <header>
-    <h1 class="logo">ScriptBoom</h1>
+    <h1 class="logo"><img src="/logo.png" alt="ScriptBoom" width="900" height="163"></h1>
     <p class="tag">Un sujet, une voix, ta vidéo. Prête à poster.</p>
   </header>
 
@@ -628,7 +632,12 @@ function drawFrame(t){
     if (!hookOn) drawCaption(wordAt(t));
   }
   if (audioBuf){ g.fillStyle = '#1ed760'; g.fillRect(0, 0, W*Math.min(1, t/audioBuf.duration), 8); }
+  if (wmImg.complete && wmImg.naturalWidth){
+    const ww = W*0.15, wh = ww * wmImg.naturalHeight / wmImg.naturalWidth;
+    g.save(); g.globalAlpha = 0.85; g.drawImage(wmImg, W - ww - 30, H - wh - 36, ww, wh); g.restore();
+  }
 }
+const wmImg = new Image(); wmImg.onload = () => { if (!running) drawFrame(previewT()); }; wmImg.src = '/watermark.png';
 // ---------- Étape 4 : table de mixage ----------
 let mix = null, musicBuf = null, musicSrc = null, recDest = null;
 const routed = new WeakSet();
