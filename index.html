@@ -358,7 +358,11 @@ $('gen').onclick = async () => {
 };
 
 // ---------- Étape 2 : voix IA ----------
-function ctx(){ if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)(); return actx; }
+function ctx(){
+  if (!actx){ const AC = window.AudioContext || window.webkitAudioContext;
+    try { actx = new AC({ sampleRate: 48000 }); } catch(e){ actx = new AC(); } } // 48 kHz : format attendu par TikTok
+  return actx;
+}
 
 $('makeVoice').onclick = async () => {
   const text = $('script').value.trim(), msg = $('voiceMsg');
@@ -647,10 +651,16 @@ function buildMix(){
   if (mix) return mix;
   const c = ctx(), node = () => c.createGain(), an = () => { const a = c.createAnalyser(); a.fftSize = 1024; return a; };
   mix = { master: node(), voice: node(), video: node(), musicVol: node(), duck: node(), aVoice: an(), aVideo: an(), aMusic: an() };
+  // Sortie propre pour TikTok : coupe les basses parasites, limiteur doux, pics sous -1 dB (évite la voix hachée après compression)
+  const hp = c.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 70;
+  const lim = c.createDynamicsCompressor();
+  lim.threshold.value = -6; lim.knee.value = 6; lim.ratio.value = 12; lim.attack.value = 0.003; lim.release.value = 0.25;
+  mix.out = node(); mix.out.gain.value = 0.85;
+  mix.master.connect(hp); hp.connect(lim); lim.connect(mix.out);
   mix.voice.connect(mix.aVoice); mix.aVoice.connect(mix.master);
   mix.video.connect(mix.aVideo); mix.aVideo.connect(mix.master);
   mix.duck.connect(mix.musicVol); mix.musicVol.connect(mix.aMusic); mix.aMusic.connect(mix.master);
-  mix.master.connect(c.destination);
+  mix.out.connect(c.destination);
   applyVolumes(); return mix;
 }
 function applyVolumes(){
@@ -805,7 +815,7 @@ async function start(recordDest){
   const m = buildMix(); applyVolumes();
   try { await document.fonts.load('800 64px "Bricolage Grotesque"'); } catch(e){}
   prepareCaptions();
-  if (recordDest){ recDest = recordDest; m.master.connect(recordDest); }
+  if (recordDest){ recDest = recordDest; m.out.connect(recordDest); }
   // Son des vidéos de fond
   if (vol('volVideo') > 0){ if (bgMode === 'own') routeVideo(vid); if (bgMode === 'auto') scenes.forEach(s => routeVideo(s.el)); }
   const t0 = c.currentTime + 0.1, D = audioBuf.duration, fades = $('fades').checked;
@@ -821,7 +831,7 @@ async function start(recordDest){
   if (musicBuf){
     musicSrc = c.createBufferSource(); musicSrc.buffer = musicBuf; musicSrc.loop = true; musicSrc.connect(m.duck);
     if (fades){ m.duck.gain.setValueAtTime(0, t0); m.duck.gain.linearRampToValueAtTime(1, t0 + 1.5); }
-    if ($('duck').checked){ speechMap(audioBuf).forEach((talk, i) => { const at = t0 + i*0.1; if (at > t0 + 1.5) m.duck.gain.setTargetAtTime(talk ? 0.3 : 1, at, 0.08); }); }
+    if ($('duck').checked){ speechMap(audioBuf).forEach((talk, i) => { const at = t0 + i*0.1; if (at > t0 + 1.5) m.duck.gain.setTargetAtTime(talk ? 0.2 : 1, at, 0.08); }); }
     musicSrc.start(t0);
   }
   current = null;
@@ -835,7 +845,7 @@ function stopSources(){
   running = false; cancelAnimationFrame(raf);
   if (src){ try { src.onended = null; src.stop(); } catch(e){} src = null; }
   if (musicSrc){ try { musicSrc.stop(); } catch(e){} musicSrc = null; }
-  if (mix && recDest){ try { mix.master.disconnect(recDest); } catch(e){} recDest = null; }
+  if (mix && recDest){ try { mix.out.disconnect(recDest); } catch(e){} recDest = null; }
   vid.pause(); scenes.forEach(s => s.el && s.el.pause()); current = null;
   drawMeters();
 }
@@ -877,7 +887,7 @@ $('export').onclick = async () => {
   const stream = cv.captureStream(30);
   dest.stream.getAudioTracks().forEach(tr => stream.addTrack(tr));
   const chunks = [];
-  recorder = new MediaRecorder(stream, mime ? { mimeType: mime, videoBitsPerSecond: 5000000 } : undefined);
+  recorder = new MediaRecorder(stream, mime ? { mimeType: mime, videoBitsPerSecond: 6000000, audioBitsPerSecond: 192000 } : { audioBitsPerSecond: 192000 });
   recorder.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
   const done = new Promise(res => recorder.onstop = res);
   m.className='msg'; m.textContent = 'Export en cours… garde la page ouverte.';
