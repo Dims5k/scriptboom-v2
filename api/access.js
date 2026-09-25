@@ -1,30 +1,30 @@
-import { createHmac } from 'crypto';
-
-// Porte d'entrée de ScriptBoom : accès sur invitation.
-// Liste des invités : variable EMAILS_AUTORISES dans Vercel (emails séparés par des virgules).
+// Porte d'entrée de ScriptBoom : accès sur invitation (email, ou email + code personnel).
 // Chaque tentative est écrite dans les logs Vercel (ACCES OK / ACCES REFUSE).
-const invitedList = () => String(process.env.EMAILS_AUTORISES || '').toLowerCase().split(/[\s,;]+/).filter(Boolean);
-const sign = email => createHmac('sha256', process.env.ACCESS_SECRET || process.env.GEMINI_API_KEY || 'scriptboom').update(email).digest('base64url');
+import { invited, findEntry, makeToken } from './_auth.js';
+import { rateLimit, clientIp, TOO_MANY } from './_kv.js';
 
 export default async function handler(req, res) {
+  res.setHeader('Cache-Control', 'no-store');
   if (req.method !== 'POST') return res.status(405).json({ error: 'Méthode non autorisée' });
   const body = req.body || {};
 
-  // Vérifie qu'un accès déjà donné est toujours valable (email pas retiré de la liste)
-  if (body.check) {
-    const [e, sig] = String(req.headers['x-sb-token'] || '').split('.');
-    const email = e ? Buffer.from(e, 'base64url').toString() : '';
-    const ok = email && sig === sign(email) && invitedList().includes(email);
-    return ok ? res.status(200).json({ ok: true }) : res.status(401).json({ error: 'Accès sur invitation' });
-  }
+  // Vérifie qu'un accès déjà donné est toujours valable
+  if (body.check) return invited(req) ? res.status(200).json({ ok: true }) : res.status(401).json({ error: 'Accès sur invitation' });
 
   const email = String(body.email || '').trim().toLowerCase().slice(0, 200);
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: 'Email invalide' });
+  const code = String(body.code || '').trim().toLowerCase().slice(0, 60);
+  if (!/^[^\s@:]+@[^\s@:]+\.[^\s@:]+$/.test(email)) return res.status(400).json({ error: 'Email invalide' });
 
-  if (!invitedList().includes(email)) {
+  // Anti-devinette : 10 essais par IP et 6 par email toutes les 15 minutes
+  if (!(await rateLimit('login-ip', clientIp(req), 10, 900)) || !(await rateLimit('login-mail', email, 6, 900)))
+    return res.status(429).json({ error: TOO_MANY });
+
+  const entry = findEntry(email, code);
+  if (!entry) {
+    await new Promise(r => setTimeout(r, 700));
     console.log('ACCES REFUSE', email);
-    return res.status(403).json({ error: "Cet email n'est pas encore invité. ScriptBoom est en accès privé pour le moment." });
+    return res.status(403).json({ error: "Email ou code incorrect. ScriptBoom est en accès privé pour le moment." });
   }
   console.log('ACCES OK', email);
-  return res.status(200).json({ token: Buffer.from(email).toString('base64url') + '.' + sign(email) });
+  return res.status(200).json({ token: makeToken(entry) });
 }
