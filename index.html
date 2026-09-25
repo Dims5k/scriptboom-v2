@@ -224,16 +224,28 @@ body{overflow-x:hidden}
 <!-- Porte d'entrée : accès sur invitation -->
 <div id="sbGate">
   <div class="sbg-box">
-    <div class="sbg-logo">Script<span>Boom</span></div>
-    <p class="sbg-title">Accès sur invitation</p>
-    <p class="sbg-sub">Entre l'email avec lequel tu as été invité.</p>
+    <img class="sbg-icon" src="/logo.png" alt=""><div class="sbg-logo">Script<span>Boom</span></div>
+    <p class="sbg-tag">Un sujet. Une vidéo. <b>BOOM.</b></p>
+    <a class="sbg-burst" href="/bienvenue#rejoindre" aria-label="Offre de lancement : moins 50 pour cent à vie pour les 500 premiers inscrits">
+      <svg class="boom-shape" viewBox="0 0 240 240" aria-hidden="true">
+          <defs>
+            <radialGradient id="gbg1" cx="40%" cy="35%" r="75%"><stop offset="0" stop-color="#9d5cff"/><stop offset=".55" stop-color="#6d28d9"/><stop offset="1" stop-color="#3b0f7a"/></radialGradient>
+            <linearGradient id="ggold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff1b8"/><stop offset=".45" stop-color="#f6c343"/><stop offset="1" stop-color="#c8871a"/></linearGradient>
+          </defs>
+          <polygon points="120.0,20.0 131.4,40.8 148.2,24.1 154.9,43.6 174.1,35.9 172.4,59.5 195.6,54.5 190.7,74.6 211.0,78.5 196.8,97.5 219.0,105.8 204.0,120.0 219.0,134.2 196.8,142.5 211.0,161.5 190.7,165.4 195.6,185.5 172.4,180.5 174.1,204.1 154.9,196.4 148.2,215.9 131.4,199.2 120.0,220.0 108.0,203.1 91.8,215.9 86.8,192.8 65.9,204.1 65.0,183.5 44.4,185.5 52.7,163.3 29.0,161.5 39.4,143.7 21.0,134.2 40.0,120.0 21.0,105.8 39.4,96.3 29.0,78.5 52.7,76.7 44.4,54.5 65.0,56.5 65.9,35.9 86.8,47.2 91.8,24.1 108.0,36.9" fill="#1a0638" transform="translate(6 8)"/>
+          <polygon points="120.0,20.0 131.4,40.8 148.2,24.1 154.9,43.6 174.1,35.9 172.4,59.5 195.6,54.5 190.7,74.6 211.0,78.5 196.8,97.5 219.0,105.8 204.0,120.0 219.0,134.2 196.8,142.5 211.0,161.5 190.7,165.4 195.6,185.5 172.4,180.5 174.1,204.1 154.9,196.4 148.2,215.9 131.4,199.2 120.0,220.0 108.0,203.1 91.8,215.9 86.8,192.8 65.9,204.1 65.0,183.5 44.4,185.5 52.7,163.3 29.0,161.5 39.4,143.7 21.0,134.2 40.0,120.0 21.0,105.8 39.4,96.3 29.0,78.5 52.7,76.7 44.4,54.5 65.0,56.5 65.9,35.9 86.8,47.2 91.8,24.1 108.0,36.9" fill="url(#gbg1)" stroke="url(#ggold)" stroke-width="5" stroke-linejoin="round"/>
+        </svg>
+      <span class="sbg-btxt"><small>Offre de<br>lancement</small><b>−50%</b><strong>À VIE</strong><em>500 places</em></span>
+    </a>
+    <a class="sbg-offer" href="/bienvenue#rejoindre">Je réserve ma place à −50 %</a>
+    <p class="sbg-price"><s>7,99 €</s> <b>3,99 €/mois</b>, à vie · pour les 500 premiers</p>
+    <div class="sbg-sep"><span>Déjà invité ?</span></div>
     <form id="sbgForm" autocomplete="on">
       <input id="sbgEmail" type="email" inputmode="email" autocomplete="email" placeholder="ton@email.com" required>
       <input id="sbgCode" type="password" autocomplete="current-password" autocapitalize="off" placeholder="Code d'accès (si on t'en a donné un)" style="margin-top:10px">
       <button id="sbgBtn" type="submit">Entrer</button>
     </form>
     <p id="sbgErr"></p>
-    <p class="sbg-foot">Pas encore invité ? <a href="/bienvenue" style="color:#1ed760;font-weight:700">Rejoins la liste d'attente →</a></p>
   </div>
 </div>
 <style>
@@ -249,6 +261,31 @@ body{overflow-x:hidden}
 #sbGate button:disabled{opacity:.6}
 #sbGate #sbgErr{color:#ff6b6b;min-height:20px;margin:14px 0 0;font-size:14px}
 #sbGate .sbg-foot{color:#9a9a9a;font-size:13px;margin-top:24px}
+#sbGate{overflow-y:auto}
+#sbGate .sbg-box{margin:auto 0}
+#sbGate .sbg-logo{margin-bottom:6px!important}
+.sbg-burst{position:absolute;top:14px;right:10px;z-index:2;display:grid;place-items:center;width:150px;height:150px;text-decoration:none;transform:rotate(10deg);animation:gBoomIn .8s cubic-bezier(.2,1.4,.4,1) .3s both,gBoomWob 1.8s ease-in-out 1.2s infinite;filter:drop-shadow(0 8px 20px rgba(109,40,217,.55))}
+.sbg-burst svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible;animation:gBoomSpin 20s linear infinite}
+.sbg-btxt{position:relative;display:flex;flex-direction:column;align-items:center;line-height:1;text-align:center}
+.sbg-btxt small{font:800 7px Figtree,system-ui,sans-serif;letter-spacing:.08em;max-width:80px;text-transform:uppercase;color:#fff;opacity:.9;margin-bottom:2px}
+.sbg-btxt b{font:900 28px/.95 Figtree,system-ui,sans-serif;letter-spacing:-.04em;background:linear-gradient(180deg,#fff7d1 0%,#f6c343 55%,#d18f1c 100%);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 2px 0 #2a0a52)}
+.sbg-btxt strong{font:900 14px Figtree,system-ui,sans-serif;letter-spacing:.08em;color:#fff;text-shadow:0 2px 0 #2a0a52;margin-top:1px}
+.sbg-btxt em{font:800 8px Figtree,system-ui,sans-serif;font-style:normal;margin-top:4px;background:#f6c343;color:#2a0a52;border-radius:999px;padding:2px 7px}
+@keyframes gBoomIn{0%{transform:scale(0) rotate(-40deg);opacity:0}100%{transform:scale(1) rotate(10deg);opacity:1}}
+@keyframes gBoomWob{0%,100%{transform:rotate(10deg) scale(1)}50%{transform:rotate(4deg) scale(1.1)}}
+@keyframes gBoomSpin{to{transform:rotate(360deg)}}
+#sbGate .sbg-icon{width:84px;height:84px;border-radius:22px;display:block;margin:0 auto 14px}
+#sbGate .sbg-logo{font-size:clamp(40px,14.5vw,58px)!important;letter-spacing:-2px!important;line-height:1;margin-bottom:10px!important}
+#sbGate .sbg-tag{color:#bdbdbd;font-size:17px;font-weight:700;margin:0 0 30px}#sbGate .sbg-tag b{color:#1ed760}
+@media (max-width:699px){#sbGate .sbg-box{padding-top:110px}}
+@media (max-width:380px){.sbg-burst{width:132px;height:132px;right:6px}.sbg-btxt b{font-size:24px}.sbg-btxt strong{font-size:12px}}
+@media (min-width:700px){.sbg-burst{top:28px;right:40px;width:180px;height:180px}.sbg-btxt b{font-size:34px}.sbg-btxt strong{font-size:17px}.sbg-btxt small{font-size:8px}.sbg-btxt em{font-size:9px}}
+#sbGate .sbg-offer{display:block;margin:6px 0 0;padding:15px;border-radius:999px;font-weight:800;font-size:17px;text-decoration:none;color:#2a0a52;background:linear-gradient(135deg,#fff1b8,#f6c343 45%,#d18f1c);box-shadow:0 8px 24px rgba(246,195,67,.25)}
+#sbGate .sbg-price{color:#9a9a9a;font-size:13px;margin:10px 0 0}#sbGate .sbg-price b{color:#f6c343}
+#sbGate .sbg-sep{display:flex;align-items:center;gap:10px;color:#777;font-size:13px;margin:26px 0 12px}
+#sbGate .sbg-sep:before,#sbGate .sbg-sep:after{content:"";flex:1;height:1px;background:#262626}
+#sbGate button{background:#1a1a1a!important;color:#f2f2f2!important;border:1px solid #333!important}
+@media (prefers-reduced-motion:reduce){.sbg-burst,.sbg-burst svg{animation:none}}
 </style>
 <script>
 (function(){
