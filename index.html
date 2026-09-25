@@ -124,6 +124,8 @@ body{overflow-x:hidden}
 .top-select{width:auto;padding:8px 12px;border-radius:999px;font-size:14px;background:#111;border:1px solid #262626}
 .top-pills{margin:0;flex-wrap:nowrap;gap:5px}.top-pills .pill{padding:6px 10px;font-size:13px;white-space:nowrap}
 .grow{flex:1}
+.reset-btn{appearance:none;flex:none;height:36px;padding:0 14px;border-radius:999px;border:1.5px solid #ff4d4f;background:rgba(255,77,79,.1);color:#ff6b6b;font:700 13px Figtree,sans-serif;cursor:pointer}
+.reset-btn:hover{background:#ff4d4f;color:#fff}
 .icon-btn{width:40px;height:40px;flex:none;border-radius:50%;border:1px solid #262626;background:#111;color:#e6e6e6;display:grid;place-items:center;cursor:pointer}
 .icon-btn:hover{border-color:var(--green);color:var(--green)}
 #installBtn{padding:9px 14px;font-size:14px}
@@ -285,6 +287,7 @@ body{overflow-x:hidden}
     <span class="grow"></span>
     <button class="icon-btn" data-open="coach" aria-label="Coach : mes stats" title="Coach"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19h16M7 16v-4M12 16V8M17 16v-7"/></svg></button>
     <button class="icon-btn" data-open="hist" aria-label="Mes vidéos" title="Mes vidéos"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg></button>
+    <button class="reset-btn" id="resetBtn" title="Tout effacer pour une nouvelle vidéo">Reset</button>
     <button class="btn ghost" id="installBtn" hidden>Installer</button>
   </header>
   <p class="msg ok" id="installMsg" role="status" hidden></p>
@@ -926,8 +929,23 @@ function loadVideo(url){
     v.src = url; document.body.appendChild(v); v.load();
   });
 }
+// Photo fixe (Wikimedia Commons) utilisée comme une vidéo : le zoom lent l'anime
+function loadImage(url){
+  return new Promise((ok, ko) => {
+    const img = new Image(); const timer = setTimeout(() => ko(new Error('trop long')), 25000);
+    img.onload = () => { clearTimeout(timer);
+      img.pause = () => {}; img.play = () => Promise.resolve();
+      Object.defineProperty(img, 'videoWidth', { get: () => img.naturalWidth });
+      Object.defineProperty(img, 'videoHeight', { get: () => img.naturalHeight });
+      Object.defineProperty(img, 'readyState', { get: () => 4 });
+      ok(img); };
+    img.onerror = () => { clearTimeout(timer); ko(new Error('illisible')); };
+    img.src = url;
+  });
+}
+const loadMedia = (url, info) => info && info.image ? loadImage(url) : loadVideo(url);
 function clearScenes(){
-  scenes.forEach(s => { if (s.el){ s.el.pause(); s.el.remove(); URL.revokeObjectURL(s.url); } });
+  scenes.forEach(s => { if (s.el){ s.el.pause(); if (s.el.remove) s.el.remove(); URL.revokeObjectURL(s.url); } });
   scenes = []; current = null;
 }
 async function findBackgrounds(){
@@ -943,12 +961,12 @@ async function findBackgrounds(){
     clearScenes();
     let loaded = 0;
     scenes = await Promise.all(data.scenes.map(async s => {
-      const sc = { text: s.text, query: s.query, info: s.video, el: null, url: null };
+      const sc = { text: s.text, query: s.query, wiki: s.wiki || '', info: s.video, el: null, url: null };
       if (!s.video) return sc;
       try {
         const res = await fetch(s.video.src); if (!res.ok) throw new Error(res.status);
         sc.url = URL.createObjectURL(await res.blob());
-        sc.el = await loadVideo(sc.url); loaded++;
+        sc.el = await loadMedia(sc.url, s.video); loaded++;
         msg.textContent = `Téléchargement des vidéos… ${loaded}/${data.scenes.filter(x=>x.video).length}`;
       } catch(e) { sc.el = null; }
       return sc;
@@ -966,7 +984,8 @@ function renderScenes(){
   const ol = $('scenesList'); ol.innerHTML = '';
   scenes.forEach((s, idx) => {
     const li = document.createElement('li');
-    if (s.el){ const v = document.createElement('video'); v.muted = true; v.playsInline = true; v.setAttribute('playsinline',''); v.preload = 'metadata'; v.src = s.url + '#t=0.5'; li.appendChild(v); }
+    if (s.el && s.el.tagName === 'IMG'){ const im = document.createElement('img'); im.src = s.url; im.alt = ''; im.style.cssText = 'width:48px;height:84px;object-fit:cover;border-radius:8px;flex:none'; li.appendChild(im); }
+    else if (s.el){ const v = document.createElement('video'); v.muted = true; v.playsInline = true; v.setAttribute('playsinline',''); v.preload = 'metadata'; v.src = s.url + '#t=0.5'; li.appendChild(v); }
     else { const d = document.createElement('div'); d.className = 'none'; d.textContent = '—'; li.appendChild(d); }
     const box = document.createElement('div'); const p = document.createElement('p'); p.textContent = s.text;
     const sm = document.createElement('small'); sm.textContent = s.busy ? 'Recherche…' : s.el ? (s.own ? 'ta vidéo' : s.query) : s.query + ' · pas trouvé, la scène d\'avant continue';
@@ -980,15 +999,19 @@ function renderScenes(){
     acts.append(bOther, bKey, lOwn);
     box.append(p, sm, acts); li.appendChild(box); ol.appendChild(li);
   });
-  const authors = [...new Set(scenes.filter(s => s.el && s.info && !s.own).map(s => s.info.author))];
-  $('credit').innerHTML = '';
-  const a = document.createElement('a'); a.href = 'https://www.pexels.com'; a.target = '_blank'; a.rel = 'noopener'; a.textContent = 'Pexels';
-  $('credit').append('Vidéos fournies par ', a, authors.length ? ' · ' + authors.join(', ') : '');
+  $('credit').textContent = mediaCredits() || '';
   $('scenesBox').hidden = false;
+}
+// Crédits des médias (obligatoires pour les photos Wikimedia sous licence CC BY / CC BY-SA)
+function mediaCredits(){
+  const by = {};
+  scenes.filter(s => s.el && s.info && !s.own).forEach(s => { const src = s.info.source || 'Pexels';
+    (by[src] = by[src] || new Set()).add(s.info.license ? `${s.info.author} (${s.info.license})` : s.info.author); });
+  return Object.entries(by).map(([src, set]) => `${src} : ${[...set].join(', ')}`).join(' · ');
 }
 function setSceneMedia(idx, url, el, info, own){
   const s = scenes[idx];
-  if (s.el){ if (current === s.el) current = null; s.el.pause(); s.el.remove(); }
+  if (s.el){ if (current === s.el) current = null; s.el.pause(); if (s.el.remove) s.el.remove(); }
   if (s.url) URL.revokeObjectURL(s.url);
   s.url = url; s.el = el; s.info = info; s.own = !!own;
   if (vol('volVideo') > 0) routeVideo(el);
@@ -996,16 +1019,16 @@ function setSceneMedia(idx, url, el, info, own){
 // Remplace UNE scène sans toucher aux autres
 async function replaceScene(idx, query, newQuery){
   const s = scenes[idx], msg = $('bgMsg'); if (!s || s.busy) return;
-  if (newQuery){ s.query = query; s.page = 1; }
+  if (newQuery){ s.query = query; s.page = 1; s.wiki = ''; }
   s.seen = s.seen || []; if (s.info && s.info.id) s.seen.push(s.info.id);
   const exclude = [...new Set([...s.seen, ...scenes.map(x => x.info && x.info.id).filter(Boolean)])];
   s.busy = true; renderScenes(); msg.className = 'msg'; msg.textContent = `Recherche d'une autre vidéo pour la scène ${idx+1}…`;
   try {
-    const r = await fetch('/api/scenes', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ query, page: s.page || 1, exclude }) });
+    const r = await fetch('/api/scenes', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ query, page: s.page || 1, exclude, wiki: s.wiki || '' }) });
     const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || 'Erreur ' + r.status);
     s.page = d.page || s.page;
     const res = await fetch(d.video.src); if (!res.ok) throw new Error('téléchargement impossible');
-    const url = URL.createObjectURL(await res.blob()); const el = await loadVideo(url);
+    const url = URL.createObjectURL(await res.blob()); const el = await loadMedia(url, d.video);
     setSceneMedia(idx, url, el, d.video, false);
     msg.className = 'msg ok'; msg.textContent = `Scène ${idx+1} remplacée. Les autres n'ont pas bougé.`;
   } catch(e){ msg.className = 'msg err'; msg.textContent = `Scène ${idx+1} : ` + (e.message || 'erreur'); }
@@ -1037,7 +1060,7 @@ function syncBg(t){
   if (el === current) return el;
   if (current && current !== el) current.pause();
   current = el;
-  if (el && running){ try { el.currentTime = 0; } catch(e){} el.play().catch(() => { el.muted = true; el.play().catch(()=>{}); }); }
+  if (el && running){ try { if (el.tagName !== 'IMG') el.currentTime = 0; } catch(e){} el.play().catch(() => { el.muted = true; el.play().catch(()=>{}); }); }
   return el;
 }
 
@@ -1743,7 +1766,8 @@ $('makeCaption').onclick = async () => {
     const r = await fetch('/api/script', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ mode:'caption', script, lang: lang() }) });
     const d = await r.json(); if (!r.ok) throw new Error(d.error || 'Erreur');
     $('pubTitle').value = d.title || '';
-    $('pubText').value = (d.caption || '') + '\n\n' + (d.hashtags || []).join(' ');
+    const cr = scenes.some(x => x.el && x.info && x.info.source === 'Wikimedia Commons') ? '\n\nPhotos : ' + mediaCredits() : '';
+    $('pubText').value = (d.caption || '') + '\n\n' + (d.hashtags || []).join(' ') + cr;
     $('capBox').hidden = false; msg.className='msg ok'; msg.textContent='Modifie si tu veux, puis copie.';
   } catch(e){ msg.className='msg err'; msg.textContent='La génération a échoué : ' + (e.message || 'erreur inconnue'); }
   finally { btn.disabled = false; btn.textContent = 'Générer la légende et les hashtags'; }
@@ -1826,6 +1850,25 @@ setInterval(updateRecipe, 500);
 function boomFx(){ const f = $('boomFx'); f.hidden = false; f.onclick = () => f.hidden = true; setTimeout(() => f.hidden = true, 1600); }
 if (!isMobile()) openPanel('script'); else updateRecipe();
 window.addEventListener('resize', () => { if (!isMobile()){ $('scrim').hidden = true; if (!panelNow) openPanel('script'); } });
+
+// ---------- Reset : tout effacer pour une nouvelle vidéo (les réglages restent) ----------
+$('resetBtn').onclick = () => {
+  if (running) return;
+  if (!confirm('Tout effacer pour commencer une nouvelle vidéo ?\n(Tes réglages, ton historique et ta semaine sont gardés.)')) return;
+  ['topic','script','hook','kw','pubTitle','pubText','replyText','replyUser'].forEach(id => { if ($(id)) $(id).value = ''; });
+  parts = []; part = 0; histId = null; replyComment = null; capTr = null; weekIdx = null;
+  $('partBox').hidden = true; $('fixList').hidden = true; $('capBox').hidden = true;
+  audioBuf = null; audioRaw = null; voiceBlob = null; voiceKey = '';
+  if (voiceURL){ URL.revokeObjectURL(voiceURL); voiceURL = null; } const vp = $('voicePlayer'); vp.pause(); vp.removeAttribute('src'); vp.hidden = true;
+  clearScenes(); sceneStarts = []; bgMode = 'none'; $('scenesBox').hidden = true; $('scenesList').innerHTML = '';
+  if (videoURL){ URL.revokeObjectURL(videoURL); videoURL = null; vid.removeAttribute('src'); } $('dropTxt').textContent = 'Choisir ma propre vidéo'; $('file').value = '';
+  hideResult(); resultBlob = null;
+  ['genMsg','voiceMsg','bgMsg','playMsg','capMsg','replyMsg','capLangMsg'].forEach(id => { if ($(id)){ $(id).textContent = ''; $(id).className = 'msg'; } });
+  delete visited.style; delete visited.son;
+  capWords = []; updateCount(); showEmpty(true); drawFrame(0); updateRecipe();
+  if (!isMobile()) openPanel('script'); else closePanel();
+  $('topic').focus({ preventScroll: true });
+};
 
 drawFrame(0);
 </script>

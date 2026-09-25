@@ -1,5 +1,16 @@
 {
   "rewrites": [
-    { "source": "/pexels/:path*", "destination": "https://videos.pexels.com/:path*" }
+    {
+      "source": "/pexels/:path*",
+      "destination": "https://videos.pexels.com/:path*"
+    },
+    {
+      "source": "/pixabay/:path*",
+      "destination": "https://cdn.pixabay.com/:path*"
+    },
+    {
+      "source": "/wiki/:path*",
+      "destination": "https://upload.wikimedia.org/:path*"
+    }
   ]
 }
