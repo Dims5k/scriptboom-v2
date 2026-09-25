@@ -105,9 +105,11 @@ Réponds en JSON : {"title":"...","caption":"...","hashtags":["#..."]}`, true);
 Ton : ${clean(b.tone, 60) || 'captivant'}. Longueur : environ ${nWords} mots (${d} secondes lues à voix haute).
 ${format}${top}
 ${depth}
-Règles : la première phrase est une accroche forte ; phrases courtes et orales ; tutoiement (ou l'équivalent naturel dans la langue) ; finis par une phrase qui pousse à s'abonner ou commenter. ${facts}
+Accroche (le plus important : la moitié des gens partent après 1 seconde) : la toute première phrase fait 8 mots maximum et balance directement l'info la plus choquante, une promesse forte ou une question qui pique la curiosité. Jamais d'introduction du type « Aujourd'hui on va parler de », « Si tu venais de », « Tu t'es déjà demandé ». Exemples de bon style : « Ton cerveau te ment chaque matin. », « Cette poudre blanche change tes muscles. ».
+Rétention : juste après l'accroche, annonce ce que le spectateur va gagner s'il reste jusqu'au bout, et garde la révélation la plus forte pour la fin.
+Règles : phrases courtes et orales ; tutoiement (ou l'équivalent naturel dans la langue) ; finis par une phrase qui pousse à s'abonner ou commenter. ${facts}
 Le script ne contient QUE le texte à lire : pas de titre, pas de guillemets, pas d'indications de mise en scène, pas d'emojis, pas de numérotation du type « 1. ».
-Donne aussi "hook" : une accroche visuelle très courte (3 à 7 mots) à afficher en gros à l'écran pendant les 2 premières secondes, dans la même langue.
+Donne aussi "hook" : une accroche visuelle choc et très courte (3 à 6 mots, pas une simple reformulation du sujet ; elle crée un manque ou une surprise) à afficher en gros à l'écran pendant les 2 premières secondes, dans la même langue.
 Réponds en JSON : {"hook":"...","script":"..."}`, true);
     const script = clean(out.script, 3000).trim();
     if (!script) throw new Error('Script vide');
