@@ -1,5 +1,16 @@
 // Découpe le script en scènes, trouve pour chacune une vidéo libre de droits sur Pexels.
 // Gratuit : Gemini (formule gratuite) + API Pexels (gratuite).
+import { createHmac } from 'crypto';
+
+// Accès sur invitation : seuls les emails listés dans EMAILS_AUTORISES (réglages Vercel) peuvent utiliser l'appli.
+function invited(req) {
+  const list = String(process.env.EMAILS_AUTORISES || '').toLowerCase().split(/[\s,;]+/).filter(Boolean);
+  const [e, sig] = String(req.headers['x-sb-token'] || '').split('.');
+  if (!e || !sig) return false;
+  const email = Buffer.from(e, 'base64url').toString();
+  const good = createHmac('sha256', process.env.ACCESS_SECRET || process.env.GEMINI_API_KEY || 'scriptboom').update(email).digest('base64url');
+  return sig === good && list.includes(email);
+}
 const MODELS = ['gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-3.1-flash-lite', 'gemini-3.5-flash-lite'];
 const PEXELS = ['https://api.pexels.com/v1/videos/search', 'https://api.pexels.com/videos/search'];
 
@@ -52,6 +63,7 @@ function pickFile(video) {
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Méthode non autorisée' });
+  if (!invited(req)) return res.status(401).json({ error: 'Accès sur invitation' });
   if (!process.env.PEXELS_API_KEY) return res.status(500).json({ error: 'Clé PEXELS_API_KEY manquante dans Vercel' });
   const { script, page = 1, query, exclude = [] } = req.body || {};
 
