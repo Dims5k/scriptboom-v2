@@ -76,6 +76,19 @@ Réponds en JSON : {"ideas":["...", "..."]}`, true);
       return res.status(200).json({ ideas });
     }
 
+    if (mode === 'translate') {
+      // Sous-titres dans une autre langue : traduction phrase par phrase (même nombre de phrases)
+      const to = LANGS[b.to]; const from = LANGS[b.from] || lang;
+      const src = (Array.isArray(b.sentences) ? b.sentences : []).filter(x => typeof x === 'string').slice(0, 80).map(x => clean(x, 500));
+      if (!to || !src.length) return res.status(400).json({ error: 'Rien à traduire' });
+      const out = await askGemini(`Traduis ces ${src.length} éléments du ${from} vers le ${to}, pour des sous-titres de vidéo TikTok : naturel, court, oral, fidèle au sens, chiffres conservés.
+Garde exactement le même nombre d'éléments, dans le même ordre, un élément traduit par élément source (ne fusionne pas, ne découpe pas).
+Éléments : ${JSON.stringify(src)}
+Réponds en JSON : {"sentences":["..."]}`, true);
+      const dst = Array.isArray(out.sentences) ? out.sentences : Array.isArray(out) ? out : [];
+      return res.status(200).json({ sentences: src.map((x, i) => typeof dst[i] === 'string' && dst[i].trim() ? clean(dst[i].trim(), 600) : x) });
+    }
+
     if (mode === 'coach') {
       // Analyse des captures de statistiques TikTok / Instagram du créateur
       const images = (Array.isArray(b.images) ? b.images : []).slice(0, 4)
