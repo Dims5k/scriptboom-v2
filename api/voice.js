@@ -1,6 +1,7 @@
 // Génère la voix off avec l'IA de Google (Gemini TTS, formule gratuite).
 // Renvoie un fichier audio WAV.
 import { createHmac } from 'crypto';
+import { useQuota, QUOTA_MSG, friendly } from './_kv.js';
 
 // Accès sur invitation : seuls les emails listés dans EMAILS_AUTORISES (réglages Vercel) peuvent utiliser l'appli.
 function invited(req) {
@@ -9,7 +10,7 @@ function invited(req) {
   if (!e || !sig) return false;
   const email = Buffer.from(e, 'base64url').toString();
   const good = createHmac('sha256', process.env.ACCESS_SECRET || process.env.GEMINI_API_KEY || 'scriptboom').update(email).digest('base64url');
-  return sig === good && list.includes(email);
+  return sig === good && list.includes(email) ? email : false;
 }
 const VOICES = ['Kore', 'Aoede', 'Leda', 'Sulafat', 'Puck', 'Charon', 'Fenrir', 'Orus'];
 const BASE = 'https://generativelanguage.googleapis.com/v1beta';
@@ -56,7 +57,9 @@ async function callGoogle(url, body) {
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Méthode non autorisée' });
-  if (!invited(req)) return res.status(401).json({ error: 'Accès sur invitation' });
+  const who = invited(req);
+  if (!who) return res.status(401).json({ error: 'Accès sur invitation' });
+  if (!(await useQuota(who)).ok) return res.status(429).json({ error: QUOTA_MSG, quota: true });
   const { text, voice = 'Kore', tone = 'dynamique', lang = 'fr' } = req.body || {};
   const LANGS = { fr: 'français', en: 'anglais', es: 'espagnol', pt: 'portugais', de: 'allemand', it: 'italien', ar: 'arabe', tr: 'turc', nl: 'néerlandais' };
   const langue = LANGS[lang] || LANGS.fr;
@@ -91,5 +94,5 @@ export default async function handler(req, res) {
       lastError = e.message || lastError;
     }
   }
-  return res.status(500).json({ error: lastError });
+  return res.status(500).json({ error: friendly(lastError) });
 }

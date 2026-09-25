@@ -1,6 +1,7 @@
 // Textes générés par l'IA (Gemini, formule gratuite) :
 // mode "script" (par défaut) : accroche + script ; mode "ideas" : 10 idées ; mode "caption" : titre, légende, hashtags.
 import { createHmac } from 'crypto';
+import { useQuota, QUOTA_MSG, friendly } from './_kv.js';
 
 // Accès sur invitation : seuls les emails listés dans EMAILS_AUTORISES (réglages Vercel) peuvent utiliser l'appli.
 function invited(req) {
@@ -9,7 +10,7 @@ function invited(req) {
   if (!e || !sig) return false;
   const email = Buffer.from(e, 'base64url').toString();
   const good = createHmac('sha256', process.env.ACCESS_SECRET || process.env.GEMINI_API_KEY || 'scriptboom').update(email).digest('base64url');
-  return sig === good && list.includes(email);
+  return sig === good && list.includes(email) ? email : false;
 }
 const MODELS = ['gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-3.1-flash-lite', 'gemini-3.5-flash-lite'];
 
@@ -56,7 +57,9 @@ const clean = (s, n) => String(s || '').slice(0, n);
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Méthode non autorisée' });
-  if (!invited(req)) return res.status(401).json({ error: 'Accès sur invitation' });
+  const who = invited(req);
+  if (!who) return res.status(401).json({ error: 'Accès sur invitation' });
+  if (!(await useQuota(who)).ok) return res.status(429).json({ error: QUOTA_MSG, quota: true });
   const b = req.body || {};
   const mode = b.mode || 'script';
   const lang = LANGS[b.lang] || LANGS.fr;
@@ -217,6 +220,6 @@ Réponds en JSON : {"scripts":["script 1 corrigé"${parts.length > 1 ? ', "scrip
     }
     return res.status(200).json({ ...parts[0], part2: series ? parts[1] : null, fixes });
   } catch (e) {
-    return res.status(500).json({ error: e.message || 'Erreur' });
+    return res.status(500).json({ error: friendly(e.message || 'Erreur') });
   }
 }
