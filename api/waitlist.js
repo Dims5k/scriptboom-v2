@@ -30,7 +30,7 @@ export default async function handler(req, res) {
     rows.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', 'inline; filename="liste-attente-scriptboom.csv"');
-    return res.status(200).send('date;email;plateforme;niche\n' + rows.map(r => [r.date, r.email, r.platform, r.niche].map(cell).join(';')).join('\n'));
+    return res.status(200).send('rang;date;email;plateforme;niche;offre_-50%\n' + rows.map(r => [r.rank || '', r.date, r.email, r.platform, r.niche, r.early === false ? 'non' : 'oui'].map(cell).join(';')).join('\n'));
   }
 
   if (req.method !== 'POST') return res.status(405).json({ error: 'Méthode non autorisée' });
@@ -56,8 +56,9 @@ export default async function handler(req, res) {
   const platform = String(b.platform || '').slice(0, 30), niche = String(b.niche || '').trim().slice(0, 80);
   try {
     const [added] = await kv([['SADD', 'waitlist', email]]);
-    if (added) await kv([['HSET', 'waitlist:info', email, JSON.stringify({ email, platform, niche, date: new Date().toISOString() })]]);
     const [n] = await kv([['SCARD', 'waitlist']]);
+    // Rang d'inscription gardé pour le lancement : les 500 premiers auront −50 % à vie
+    if (added) await kv([['HSET', 'waitlist:info', email, JSON.stringify({ email, platform, niche, rank: n, early: n <= 500, date: new Date().toISOString() })]]);
     console.log('LISTE ATTENTE', added ? 'nouveau' : 'déjà inscrit', email);
     return res.status(200).json({ ok: true, already: !added, count: n });
   } catch (e) {
