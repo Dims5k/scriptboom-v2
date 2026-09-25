@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ScriptBoom</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#000; --panel:#141414; --panel2:#1c1c1c; --line:#2a2a2a;
+  --text:#f2f2f2; --muted:#9a9a9a; --green:#1ed760; --danger:#ff6b6b;
+  color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0;background:var(--bg);color:var(--text)}
+body{font:16px/1.5 Figtree,system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+.wrap{max-width:1040px;margin:0 auto;padding:28px 16px 60px}
+header{margin-bottom:28px}
+.logo{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:clamp(34px,7vw,52px);letter-spacing:-.03em;color:var(--green);margin:0;line-height:1}
+.tag{color:var(--muted);font-size:15px;margin:6px 0 0}
+.grid{display:grid;grid-template-columns:1fr 340px;gap:28px;align-items:start}
+@media (max-width:820px){.grid{grid-template-columns:1fr}.stage-col{position:static!important}.phone{max-width:250px}}
+.step{background:var(--panel);border-radius:22px;padding:20px;margin-bottom:14px}
+.step h2{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:22px;margin:0 0 4px;display:flex;gap:10px;align-items:center}
+.num{width:28px;height:28px;border-radius:50%;background:var(--green);color:#000;display:grid;place-items:center;font-size:15px;flex:none}
+.hint{color:var(--muted);font-size:14px;margin:0 0 14px}
+label{display:block;font-size:14px;color:var(--muted);margin:10px 0 6px}
+input[type=text],textarea,select{width:100%;background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:14px;padding:12px 14px;font:inherit}
+textarea{min-height:170px;resize:vertical;line-height:1.55}
+input:focus,textarea:focus,select:focus{outline:2px solid var(--green);outline-offset:1px;border-color:transparent}
+.btn{appearance:none;border:0;border-radius:999px;padding:13px 22px;font:600 16px Figtree,sans-serif;cursor:pointer;background:var(--green);color:#000;transition:transform .12s,background .15s;text-decoration:none;display:inline-block;text-align:center}
+.btn:hover{background:#3be475}
+.btn:active{transform:scale(.97)}
+.btn:focus-visible{outline:3px solid #fff;outline-offset:2px}
+.btn.ghost{background:transparent;color:var(--text);border:1.5px solid var(--line)}
+.btn.ghost:hover{border-color:var(--green);color:var(--green)}
+.btn[disabled]{opacity:.45;cursor:not-allowed;transform:none}
+.big{width:100%;padding:17px;font-size:18px}
+.pills{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.pill{background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:999px;padding:7px 13px;font:500 14px Figtree,sans-serif;cursor:pointer}
+.pill[aria-pressed=true]{background:var(--green);color:#000;border-color:var(--green)}
+.drop{position:relative;display:flex;align-items:center;justify-content:center;gap:10px;border:1.5px dashed #3a3a3a;border-radius:16px;padding:18px;color:var(--muted);cursor:pointer;text-align:center;margin:0}
+.drop:hover{border-color:var(--green);color:var(--text)}
+.drop input{position:absolute;opacity:0;width:1px;height:1px}
+.msg{font-size:14px;margin:10px 0 0;min-height:1.2em}
+.msg.err{color:var(--danger)}
+.msg.ok{color:var(--green)}
+.meta{font-size:13px;color:var(--muted);margin-top:6px}
+audio{width:100%;margin-top:12px}
+.stage-col{position:sticky;top:16px}
+.phone{position:relative;aspect-ratio:9/16;width:100%;max-width:340px;margin:0 auto;border-radius:30px;overflow:hidden;background:#0d0d0d;border:1px solid var(--line)}
+.phone canvas,.phone video.result{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.empty{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:30px;color:#6d6d6d;font-size:15px}
+.stage-actions{max-width:340px;margin:14px auto 0;display:flex;gap:10px;flex-wrap:wrap}
+.stage-actions .btn{flex:1 1 120px}
+.note{max-width:340px;margin:12px auto 0;color:var(--muted);font-size:13px;text-align:center}
+#srcVid,.bgv{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.scenes{list-style:none;margin:14px 0;padding:0;display:grid;gap:8px}
+.scenes li{display:flex;gap:10px;align-items:center;background:var(--panel2);border-radius:14px;padding:8px}
+.scenes video{width:48px;height:84px;object-fit:cover;border-radius:8px;background:#000;flex:none}
+.scenes .none{width:48px;height:84px;border-radius:8px;background:#222;flex:none;display:grid;place-items:center;color:#666;font-size:12px}
+.scenes p{margin:0;font-size:13px;line-height:1.35;color:var(--text);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.scenes small{color:var(--green);font-size:12px}
+.credit{font-size:12px;color:var(--muted);margin:10px 0 0}
+.credit a{color:var(--muted)}
+.or{text-align:center;color:var(--muted);font-size:13px;margin:14px 0}
+.track{background:var(--panel2);border-radius:16px;padding:12px 14px;margin-bottom:10px}
+.trow{display:flex;justify-content:space-between;align-items:baseline}
+.trow label{margin:0;color:var(--text);font-weight:600;font-size:15px}
+.trow output{color:var(--green);font-weight:600;font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--green);margin:10px 0 8px;height:28px}
+.meter{height:6px;border-radius:3px;background:#262626;overflow:hidden}
+.meter i{display:block;height:100%;width:0;background:#1ed760}
+.sub{font-size:13px;color:var(--muted);margin:12px 0 0}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+details.ideas{background:var(--panel2);border-radius:14px;padding:12px 14px;margin-top:14px}
+details.ideas summary{cursor:pointer;color:var(--green);font-weight:600;font-size:15px}
+.chips{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.chip{background:#111;border:1px solid var(--line);color:var(--text);border-radius:12px;padding:9px 12px;text-align:left;font:500 14px Figtree,sans-serif;cursor:pointer}
+.chip:hover{border-color:var(--green)}
+.sc-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.sc-actions button,.sc-actions label{background:#111;border:1px solid var(--line);color:var(--text);border-radius:999px;padding:5px 10px;font:500 12px Figtree,sans-serif;cursor:pointer;margin:0;position:relative}
+.sc-actions label input{position:absolute;opacity:0;width:1px;height:1px}
+.sc-actions button[disabled]{opacity:.5}
+.scenes li{align-items:flex-start}
+.scenes li > div{flex:1;min-width:0}
+.check{display:flex;gap:10px;align-items:center;color:var(--text);font-size:15px;margin:12px 0 0}
+.check input{width:20px;height:20px;accent-color:var(--green)}
+@media (prefers-reduced-motion:reduce){.btn{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1 class="logo">ScriptBoom</h1>
+    <p class="tag">Un sujet, une voix, ta vidéo. Prête à poster.</p>
+  </header>
+
+  <div class="grid">
+    <main>
+      <section class="step" aria-labelledby="s1">
+        <h2 id="s1"><span class="num">1</span>Le script</h2>
+        <p class="hint">Donne un sujet, ScriptBoom écrit un script court pour TikTok, Reels ou Shorts. Tu peux aussi écrire le tien.</p>
+        <label for="lang">Langue de la vidéo</label>
+        <select id="lang">
+          <option value="fr">Français</option>
+          <option value="en">English</option>
+          <option value="es">Español</option>
+          <option value="pt">Português</option>
+          <option value="de">Deutsch</option>
+          <option value="it">Italiano</option>
+          <option value="ar">العربية</option>
+          <option value="tr">Türkçe</option>
+          <option value="nl">Nederlands</option>
+        </select>
+        <label>Format</label>
+        <div class="pills" role="group" aria-label="Format" style="margin-top:0">
+          <button class="pill" data-format="libre" aria-pressed="true">Libre</button>
+          <button class="pill" data-format="histoire" aria-pressed="false">Histoire vraie</button>
+          <button class="pill" data-format="fait" aria-pressed="false">Fait incroyable</button>
+          <button class="pill" data-format="top5" aria-pressed="false">Top 5</button>
+          <button class="pill" data-format="citation" aria-pressed="false">Citation motivante</button>
+          <button class="pill" data-format="saviezvous" aria-pressed="false">Le saviez-vous ?</button>
+        </div>
+        <details class="ideas">
+          <summary>Pas d'idée ? Trouve-moi des sujets</summary>
+          <label for="niche">Ta niche</label>
+          <input id="niche" type="text" placeholder="Ex. : histoire de l'Égypte, football, psychologie…">
+          <button class="btn ghost" id="findIdeas" style="width:100%;margin-top:10px">Trouve-moi 10 idées</button>
+          <div class="chips" id="ideasList"></div>
+          <p class="msg" id="ideasMsg" role="status"></p>
+        </details>
+        <label for="topic">Sujet</label>
+        <input id="topic" type="text" placeholder="Ex. : l'histoire cachée de la Tour Eiffel">
+        <div class="pills" role="group" aria-label="Durée">
+          <button class="pill" data-dur="20" aria-pressed="false">20 s</button>
+          <button class="pill" data-dur="35" aria-pressed="true">35 s</button>
+          <button class="pill" data-dur="60" aria-pressed="false">60 s</button>
+        </div>
+        <div class="pills" role="group" aria-label="Ton">
+          <button class="pill" data-tone="mystérieux et captivant" aria-pressed="true">Mystère</button>
+          <button class="pill" data-tone="énergique et fun" aria-pressed="false">Fun</button>
+          <button class="pill" data-tone="pédagogique et clair" aria-pressed="false">Éducatif</button>
+          <button class="pill" data-tone="motivant et intense" aria-pressed="false">Motivation</button>
+        </div>
+        <div style="margin-top:14px"><button class="btn big" id="gen">Générer le script</button></div>
+        <label for="script">Script</label>
+        <textarea id="script" placeholder="Ton script apparaîtra ici. Tu peux le modifier librement."></textarea>
+        <p class="meta" id="count">0 mot · environ 0 s</p>
+        <label for="hook">Accroche à l'écran (2 premières secondes)</label>
+        <input id="hook" type="text" maxlength="80" placeholder="Ex. : Personne ne t'a raconté ça…">
+        <p class="msg" id="genMsg" role="status"></p>
+      </section>
+
+      <section class="step" aria-labelledby="s2">
+        <h2 id="s2"><span class="num">2</span>La voix</h2>
+        <p class="hint">Une voix IA lit ton script, avec le ton choisi à l'étape 1.</p>
+        <label for="voice">Voix</label>
+        <select id="voice">
+          <option value="Kore">Kore · femme, assurée</option>
+          <option value="Aoede">Aoede · femme, légère</option>
+          <option value="Leda">Leda · femme, jeune</option>
+          <option value="Sulafat">Sulafat · femme, chaleureuse</option>
+          <option value="Puck">Puck · homme, dynamique</option>
+          <option value="Charon">Charon · homme, posé</option>
+          <option value="Fenrir">Fenrir · homme, énergique</option>
+          <option value="Orus">Orus · homme, grave</option>
+        </select>
+        <div style="margin-top:14px"><button class="btn big" id="makeVoice">Générer la voix</button></div>
+        <audio id="voicePlayer" controls hidden></audio>
+        <p class="msg" id="voiceMsg" role="status"></p>
+      </section>
+
+      <section class="step" aria-labelledby="s3">
+        <h2 id="s3"><span class="num">3</span>La vidéo de fond</h2>
+        <p class="hint">Automatique : ScriptBoom découpe ton script en scènes et trouve une vidéo libre de droits pour chacune. Ou utilise ta propre vidéo.</p>
+        <button class="btn big" id="autoBg">Trouver les vidéos automatiquement</button>
+        <div id="scenesBox" hidden>
+          <ol class="scenes" id="scenesList"></ol>
+          <button class="btn ghost" id="moreBg" style="width:100%">Tout remplacer (toutes les scènes)</button>
+          <p class="credit" id="credit"></p>
+        </div>
+        <p class="msg" id="bgMsg" role="status"></p>
+        <p class="or">ou</p>
+        <label class="drop">
+          <input type="file" id="file" accept="video/*">
+          <span id="dropTxt">Choisir ma propre vidéo</span>
+        </label>
+      </section>
+      <section class="step" aria-labelledby="sStyle">
+        <h2 id="sStyle"><span class="num">4</span>Le style</h2>
+        <p class="hint">L'aperçu se met à jour dès que tu changes un réglage.</p>
+        <label>Sous-titres</label>
+        <div class="pills" role="group" aria-label="Style des sous-titres" style="margin-top:0">
+          <button class="pill" data-cap="classique" aria-pressed="true">Classique</button>
+          <button class="pill" data-cap="jaune" aria-pressed="false">Jaune</button>
+          <button class="pill" data-cap="neon" aria-pressed="false">Néon</button>
+          <button class="pill" data-cap="karaoke" aria-pressed="false">Karaoké</button>
+          <button class="pill" data-cap="minimal" aria-pressed="false">Minimal</button>
+        </div>
+        <div class="row2">
+          <div><label for="capPos">Position</label>
+            <select id="capPos"><option value=".3">Haut</option><option value=".52">Milieu</option><option value=".72" selected>Bas</option></select></div>
+          <div><label for="capWords">Mots à la fois</label>
+            <select id="capWords"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4" selected>4</option></select></div>
+        </div>
+        <label class="check"><input type="checkbox" id="capUpper"> Tout en majuscules</label>
+        <label style="margin-top:16px">Mouvement</label>
+        <div class="pills" role="group" aria-label="Mouvement" style="margin-top:0">
+          <button class="pill" data-fx="aucun" aria-pressed="false">Aucun</button>
+          <button class="pill" data-fx="doux" aria-pressed="true">Zoom doux</button>
+          <button class="pill" data-fx="dynamique" aria-pressed="false">Dynamique</button>
+        </div>
+        <p class="sub">Dynamique : zoom plus marqué et flash à chaque changement de scène.</p>
+      </section>
+
+      <section class="step" aria-labelledby="s4">
+        <h2 id="s4"><span class="num">5</span>Le mix audio</h2>
+        <p class="hint">Règle chaque son pendant l'aperçu : tu entends le résultat en direct, et l'export garde ces réglages.</p>
+        <div class="track">
+          <div class="trow"><label for="volVoice">Voix</label><output id="oVoice">100 %</output></div>
+          <input type="range" id="volVoice" min="0" max="150" value="100">
+          <div class="meter"><i id="mVoice"></i></div>
+        </div>
+        <div class="track">
+          <div class="trow"><label for="volVideo">Son de la vidéo de fond</label><output id="oVideo">0 %</output></div>
+          <input type="range" id="volVideo" min="0" max="100" value="0">
+          <div class="meter"><i id="mVideo"></i></div>
+        </div>
+        <div class="track">
+          <div class="trow"><label for="volMusic">Musique</label><output id="oMusic">30 %</output></div>
+          <input type="range" id="volMusic" min="0" max="100" value="30">
+          <div class="meter"><i id="mMusic"></i></div>
+          <p class="sub">Fonds musicaux ScriptBoom (créés sur place, libres de droits)</p>
+          <div class="pills" role="group" aria-label="Fond musical">
+            <button class="pill" data-mood="none" aria-pressed="true">Aucune</button>
+            <button class="pill" data-mood="triste" aria-pressed="false">Triste</button>
+            <button class="pill" data-mood="calme" aria-pressed="false">Calme</button>
+            <button class="pill" data-mood="suspense" aria-pressed="false">Suspense</button>
+            <button class="pill" data-mood="motivation" aria-pressed="false">Motivation</button>
+            <button class="pill" data-mood="joyeux" aria-pressed="false">Joyeux</button>
+          </div>
+          <button class="btn ghost" id="listenMusic" style="width:100%;margin-top:10px" disabled>Écouter la musique</button>
+          <p class="or">ou</p>
+          <label class="drop">
+            <input type="file" id="musicFile" accept="audio/*">
+            <span id="musicTxt">Importer ma musique</span>
+          </label>
+        </div>
+        <label class="check"><input type="checkbox" id="duck" checked> Baisser la musique quand la voix parle</label>
+        <label class="check"><input type="checkbox" id="fades" checked> Fondu au début et à la fin</label>
+        <p class="msg" id="mixMsg" role="status"></p>
+      </section>
+
+      <section class="step" aria-labelledby="sPub">
+        <h2 id="sPub"><span class="num">6</span>La publication</h2>
+        <p class="hint">Titre, légende et hashtags prêts à coller dans TikTok ou Instagram.</p>
+        <button class="btn big" id="makeCaption">Générer la légende et les hashtags</button>
+        <div id="capBox" hidden>
+          <label for="pubTitle">Titre</label><input id="pubTitle" type="text">
+          <label for="pubText">Légende + hashtags</label><textarea id="pubText" style="min-height:140px"></textarea>
+          <button class="btn ghost" id="copyCaption" style="width:100%;margin-top:10px">Copier la légende et les hashtags</button>
+        </div>
+        <p class="msg" id="capMsg" role="status"></p>
+      </section>
+    </main>
+
+    <aside class="stage-col" aria-label="Aperçu et export">
+      <div class="phone">
+        <canvas id="cv" width="720" height="1280"></canvas>
+        <video class="result" id="resultVid" playsinline controls hidden></video>
+        <div class="empty" id="empty">Génère un script et une voix, puis lance l'aperçu.</div>
+      </div>
+      <div class="stage-actions">
+        <button class="btn ghost" id="play">Aperçu</button>
+        <button class="btn ghost" id="stop" disabled>Stop</button>
+        <button class="btn" id="export" style="flex-basis:100%">Exporter la vidéo</button>
+      </div>
+      <div class="stage-actions" id="saveRow" hidden>
+        <button class="btn" id="save" style="flex-basis:100%">Enregistrer la vidéo</button>
+        <button class="btn ghost" id="back" style="flex-basis:100%">Retour à l'éditeur</button>
+      </div>
+      <p class="msg" id="playMsg" role="status" style="text-align:center"></p>
+      <p class="note">L'export se fait en temps réel : garde l'écran allumé et la page ouverte jusqu'à la fin. Si tu n'entends rien pendant l'aperçu, désactive le mode silencieux.</p>
+    </aside>
+  </div>
+</div>
+<video id="srcVid" playsinline muted loop></video>
+
+<script>
+const $ = id => document.getElementById(id);
+const cv = $('cv'), g = cv.getContext('2d'), W = cv.width, H = cv.height;
+let dur = 35, tone = "mystérieux et captivant";
+let videoURL = null, voiceBlob = null, voiceURL = null, audioBuf = null, voiceKey = '';
+let actx = null, src = null, startAt = 0, running = false, raf = 0, recorder = null, resultBlob = null, resultURL = null;
+
+// ---------- Étape 1 : script ----------
+function pick(sel, attr, cb){ document.querySelectorAll(sel).forEach(b => b.onclick = () => {
+  document.querySelectorAll(sel).forEach(x => x.setAttribute('aria-pressed','false'));
+  b.setAttribute('aria-pressed','true'); cb(b.dataset[attr]);
+}); }
+pick('[data-dur]','dur', v => dur = +v);
+pick('[data-tone]','tone', v => tone = v);
+let format = 'libre';
+const FORMAT_TONE = { histoire:'mystérieux et captivant', fait:'mystérieux et captivant', top5:'énergique et fun', citation:'motivant et intense', saviezvous:'pédagogique et clair' };
+pick('[data-format]','format', v => { format = v;
+  const t = FORMAT_TONE[v]; if (t){ tone = t; document.querySelectorAll('[data-tone]').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.tone === t))); } });
+const lang = () => $('lang').value;
+const RTL = () => lang() === 'ar';
+
+// Idées de sujets
+$('findIdeas').onclick = async () => {
+  const niche = $('niche').value.trim(), msg = $('ideasMsg'), btn = $('findIdeas');
+  if (!niche){ msg.className='msg err'; msg.textContent='Écris d\'abord ta niche.'; $('niche').focus(); return; }
+  btn.disabled = true; btn.textContent = 'Recherche d\'idées…'; msg.className='msg'; msg.textContent='';
+  try {
+    const r = await fetch('/api/script', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ mode:'ideas', niche, format, lang: lang() }) });
+    const d = await r.json(); if (!r.ok) throw new Error(d.error || 'Erreur');
+    const box = $('ideasList'); box.innerHTML = '';
+    d.ideas.forEach(idea => { const c = document.createElement('button'); c.className = 'chip'; c.textContent = idea;
+      c.onclick = () => { $('topic').value = idea; $('topic').scrollIntoView({behavior:'smooth', block:'center'}); }; box.appendChild(c); });
+    msg.className='msg ok'; msg.textContent='Touche une idée pour la mettre en sujet.';
+  } catch(e){ msg.className='msg err'; msg.textContent='La recherche a échoué : ' + (e.message || 'erreur inconnue'); }
+  finally { btn.disabled = false; btn.textContent = 'Trouve-moi 10 idées'; }
+};
+
+function words(t){ return t.trim() ? t.trim().split(/\s+/) : []; }
+function updateCount(){
+  const n = words($('script').value).length;
+  $('count').textContent = `${n} mot${n>1?'s':''} · environ ${Math.round(n/2.6)} s`;
+}
+$('script').addEventListener('input', () => { updateCount(); capWords = []; if (!running) drawFrame(previewT()); });
+
+$('gen').onclick = async () => {
+  const topic = $('topic').value.trim(), msg = $('genMsg');
+  if (!topic) { msg.className='msg err'; msg.textContent="Écris d'abord un sujet."; $('topic').focus(); return; }
+  const btn = $('gen'); btn.disabled = true; btn.textContent = 'Écriture en cours…';
+  msg.className='msg'; msg.textContent='';
+  try {
+    const r = await fetch('/api/script', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ topic, dur, tone, format, lang: lang() }) });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'Erreur');
+    $('script').value = data.script; updateCount();
+    if (data.hook) $('hook').value = data.hook;
+    capWords = []; if (!running) drawFrame(0);
+    msg.className='msg ok'; msg.textContent='Script prêt. Modifie-le si tu veux, puis génère la voix.';
+  } catch(e) {
+    msg.className='msg err'; msg.textContent='La génération a échoué : ' + (e.message || 'erreur inconnue');
+  } finally { btn.disabled=false; btn.textContent='Générer le script'; }
+};
+
+// ---------- Étape 2 : voix IA ----------
+function ctx(){ if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)(); return actx; }
+
+$('makeVoice').onclick = async () => {
+  const text = $('script').value.trim(), msg = $('voiceMsg');
+  if (!text) { msg.className='msg err'; msg.textContent="Il faut d'abord un script (étape 1)."; return; }
+  const btn = $('makeVoice'); btn.disabled = true; btn.textContent = 'Création de la voix…';
+  msg.className='msg'; msg.textContent='Ça peut prendre jusqu\'à 30 secondes.';
+  ctx(); // débloque l'audio sur iPhone (appelé pendant le clic)
+  try {
+    const r = await fetch('/api/voice', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ text, voice: $('voice').value, tone, lang: lang() }) });
+    if (!r.ok) { const d = await r.json().catch(()=>({})); throw new Error(d.error || 'Erreur ' + r.status); }
+    voiceBlob = await r.blob();
+    audioBuf = await decode(await voiceBlob.arrayBuffer());
+    voiceKey = text + '|' + $('voice').value;
+    if (voiceURL) URL.revokeObjectURL(voiceURL);
+    voiceURL = URL.createObjectURL(voiceBlob);
+    const p = $('voicePlayer'); p.src = voiceURL; p.hidden = false;
+    msg.className='msg ok'; msg.textContent=`Voix prête (${Math.round(audioBuf.duration)} s). Lance l'aperçu ou exporte ta vidéo.`;
+    showEmpty(false); drawFrame(0);
+  } catch(e) {
+    msg.className='msg err'; msg.textContent='La voix a échoué : ' + (e.message || 'erreur inconnue');
+  } finally { btn.disabled=false; btn.textContent='Générer la voix'; }
+};
+function decode(ab){ return new Promise((ok, ko) => { const p = ctx().decodeAudioData(ab, ok, ko); if (p && p.then) p.then(ok, ko); }); }
+
+// ---------- Étape 3 : vidéo de fond ----------
+const vid = $('srcVid');
+let bgMode = 'none', scenes = [], sceneStarts = [], bgPage = 1, current = null;
+$('file').onchange = e => {
+  const f = e.target.files[0]; if (!f) return;
+  if (videoURL) URL.revokeObjectURL(videoURL);
+  videoURL = URL.createObjectURL(f);
+  vid.src = videoURL; vid.load();
+  vid.onloadeddata = () => { vid.currentTime = 0.05; };
+  vid.onseeked = () => { if (!running) drawFrame(0); };
+  $('dropTxt').textContent = f.name;
+  bgMode = 'own'; showEmpty(false);
+  $('bgMsg').className = 'msg ok'; $('bgMsg').textContent = 'Ta vidéo sera utilisée en fond.';
+};
+
+function loadVideo(url){
+  return new Promise((ok, ko) => {
+    const v = document.createElement('video');
+    v.className = 'bgv'; v.muted = true; v.playsInline = true; v.setAttribute('playsinline',''); v.loop = true; v.preload = 'auto';
+    const timer = setTimeout(() => ko(new Error('trop long')), 25000);
+    v.onloadeddata = () => { clearTimeout(timer); ok(v); };
+    v.onerror = () => { clearTimeout(timer); ko(new Error('illisible')); };
+    v.src = url; document.body.appendChild(v); v.load();
+  });
+}
+function clearScenes(){
+  scenes.forEach(s => { if (s.el){ s.el.pause(); s.el.remove(); URL.revokeObjectURL(s.url); } });
+  scenes = []; current = null;
+}
+async function findBackgrounds(){
+  const text = $('script').value.trim(), msg = $('bgMsg');
+  if (!text) { msg.className='msg err'; msg.textContent="Il faut d'abord un script (étape 1)."; return; }
+  const btns = [$('autoBg'), $('moreBg')]; btns.forEach(b => b.disabled = true);
+  $('autoBg').textContent = 'Recherche des vidéos…';
+  msg.className='msg'; msg.textContent='Découpage du script et recherche des vidéos (jusqu\'à 1 minute)…';
+  try {
+    const r = await fetch('/api/scenes', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ script: text, page: bgPage }) });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.error || 'Erreur ' + r.status);
+    clearScenes();
+    let loaded = 0;
+    scenes = await Promise.all(data.scenes.map(async s => {
+      const sc = { text: s.text, query: s.query, info: s.video, el: null, url: null };
+      if (!s.video) return sc;
+      try {
+        const res = await fetch(s.video.src); if (!res.ok) throw new Error(res.status);
+        sc.url = URL.createObjectURL(await res.blob());
+        sc.el = await loadVideo(sc.url); loaded++;
+        msg.textContent = `Téléchargement des vidéos… ${loaded}/${data.scenes.filter(x=>x.video).length}`;
+      } catch(e) { sc.el = null; }
+      return sc;
+    }));
+    if (!scenes.some(s => s.el)) throw new Error('aucune vidéo n\'a pu être chargée');
+    bgMode = 'auto'; $('dropTxt').textContent = 'Choisir ma propre vidéo';
+    renderScenes(); prepareCaptions(); showEmpty(false); drawFrame(0);
+    msg.className='msg ok'; msg.textContent = `${scenes.filter(s=>s.el).length} vidéos prêtes, calées sur ton script.`;
+  } catch(e) {
+    msg.className='msg err'; msg.textContent = 'La recherche a échoué : ' + (e.message || 'erreur inconnue');
+  } finally { btns.forEach(b => b.disabled = false); $('autoBg').textContent = 'Trouver les vidéos automatiquement'; }
+}
+function renderScenes(){
+  const ol = $('scenesList'); ol.innerHTML = '';
+  scenes.forEach((s, idx) => {
+    const li = document.createElement('li');
+    if (s.el){ const v = document.createElement('video'); v.muted = true; v.playsInline = true; v.setAttribute('playsinline',''); v.preload = 'metadata'; v.src = s.url + '#t=0.5'; li.appendChild(v); }
+    else { const d = document.createElement('div'); d.className = 'none'; d.textContent = '—'; li.appendChild(d); }
+    const box = document.createElement('div'); const p = document.createElement('p'); p.textContent = s.text;
+    const sm = document.createElement('small'); sm.textContent = s.busy ? 'Recherche…' : s.el ? (s.own ? 'ta vidéo' : s.query) : s.query + ' · pas trouvé, la scène d\'avant continue';
+    const acts = document.createElement('div'); acts.className = 'sc-actions';
+    const bOther = document.createElement('button'); bOther.textContent = '↻ Autre vidéo'; bOther.disabled = !!s.busy;
+    bOther.onclick = () => replaceScene(idx, s.query);
+    const bKey = document.createElement('button'); bKey.textContent = '✎ Mots-clés'; bKey.disabled = !!s.busy;
+    bKey.onclick = () => { const q = prompt('Que doit montrer cette scène ? (de préférence en anglais, ex. : rain window, old city, crowd)', s.query); if (q && q.trim()) replaceScene(idx, q.trim(), true); };
+    const lOwn = document.createElement('label'); lOwn.textContent = '📁 Ma vidéo';
+    const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'video/*'; inp.onchange = e => ownScene(idx, e.target.files[0]); lOwn.appendChild(inp);
+    acts.append(bOther, bKey, lOwn);
+    box.append(p, sm, acts); li.appendChild(box); ol.appendChild(li);
+  });
+  const authors = [...new Set(scenes.filter(s => s.el && s.info && !s.own).map(s => s.info.author))];
+  $('credit').innerHTML = '';
+  const a = document.createElement('a'); a.href = 'https://www.pexels.com'; a.target = '_blank'; a.rel = 'noopener'; a.textContent = 'Pexels';
+  $('credit').append('Vidéos fournies par ', a, authors.length ? ' · ' + authors.join(', ') : '');
+  $('scenesBox').hidden = false;
+}
+function setSceneMedia(idx, url, el, info, own){
+  const s = scenes[idx];
+  if (s.el){ if (current === s.el) current = null; s.el.pause(); s.el.remove(); }
+  if (s.url) URL.revokeObjectURL(s.url);
+  s.url = url; s.el = el; s.info = info; s.own = !!own;
+  if (vol('volVideo') > 0) routeVideo(el);
+}
+// Remplace UNE scène sans toucher aux autres
+async function replaceScene(idx, query, newQuery){
+  const s = scenes[idx], msg = $('bgMsg'); if (!s || s.busy) return;
+  if (newQuery){ s.query = query; s.page = 1; }
+  s.seen = s.seen || []; if (s.info && s.info.id) s.seen.push(s.info.id);
+  const exclude = [...new Set([...s.seen, ...scenes.map(x => x.info && x.info.id).filter(Boolean)])];
+  s.busy = true; renderScenes(); msg.className = 'msg'; msg.textContent = `Recherche d'une autre vidéo pour la scène ${idx+1}…`;
+  try {
+    const r = await fetch('/api/scenes', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ query, page: s.page || 1, exclude }) });
+    const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || 'Erreur ' + r.status);
+    s.page = d.page || s.page;
+    const res = await fetch(d.video.src); if (!res.ok) throw new Error('téléchargement impossible');
+    const url = URL.createObjectURL(await res.blob()); const el = await loadVideo(url);
+    setSceneMedia(idx, url, el, d.video, false);
+    msg.className = 'msg ok'; msg.textContent = `Scène ${idx+1} remplacée. Les autres n'ont pas bougé.`;
+  } catch(e){ msg.className = 'msg err'; msg.textContent = `Scène ${idx+1} : ` + (e.message || 'erreur'); }
+  finally { s.busy = false; renderScenes(); if (!running) drawFrame(sceneStarts[idx] || 0); }
+}
+async function ownScene(idx, file){
+  if (!file) return; const msg = $('bgMsg');
+  try { const url = URL.createObjectURL(file); const el = await loadVideo(url);
+    setSceneMedia(idx, url, el, { author: 'toi' }, true); renderScenes(); if (!running) drawFrame(sceneStarts[idx] || 0);
+    msg.className = 'msg ok'; msg.textContent = `Ta vidéo est placée sur la scène ${idx+1}.`; }
+  catch(e){ msg.className = 'msg err'; msg.textContent = 'Cette vidéo ne peut pas être lue.'; }
+}
+$('autoBg').onclick = () => { bgPage = 1; findBackgrounds(); };
+$('moreBg').onclick = () => { bgPage++; findBackgrounds(); };
+
+function sceneElAt(t){
+  if (!scenes.length) return null;
+  let i = 0; while (i+1 < sceneStarts.length && sceneStarts[i+1] <= t) i++;
+  for (let k = i; k >= 0; k--) if (scenes[k].el) return scenes[k].el;
+  return scenes.find(s => s.el)?.el || null;
+}
+function bgElement(t){
+  if (bgMode === 'own' && videoURL) return vid;
+  if (bgMode === 'auto') return sceneElAt(t);
+  return null;
+}
+function syncBg(t){
+  const el = bgElement(t);
+  if (el === current) return el;
+  if (current && current !== el) current.pause();
+  current = el;
+  if (el && running){ try { el.currentTime = 0; } catch(e){} el.play().catch(() => { el.muted = true; el.play().catch(()=>{}); }); }
+  return el;
+}
+
+// ---------- Rendu (aperçu + export identiques) ----------
+function showEmpty(v){ $('empty').hidden = !v; }
+let capWords = [], capStarts = [];
+function prepareCaptions(){
+  capWords = words($('script').value);
+  const weights = capWords.map(w => w.length + 2 + (/[.!?…]$/.test(w) ? 6 : /[,;:]$/.test(w) ? 3 : 0));
+  const total = weights.reduce((a,b)=>a+b, 0) || 1, d = audioBuf ? audioBuf.duration : capWords.length/2.6;
+  let acc = 0; capStarts = weights.map(wt => { const s = acc/total*d; acc += wt; return s; });
+  // Début de chaque scène, calé sur les mots du script
+  const counts = scenes.map(s => Math.max(1, words(s.text).length)), sum = counts.reduce((a,b)=>a+b, 0) || 1;
+  let c = 0; sceneStarts = counts.map(n => { const idx = Math.min(capWords.length-1, Math.round(c/sum*capWords.length)); c += n; return idx > 0 ? (capStarts[idx] || 0) : 0; });
+}
+function wordAt(t){ let i = 0; while (i+1 < capStarts.length && capStarts[i+1] <= t) i++; return i; }
+
+// ---------- Style : sous-titres, accroche, mouvement ----------
+let capStyle = 'classique', fx = 'doux';
+pick('[data-cap]','cap', v => { capStyle = v; if (!running) drawFrame(previewT()); });
+pick('[data-fx]','fx', v => { fx = v; if (!running) drawFrame(previewT()); });
+['capPos','capWords','capUpper'].forEach(id => $(id).addEventListener('change', () => { if (!running) drawFrame(previewT()); }));
+$('hook').addEventListener('input', () => { if (!running) drawFrame(0.6); });
+function previewT(){ return audioBuf ? Math.min(audioBuf.duration * 0.3, 4) : 0; }
+
+function sceneIndexAt(t){
+  if (bgMode !== 'auto' || !sceneStarts.length) return 0;
+  let i = 0; while (i+1 < sceneStarts.length && sceneStarts[i+1] <= t) i++; return i;
+}
+function drawBackground(t){
+  g.fillStyle = '#000'; g.fillRect(0,0,W,H);
+  const el = running ? syncBg(t) : bgElement(t);
+  if (el && el.readyState >= 2 && el.videoWidth){
+    // Mouvement : zoom lent (sens alterné selon la scène) + punch au changement de scène
+    const i = sceneIndexAt(t), s0 = bgMode === 'auto' ? (sceneStarts[i] || 0) : 0;
+    const total = audioBuf ? audioBuf.duration : 30;
+    const s1 = bgMode === 'auto' && sceneStarts[i+1] != null ? sceneStarts[i+1] : total;
+    const p = Math.max(0, Math.min(1, (t - s0) / Math.max(0.5, s1 - s0)));
+    let z = 1, dx = 0, flash = 0;
+    if (fx !== 'aucun'){
+      const amp = fx === 'dynamique' ? 0.18 : 0.1;
+      z = i % 2 ? 1 + amp * (1 - p) : 1 + amp * p;
+      dx = (i % 3 - 1) * 0.03 * p;
+      if (fx === 'dynamique' && bgMode === 'auto' && i > 0){ const q = Math.min(1, (t - s0) / 0.35); z += 0.15 * (1 - q) * (1 - q); flash = 0.45 * (1 - q); }
+    }
+    const s = Math.max(W/el.videoWidth, H/el.videoHeight) * z, w = el.videoWidth*s, h = el.videoHeight*s;
+    g.drawImage(el, (W-w)/2 + dx*W, (H-h)/2, w, h);
+    if (flash > 0.01){ g.fillStyle = `rgba(255,255,255,${flash})`; g.fillRect(0,0,W,H); }
+  } else {
+    const gr = g.createRadialGradient(W/2, H*0.35, 40, W/2, H*0.35, H*0.8);
+    gr.addColorStop(0,'#0f3d22'); gr.addColorStop(1,'#000'); g.fillStyle = gr; g.fillRect(0,0,W,H);
+  }
+  const shade = g.createLinearGradient(0, H*0.45, 0, H); shade.addColorStop(0,'rgba(0,0,0,0)'); shade.addColorStop(1,'rgba(0,0,0,.55)');
+  g.fillStyle = shade; g.fillRect(0, H*0.45, W, H*0.55);
+}
+function rrect(x, y, w, h, r){ g.beginPath(); g.moveTo(x+r, y); g.arcTo(x+w, y, x+w, y+h, r); g.arcTo(x+w, y+h, x, y+h, r); g.arcTo(x, y+h, x, y, r); g.arcTo(x, y, x+w, y, r); g.closePath(); }
+function layoutLines(list, maxW, space){
+  const lines = [[]]; let lw = 0;
+  list.forEach(o => { if (lw && lw + space + o.ww > maxW){ lines.push([]); lw = 0; } lines[lines.length-1].push(o); lw += (lw ? space : 0) + o.ww; });
+  if (RTL()) lines.forEach(l => l.reverse());
+  return lines;
+}
+function drawCaption(idx){
+  if (!capWords.length) return;
+  const n = +$('capWords').value, start = Math.floor(idx/n)*n, up = $('capUpper').checked;
+  const chunk = capWords.slice(start, start+n).map(w => up ? w.toLocaleUpperCase() : w);
+  const size = capStyle === 'minimal' ? 50 : n <= 2 ? 84 : 66;
+  g.font = `800 ${size}px "Bricolage Grotesque", Figtree, "Noto Sans Arabic", sans-serif`;
+  g.textBaseline = 'alphabetic'; g.lineJoin = 'round';
+  const space = g.measureText(' ').width;
+  const list = chunk.map((w, j) => ({ w, ww: g.measureText(w).width, active: start+j === idx }));
+  const lines = layoutLines(list, W*0.84, space);
+  const lh = size*1.22; let y = H*(+$('capPos').value) - (lines.length-1)*lh/2;
+  const ACTIVE = { classique:'#1ed760', jaune:'#ffd400', neon:'#ff4fd8', karaoke:'#000', minimal:'#1ed760' };
+  lines.forEach(line => {
+    const tw = line.reduce((a,o)=>a+o.ww,0) + space*(line.length-1); let x = (W-tw)/2;
+    line.forEach(o => {
+      g.save();
+      if (capStyle === 'karaoke' && o.active){ g.fillStyle = '#1ed760'; rrect(x-10, y-size*0.88, o.ww+20, size*1.12, 14); g.fill(); }
+      if (capStyle === 'neon'){ g.shadowColor = o.active ? '#ff4fd8' : '#00e5ff'; g.shadowBlur = 24; g.fillStyle = o.active ? '#ffd6f6' : '#e6fdff'; g.fillText(o.w, x, y); g.fillText(o.w, x, y); }
+      else if (capStyle === 'minimal'){ g.shadowColor = 'rgba(0,0,0,.8)'; g.shadowBlur = 10; g.fillStyle = o.active ? ACTIVE.minimal : '#fff'; g.fillText(o.w, x, y); }
+      else {
+        g.lineWidth = capStyle === 'jaune' ? 16 : 12; g.strokeStyle = '#000';
+        if (!(capStyle === 'karaoke' && o.active)) g.strokeText(o.w, x, y);
+        g.fillStyle = o.active ? ACTIVE[capStyle] : '#fff'; g.fillText(o.w, x, y);
+      }
+      g.restore();
+      x += o.ww + space; });
+    y += lh; });
+}
+const HOOK_DUR = 2.2;
+function drawHook(t){
+  const text = $('hook').value.trim(); if (!text || t > HOOK_DUR) return false;
+  const pop = Math.min(1, t / 0.25), out = t > HOOK_DUR - 0.25 ? (HOOK_DUR - t) / 0.25 : 1;
+  const scale = 0.7 + 0.3 * (1 - Math.pow(1 - pop, 3)), size = 92;
+  g.save(); g.globalAlpha = Math.max(0, out); g.translate(W/2, H*0.42); g.scale(scale, scale);
+  g.font = `800 ${size}px "Bricolage Grotesque", Figtree, "Noto Sans Arabic", sans-serif`; g.textBaseline = 'middle'; g.lineJoin = 'round';
+  const space = g.measureText(' ').width;
+  const list = text.split(/\s+/).map(w => ({ w, ww: g.measureText(w).width }));
+  const lines = layoutLines(list, W*0.86, space), lh = size*1.12;
+  let y = -(lines.length-1)*lh/2;
+  lines.forEach(line => { const tw = line.reduce((a,o)=>a+o.ww,0) + space*(line.length-1); let x = -tw/2;
+    line.forEach(o => { g.lineWidth = 18; g.strokeStyle = '#000'; g.strokeText(o.w, x, y); g.fillStyle = '#ffd400'; g.fillText(o.w, x, y); x += o.ww + space; });
+    y += lh; });
+  g.restore(); return true;
+}
+function drawFrame(t){
+  drawBackground(t);
+  const hookOn = drawHook(t);
+  if (audioBuf || capWords.length || $('script').value.trim()){
+    if (!capWords.length) prepareCaptions();
+    if (!hookOn) drawCaption(wordAt(t));
+  }
+  if (audioBuf){ g.fillStyle = '#1ed760'; g.fillRect(0, 0, W*Math.min(1, t/audioBuf.duration), 8); }
+}
+// ---------- Étape 4 : table de mixage ----------
+let mix = null, musicBuf = null, musicSrc = null, recDest = null;
+const routed = new WeakSet();
+function vol(id){ return (+$(id).value) / 100; }
+function buildMix(){
+  if (mix) return mix;
+  const c = ctx(), node = () => c.createGain(), an = () => { const a = c.createAnalyser(); a.fftSize = 1024; return a; };
+  mix = { master: node(), voice: node(), video: node(), musicVol: node(), duck: node(), aVoice: an(), aVideo: an(), aMusic: an() };
+  mix.voice.connect(mix.aVoice); mix.aVoice.connect(mix.master);
+  mix.video.connect(mix.aVideo); mix.aVideo.connect(mix.master);
+  mix.duck.connect(mix.musicVol); mix.musicVol.connect(mix.aMusic); mix.aMusic.connect(mix.master);
+  mix.master.connect(c.destination);
+  applyVolumes(); return mix;
+}
+function applyVolumes(){
+  if (!mix) return; const t = ctx().currentTime;
+  mix.voice.gain.setTargetAtTime(vol('volVoice'), t, 0.03);
+  mix.video.gain.setTargetAtTime(vol('volVideo'), t, 0.03);
+  mix.musicVol.gain.setTargetAtTime(vol('volMusic'), t, 0.03);
+}
+[['volVoice','oVoice'],['volVideo','oVideo'],['volMusic','oMusic']].forEach(([i,o]) => $(i).addEventListener('input', () => {
+  $(o).textContent = $(i).value + ' %'; applyVolumes();
+  if (i === 'volVideo' && running && +$(i).value > 0) routeVideo(current);
+}));
+// Le son d'une vidéo passe par la table de mixage (une seule fois par vidéo)
+function routeVideo(el){
+  if (!el || routed.has(el)) return;
+  try { const n = ctx().createMediaElementSource(el); n.connect(buildMix().video); routed.add(el); el.muted = false; } catch(e){}
+}
+function setMoodPill(mood){ document.querySelectorAll('[data-mood]').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.mood === mood))); }
+$('musicFile').onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  const m = $('mixMsg'); m.className = 'msg'; m.textContent = 'Chargement de la musique…';
+  stopListen();
+  try { musicBuf = await decode(await f.arrayBuffer()); $('musicTxt').textContent = f.name; setMoodPill('');
+    $('listenMusic').disabled = false;
+    m.className = 'msg ok'; m.textContent = `Musique prête (${Math.round(musicBuf.duration)} s), elle tourne en boucle.`; }
+  catch(err){ musicBuf = null; m.className = 'msg err'; m.textContent = 'Ce fichier audio ne peut pas être lu. Essaie un MP3 ou un M4A.'; }
+};
+
+// ---------- Fonds musicaux générés (libres de droits) ----------
+const MOODS = {
+  triste:     { label:'Triste', bpm:64, chords:[[57,60,64],[53,57,60],[48,52,55],[55,59,62]], pad:{vol:.11,cut:900}, arp:{vol:.16,oct:12,steps:8,pat:[0,1,2,1,0,1,2,1],decay:2.4,wave:'piano'}, bass:{vol:.22,steps:[0],len:4}, reverb:.55 },
+  calme:      { label:'Calme', bpm:78, chords:[[53,57,60,64],[52,55,59,62],[50,53,57,60],[48,52,55,59]], pad:{vol:.08,cut:1300}, arp:{vol:.12,oct:12,steps:8,pat:[0,2,1,3,-1,2,-1,1],decay:1.6,wave:'piano'}, bass:{vol:.22,steps:[0,10],len:1.5},
+                kick:[1,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0], snare:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0], hat:[1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0], drums:.5, reverb:.35 },
+  suspense:   { label:'Suspense', bpm:72, chords:[[50,53,57],[46,50,53],[43,46,50],[45,49,52]], pad:{vol:.12,cut:600}, arp:{vol:.09,oct:24,steps:8,pat:[0,-1,-1,2,-1,-1,1,-1],decay:2.8,wave:'bell'}, bass:{vol:.2,steps:[0,2,4,6,8,10,12,14],len:.4,oct:-12},
+                kick:[1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0], drums:.6, reverb:.5 },
+  motivation: { label:'Motivation', bpm:96, chords:[[48,52,55],[55,59,62],[57,60,64],[53,57,60]], pad:{vol:.09,cut:2200}, arp:{vol:.07,oct:12,steps:16,pat:[0,1,2,1],decay:.35,wave:'pluck'}, bass:{vol:.22,steps:[0,2,4,6,8,10,12,14],len:.45},
+                kick:[1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0], snare:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0], hat:[0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0], drums:.8, reverb:.3 },
+  joyeux:     { label:'Joyeux', bpm:112, chords:[[60,64,67],[57,60,64],[53,57,60],[55,59,62]], pad:{vol:.06,cut:2500}, arp:{vol:.09,oct:12,steps:8,pat:[0,2,1,2,0,2,1,2],decay:.3,wave:'pluck'}, bass:{vol:.22,steps:[0,3,6,8,11,14],len:.3},
+                kick:[1,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0], snare:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0], hat:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1], drums:.7, reverb:.25 }
+};
+const hz = n => 440 * Math.pow(2, (n - 69) / 12);
+async function synthMusic(P){
+  const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext, sr = 44100;
+  const beat = 60 / P.bpm, bar = beat * 4, bars = 8, L = bars * bar, tail = 3;
+  const oc = new OAC(2, Math.ceil((L + tail) * sr), sr);
+  const out = oc.createDynamicsCompressor(); out.connect(oc.destination);
+  const bus = oc.createGain(); bus.connect(out);
+  // Réverbération générée
+  const ir = oc.createBuffer(2, sr * 2.5, sr);
+  for (let ch = 0; ch < 2; ch++){ const d = ir.getChannelData(ch); for (let i = 0; i < d.length; i++) d[i] = (Math.random()*2-1) * Math.pow(1 - i/d.length, 3); }
+  const conv = oc.createConvolver(); conv.buffer = ir; const wet = oc.createGain(); wet.gain.value = P.reverb;
+  bus.connect(conv); conv.connect(wet); wet.connect(out);
+  const noise = oc.createBuffer(1, sr, sr); { const d = noise.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random()*2-1; }
+  const env = (g, t, v, a, dcy) => { g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(v, t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + a + dcy); };
+  function tone(freq, t, v, a, dcy, type, cut){
+    const o = oc.createOscillator(), g = oc.createGain(), f = oc.createBiquadFilter();
+    o.type = type; o.frequency.value = freq; f.type = 'lowpass'; f.frequency.value = cut || 3000;
+    o.connect(f); f.connect(g); g.connect(bus); env(g, t, v, a, dcy); o.start(t); o.stop(t + a + dcy + .05);
+  }
+  function note(n, t, v, dcy, wave){
+    const f = hz(n);
+    if (wave === 'piano'){ tone(f, t, v, .008, dcy, 'triangle', 2200); tone(f*2, t, v*.25, .008, dcy*.6, 'sine'); }
+    else if (wave === 'bell'){ tone(f, t, v, .004, dcy, 'sine'); tone(f*2.76, t, v*.3, .004, dcy*.4, 'sine'); }
+    else { tone(f, t, v, .003, dcy, 'sawtooth', 1800); tone(f*2, t, v*.3, .003, dcy*.5, 'square', 2500); }
+  }
+  function pad(ch, t, d){
+    ch.forEach(n => [-6, 6].forEach(det => {
+      const o = oc.createOscillator(), g = oc.createGain(), f = oc.createBiquadFilter();
+      o.type = 'sawtooth'; o.frequency.value = hz(n); o.detune.value = det; f.type = 'lowpass'; f.frequency.value = P.pad.cut;
+      o.connect(f); f.connect(g); g.connect(bus);
+      const v = P.pad.vol / ch.length;
+      g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(v, t + Math.min(1.2, d/3));
+      g.gain.setValueAtTime(v, t + d - .1); g.gain.linearRampToValueAtTime(0.0001, t + d + .9);
+      o.start(t); o.stop(t + d + 1);
+    }));
+  }
+  function drum(kind, t, v){
+    if (kind === 'kick'){ const o = oc.createOscillator(), g = oc.createGain();
+      o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(45, t + .12);
+      o.connect(g); g.connect(out); env(g, t, v, .002, .35); o.start(t); o.stop(t + .4); return; }
+    const s = oc.createBufferSource(), f = oc.createBiquadFilter(), g = oc.createGain(); s.buffer = noise;
+    if (kind === 'hat'){ f.type = 'highpass'; f.frequency.value = 7000; env(g, t, v*.35, .001, .05); }
+    else { f.type = 'bandpass'; f.frequency.value = 1800; f.Q.value = .7; env(g, t, v*.55, .001, .18); }
+    s.connect(f); f.connect(g); g.connect(kind === 'hat' ? out : bus); s.start(t); s.stop(t + .25);
+  }
+  const s16 = bar / 16;
+  for (let b = 0; b < bars; b++){
+    const ch = P.chords[b % P.chords.length], t = b * bar;
+    pad(ch, t, bar);
+    const step = bar / P.arp.steps;
+    for (let i = 0; i < P.arp.steps; i++){ const k = P.arp.pat[i % P.arp.pat.length]; if (k < 0) continue;
+      note(ch[k % ch.length] + P.arp.oct, t + i*step, P.arp.vol, P.arp.decay, P.arp.wave); }
+    P.bass.steps.forEach(i => tone(hz(ch[0] - 12 + (P.bass.oct || 0)), t + i*s16, P.bass.vol, .01, P.bass.len * beat, 'sine', 400));
+    for (let i = 0; i < 16; i++){
+      if (P.kick && P.kick[i]) drum('kick', t + i*s16, P.drums);
+      if (P.snare && P.snare[i]) drum('snare', t + i*s16, P.drums);
+      if (P.hat && P.hat[i]) drum('hat', t + i*s16, P.drums * (i % 2 ? .6 : 1));
+    }
+  }
+  const r = await oc.startRendering();
+  // Boucle sans coupure : la fin (réverb) est repliée sur le début, puis on normalise
+  const n = Math.round(L * sr), buf = ctx().createBuffer(2, n, sr);
+  let peak = 0;
+  for (let c = 0; c < 2; c++){ const src = r.getChannelData(c), dst = buf.getChannelData(c);
+    for (let i = 0; i < n; i++){ dst[i] = src[i] + (i + n < src.length ? src[i + n] : 0); peak = Math.max(peak, Math.abs(dst[i])); } }
+  const k = peak > 0 ? .8 / peak : 1;
+  for (let c = 0; c < 2; c++){ const d = buf.getChannelData(c); for (let i = 0; i < n; i++) d[i] *= k; }
+  return buf;
+}
+const moodCache = {};
+document.querySelectorAll('[data-mood]').forEach(b => b.onclick = async () => {
+  const mood = b.dataset.mood, m = $('mixMsg'); stopListen(); setMoodPill(mood);
+  $('musicTxt').textContent = 'Importer ma musique'; $('musicFile').value = '';
+  if (mood === 'none'){ musicBuf = null; $('listenMusic').disabled = true; m.className = 'msg'; m.textContent = 'Pas de musique.'; return; }
+  ctx(); m.className = 'msg'; m.textContent = 'Création de la musique…';
+  try {
+    musicBuf = moodCache[mood] || (moodCache[mood] = await synthMusic(MOODS[mood]));
+    $('listenMusic').disabled = false;
+    m.className = 'msg ok'; m.textContent = `Fond « ${MOODS[mood].label} » prêt. Il tourne en boucle sous la voix.`;
+  } catch(e){ musicBuf = null; m.className = 'msg err'; m.textContent = 'La musique n\'a pas pu être créée sur ce navigateur.'; }
+});
+let listenSrc = null;
+function stopListen(){ if (listenSrc){ try { listenSrc.stop(); } catch(e){} listenSrc = null; $('listenMusic').textContent = 'Écouter la musique'; } }
+$('listenMusic').onclick = async () => {
+  if (listenSrc) return stopListen();
+  if (!musicBuf || running) return;
+  const c = ctx(); await c.resume(); const g = c.createGain(); g.gain.value = Math.max(.3, vol('volMusic')); g.connect(c.destination);
+  listenSrc = c.createBufferSource(); listenSrc.buffer = musicBuf; listenSrc.loop = true; listenSrc.connect(g); listenSrc.start();
+  $('listenMusic').textContent = 'Arrêter l\'écoute';
+};
+// Repère quand la voix parle (par tranches de 0,1 s) pour baisser la musique
+function speechMap(buf){
+  const d = buf.getChannelData(0), step = Math.floor(buf.sampleRate * 0.1), out = [];
+  for (let i = 0; i < d.length; i += step){ let s = 0; const n = Math.min(step, d.length - i);
+    for (let k = 0; k < n; k++) s += d[i+k]*d[i+k]; out.push(Math.sqrt(s / (n||1)) > 0.02); }
+  // lisse : on garde la musique basse pendant les petites pauses
+  return out.map((v, i) => v || out.slice(Math.max(0,i-4), i+5).some(Boolean));
+}
+function level(a){ const b = new Float32Array(a.fftSize); a.getFloatTimeDomainData(b); let s = 0; for (const x of b) s += x*x; return Math.min(1, Math.sqrt(s/b.length) * 4); }
+function drawMeters(){
+  if (!mix) return;
+  [['mVoice',mix.aVoice],['mVideo',mix.aVideo],['mMusic',mix.aMusic]].forEach(([id,a]) => {
+    const v = running ? level(a) : 0, el = $(id);
+    el.style.width = (v*100) + '%'; el.style.background = v > .9 ? '#ff6b6b' : v > .7 ? '#f5c542' : '#1ed760'; });
+}
+
+function loop(){ if (!running) return; drawFrame(ctx().currentTime - startAt); drawMeters(); raf = requestAnimationFrame(loop); }
+
+async function start(recordDest){
+  stopListen();
+  const c = ctx(); await c.resume();
+  const m = buildMix(); applyVolumes();
+  try { await document.fonts.load('800 64px "Bricolage Grotesque"'); } catch(e){}
+  prepareCaptions();
+  if (recordDest){ recDest = recordDest; m.master.connect(recordDest); }
+  // Son des vidéos de fond
+  if (vol('volVideo') > 0){ if (bgMode === 'own') routeVideo(vid); if (bgMode === 'auto') scenes.forEach(s => routeVideo(s.el)); }
+  const t0 = c.currentTime + 0.1, D = audioBuf.duration, fades = $('fades').checked;
+  // Fondus
+  m.master.gain.cancelScheduledValues(0);
+  if (fades){ m.master.gain.setValueAtTime(0, t0); m.master.gain.linearRampToValueAtTime(1, t0 + 0.4);
+    m.master.gain.setValueAtTime(1, t0 + Math.max(0.5, D - 0.8)); m.master.gain.linearRampToValueAtTime(0, t0 + D + 0.2); }
+  else m.master.gain.setValueAtTime(1, t0);
+  // Voix
+  src = c.createBufferSource(); src.buffer = audioBuf; src.connect(m.voice);
+  // Musique (en boucle) + baisse automatique
+  m.duck.gain.cancelScheduledValues(0); m.duck.gain.setValueAtTime(1, t0);
+  if (musicBuf){
+    musicSrc = c.createBufferSource(); musicSrc.buffer = musicBuf; musicSrc.loop = true; musicSrc.connect(m.duck);
+    if (fades){ m.duck.gain.setValueAtTime(0, t0); m.duck.gain.linearRampToValueAtTime(1, t0 + 1.5); }
+    if ($('duck').checked){ speechMap(audioBuf).forEach((talk, i) => { const at = t0 + i*0.1; if (at > t0 + 1.5) m.duck.gain.setTargetAtTime(talk ? 0.3 : 1, at, 0.08); }); }
+    musicSrc.start(t0);
+  }
+  current = null;
+  running = true; syncBg(0);
+  startAt = t0; src.start(t0);
+  $('play').disabled = true; $('export').disabled = true; $('stop').disabled = false;
+  loop();
+  return new Promise(res => { src.onended = () => setTimeout(res, 250); });
+}
+function stopSources(){
+  running = false; cancelAnimationFrame(raf);
+  if (src){ try { src.onended = null; src.stop(); } catch(e){} src = null; }
+  if (musicSrc){ try { musicSrc.stop(); } catch(e){} musicSrc = null; }
+  if (mix && recDest){ try { mix.master.disconnect(recDest); } catch(e){} recDest = null; }
+  vid.pause(); scenes.forEach(s => s.el && s.el.pause()); current = null;
+  drawMeters();
+}
+function stopAll(){
+  stopSources();
+  if (recorder && recorder.state !== 'inactive') recorder.stop();
+  $('play').disabled = false; $('export').disabled = false; $('stop').disabled = true;
+  drawFrame(0);
+}
+$('stop').onclick = () => { $('playMsg').textContent = ''; stopAll(); };
+
+function ready(){
+  const m = $('playMsg'); m.className = 'msg err';
+  if (!$('script').value.trim()) { m.textContent = 'Il manque le script (étape 1).'; return false; }
+  if (!audioBuf) { m.textContent = 'Il manque la voix : appuie sur « Générer la voix » (étape 2).'; return false; }
+  if (voiceKey !== $('script').value.trim() + '|' + $('voice').value) { m.textContent = 'Le script ou la voix a changé : régénère la voix (étape 2).'; return false; }
+  m.textContent = ''; return true;
+}
+
+$('play').onclick = async () => {
+  if (!ready()) return;
+  hideResult(); showEmpty(false);
+  await start(null);
+  if (running) stopAll();
+};
+
+// ---------- Export MP4 ----------
+function pickMime(){
+  if (!window.MediaRecorder) return null;
+  const list = ['video/mp4;codecs=avc1.42E01E,mp4a.40.2','video/mp4','video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'];
+  return list.find(t => MediaRecorder.isTypeSupported(t)) || '';
+}
+$('export').onclick = async () => {
+  if (!ready()) return;
+  const m = $('playMsg'), mime = pickMime();
+  if (mime === null || !cv.captureStream) { m.className='msg err'; m.textContent="Ce navigateur ne peut pas exporter la vidéo. Utilise Safari ou Chrome à jour."; return; }
+  hideResult(); showEmpty(false);
+  const c = ctx(); const dest = c.createMediaStreamDestination();
+  const stream = cv.captureStream(30);
+  dest.stream.getAudioTracks().forEach(tr => stream.addTrack(tr));
+  const chunks = [];
+  recorder = new MediaRecorder(stream, mime ? { mimeType: mime, videoBitsPerSecond: 5000000 } : undefined);
+  recorder.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+  const done = new Promise(res => recorder.onstop = res);
+  m.className='msg'; m.textContent = 'Export en cours… garde la page ouverte.';
+  recorder.start(1000);
+  const finished = await Promise.race([start(dest).then(()=>true), done.then(()=>false)]);
+  if (finished){ running = false; cancelAnimationFrame(raf); if (recorder.state !== 'inactive') recorder.stop(); await done; stopSources(); }
+  $('play').disabled = false; $('export').disabled = false; $('stop').disabled = true;
+  if (!finished || !chunks.length){ m.className='msg err'; m.textContent = 'Export annulé.'; recorder = null; drawFrame(0); return; }
+  const type = (recorder.mimeType || mime || 'video/mp4').split(';')[0];
+  recorder = null;
+  resultBlob = new Blob(chunks, { type });
+  if (resultURL) URL.revokeObjectURL(resultURL);
+  resultURL = URL.createObjectURL(resultBlob);
+  const rv = $('resultVid'); rv.src = resultURL; rv.hidden = false; cv.hidden = true;
+  $('saveRow').hidden = false;
+  m.className='msg ok'; m.textContent = `Vidéo prête (${(resultBlob.size/1048576).toFixed(1)} Mo). Appuie sur « Enregistrer la vidéo ».`;
+};
+function hideResult(){ $('resultVid').hidden = true; $('resultVid').pause(); cv.hidden = false; $('saveRow').hidden = true; }
+$('back').onclick = () => { hideResult(); $('playMsg').textContent=''; drawFrame(0); };
+$('save').onclick = async () => {
+  if (!resultBlob) return;
+  const ext = resultBlob.type.includes('mp4') ? 'mp4' : 'webm';
+  const file = new File([resultBlob], `scriptboom.${ext}`, { type: resultBlob.type });
+  try {
+    if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: 'ScriptBoom' }); return; }
+  } catch(e){ if (e.name === 'AbortError') return; }
+  const a = document.createElement('a'); a.href = resultURL; a.download = file.name; document.body.appendChild(a); a.click(); a.remove();
+};
+
+// ---------- Étape 6 : publication ----------
+$('makeCaption').onclick = async () => {
+  const script = $('script').value.trim(), msg = $('capMsg'), btn = $('makeCaption');
+  if (!script){ msg.className='msg err'; msg.textContent="Il faut d'abord un script (étape 1)."; return; }
+  btn.disabled = true; btn.textContent = 'Rédaction…'; msg.className='msg'; msg.textContent='';
+  try {
+    const r = await fetch('/api/script', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ mode:'caption', script, lang: lang() }) });
+    const d = await r.json(); if (!r.ok) throw new Error(d.error || 'Erreur');
+    $('pubTitle').value = d.title || '';
+    $('pubText').value = (d.caption || '') + '\n\n' + (d.hashtags || []).join(' ');
+    $('capBox').hidden = false; msg.className='msg ok'; msg.textContent='Modifie si tu veux, puis copie.';
+  } catch(e){ msg.className='msg err'; msg.textContent='La génération a échoué : ' + (e.message || 'erreur inconnue'); }
+  finally { btn.disabled = false; btn.textContent = 'Générer la légende et les hashtags'; }
+};
+$('copyCaption').onclick = async () => {
+  const text = $('pubText').value, msg = $('capMsg');
+  try { await navigator.clipboard.writeText(text); }
+  catch(e){ const t = $('pubText'); t.focus(); t.select(); try { document.execCommand('copy'); } catch(_){} }
+  msg.className='msg ok'; msg.textContent='Copié ! Colle-le dans TikTok ou Instagram.';
+};
+
+drawFrame(0);
+</script>
+</body>
+</html>
