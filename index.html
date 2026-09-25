@@ -872,6 +872,135 @@ $('play').onclick = async () => {
   if (running) stopAll();
 };
 
+// ---------- Remise au format MP4 standard (pour TikTok / Instagram) ----------
+// L'iPhone enregistre un MP4 « fragmenté » (en morceaux) que TikTok recolle mal : la voix devient hachée.
+// Cette fonction réassemble le fichier en MP4 classique, sans réencoder (rapide, aucune perte de qualité).
+function remuxMP4(buf){
+  const u8 = new Uint8Array(buf), dv = new DataView(buf);
+  const u32 = o => dv.getUint32(o), u64 = o => dv.getUint32(o) * 4294967296 + dv.getUint32(o + 4);
+  const type = o => String.fromCharCode(u8[o+4], u8[o+5], u8[o+6], u8[o+7]);
+  function boxes(start, end){
+    const out = []; let o = start;
+    while (o + 8 <= end){
+      let size = u32(o), hdr = 8; const t = type(o);
+      if (size === 1){ size = u64(o + 8); hdr = 16; } else if (size === 0) size = end - o;
+      if (size < hdr || o + size > end) break;
+      out.push({ t, o, size, s: o + hdr, e: o + size }); o += size;
+    }
+    return out;
+  }
+  const kid = (b, t) => boxes(b.s, b.e).find(x => x.t === t);
+  const top = boxes(0, u8.length);
+  const moov = top.find(b => b.t === 'moov');
+  if (!moov || !top.some(b => b.t === 'moof')) return null; // déjà standard
+  const tracks = {}, trex = {};
+  const mvex = kid(moov, 'mvex');
+  if (mvex) boxes(mvex.s, mvex.e).filter(b => b.t === 'trex').forEach(b => {
+    const p = b.s + 4; trex[u32(p)] = { dur: u32(p + 8), size: u32(p + 12), flags: u32(p + 16) };
+  });
+  const mvhd = kid(moov, 'mvhd'), mvV = u8[mvhd.s];
+  const movieTS = u32(mvhd.s + (mvV ? 20 : 12));
+  boxes(moov.s, moov.e).filter(b => b.t === 'trak').forEach(trak => {
+    const tkhd = kid(trak, 'tkhd'), id = u32(tkhd.s + (u8[tkhd.s] ? 20 : 12));
+    const mdia = kid(trak, 'mdia'), mdhd = kid(mdia, 'mdhd'), hdlr = kid(mdia, 'hdlr');
+    const minf = kid(mdia, 'minf'), stbl = kid(minf, 'stbl');
+    tracks[id] = { id, tkhd, mdhd, hdlr, minf, stsd: kid(stbl, 'stsd'),
+      ts: u32(mdhd.s + (u8[mdhd.s] ? 20 : 12)), handler: type(hdlr.s + 4), samples: [], d: null };
+  });
+  // Lecture des morceaux (moof + mdat)
+  top.filter(b => b.t === 'moof').forEach(moof => {
+    boxes(moof.s, moof.e).filter(b => b.t === 'traf').forEach(traf => {
+      const tfhd = kid(traf, 'tfhd'); const fl = u32(tfhd.s) & 0xffffff; let p = tfhd.s + 4;
+      const id = u32(p); p += 4; const tr = tracks[id], dx = trex[id] || { dur: 0, size: 0, flags: 0 };
+      if (!tr) return;
+      let base = moof.o, dDur = dx.dur, dSize = dx.size, dFlags = dx.flags;
+      if (fl & 1){ base = u64(p); p += 8; }
+      if (fl & 2) p += 4;
+      if (fl & 8){ dDur = u32(p); p += 4; }
+      if (fl & 0x10){ dSize = u32(p); p += 4; }
+      if (fl & 0x20){ dFlags = u32(p); p += 4; }
+      const tfdt = kid(traf, 'tfdt');
+      let dts = tfdt ? (u8[tfdt.s] ? u64(tfdt.s + 4) : u32(tfdt.s + 4)) : (tr.d === null ? 0 : tr.d);
+      boxes(traf.s, traf.e).filter(b => b.t === 'trun').forEach(trun => {
+        const v = u8[trun.s], f = u32(trun.s) & 0xffffff; let q = trun.s + 4;
+        const n = u32(q); q += 4;
+        let off = base; if (f & 1){ off = base + dv.getInt32(q); q += 4; }
+        let first = null; if (f & 4){ first = u32(q); q += 4; }
+        for (let i = 0; i < n; i++){
+          let dur = dDur, size = dSize, sf = (i === 0 && first !== null) ? first : dFlags, cto = 0;
+          if (f & 0x100){ dur = u32(q); q += 4; }
+          if (f & 0x200){ size = u32(q); q += 4; }
+          if (f & 0x400){ sf = u32(q); q += 4; }
+          if (f & 0x800){ cto = v ? dv.getInt32(q) : u32(q); q += 4; }
+          tr.samples.push({ off, size, dur, cto, dts, key: !((sf >> 16) & 1) });
+          off += size; dts += dur;
+        }
+      });
+      tr.d = dts;
+    });
+  });
+  const list = Object.values(tracks).filter(t => t.samples.length);
+  if (!list.length) return null;
+  // Construction du nouveau fichier
+  const enc = s => [...s].map(c => c.charCodeAt(0));
+  const be32 = n => [(n >>> 24) & 255, (n >>> 16) & 255, (n >>> 8) & 255, n & 255];
+  const be64 = n => be32(Math.floor(n / 4294967296)).concat(be32(n >>> 0));
+  const box = (t, ...parts) => { const body = parts.flat(); return be32(body.length + 8).concat(enc(t), body); };
+  const full = (t, v, f, ...parts) => box(t, [v, (f >> 16) & 255, (f >> 8) & 255, f & 255], ...parts);
+  const raw = b => Array.from(u8.subarray(b.o, b.e));
+  const minT = Math.min(...list.map(t => t.samples[0].dts / t.ts));
+  let movieDur = 0;
+  list.forEach(t => {
+    const s = t.samples, t0 = Math.round(minT * t.ts);
+    t.mediaDur = s[s.length - 1].dts + s[s.length - 1].dur - s[0].dts;
+    t.delay = Math.max(0, Math.round((s[0].dts / t.ts - minT) * movieTS));
+    t.movDur = t.delay + Math.round(t.mediaDur / t.ts * movieTS);
+    movieDur = Math.max(movieDur, t.movDur);
+    s.forEach(x => x.sec = (x.dts - t0) / t.ts);
+  });
+  // Ordre d'écriture : entrelacé dans le temps (lecture fluide en streaming)
+  const order = list.flatMap(t => t.samples.map(x => ({ t, x }))).sort((a, b) => a.x.sec - b.x.sec);
+  function buildMoov(mdatStart){
+    let pos = mdatStart; order.forEach(({ x }) => { x.newOff = pos; pos += x.size; });
+    const traks = list.map(t => {
+      const s = t.samples;
+      const stts = []; s.forEach(x => { const l = stts[stts.length - 1]; if (l && l[1] === x.dur) l[0]++; else stts.push([1, x.dur]); });
+      const hasCtts = s.some(x => x.cto);
+      const ctts = []; if (hasCtts) s.forEach(x => { const l = ctts[ctts.length - 1]; if (l && l[1] === x.cto) l[0]++; else ctts.push([1, x.cto]); });
+      const keys = s.map((x, i) => x.key ? i + 1 : 0).filter(Boolean);
+      const isVid = t.handler === 'vide';
+      const stbl = box('stbl', raw(t.stsd),
+        full('stts', 0, 0, be32(stts.length), stts.flatMap(([c, d]) => be32(c).concat(be32(d)))),
+        hasCtts ? full('ctts', 1, 0, be32(ctts.length), ctts.flatMap(([c, o]) => be32(c).concat(be32(o >>> 0)))) : [],
+        isVid && keys.length < s.length ? full('stss', 0, 0, be32(keys.length), keys.flatMap(be32)) : [],
+        full('stsc', 0, 0, be32(1), be32(1), be32(1), be32(1)),
+        full('stsz', 0, 0, be32(0), be32(s.length), s.flatMap(x => be32(x.size))),
+        full('co64', 0, 0, be32(s.length), s.flatMap(x => be64(x.newOff))));
+      const minfKids = boxes(t.minf.s, t.minf.e).filter(b => b.t !== 'stbl').flatMap(raw);
+      const mdhdV = u8[t.mdhd.s];
+      const mdhd = raw(t.mdhd); const dOff = t.mdhd.s - t.mdhd.o + (mdhdV ? 24 : 16);
+      if (mdhdV) be64(t.mediaDur).forEach((b, i) => mdhd[dOff + i] = b); else be32(t.mediaDur).forEach((b, i) => mdhd[dOff + i] = b);
+      const tkV = u8[t.tkhd.s], tkhd = raw(t.tkhd), tOff = t.tkhd.s - t.tkhd.o + (tkV ? 28 : 20);
+      if (tkV) be64(t.movDur).forEach((b, i) => tkhd[tOff + i] = b); else be32(t.movDur).forEach((b, i) => tkhd[tOff + i] = b);
+      const elst = t.delay
+        ? full('elst', 0, 0, be32(2), be32(t.delay), be32(0xffffffff), be32(0x10000), be32(t.movDur - t.delay), be32(0), be32(0x10000))
+        : full('elst', 0, 0, be32(1), be32(t.movDur), be32(0), be32(0x10000));
+      return box('trak', tkhd, box('edts', elst), box('mdia', mdhd, raw(t.hdlr), box('minf', minfKids, stbl)));
+    });
+    const mv = raw(mvhd), mOff = mvhd.s - mvhd.o + (mvV ? 24 : 16);
+    if (mvV) be64(movieDur).forEach((b, i) => mv[mOff + i] = b); else be32(movieDur).forEach((b, i) => mv[mOff + i] = b);
+    return box('moov', mv, ...traks);
+  }
+  const ftyp = box('ftyp', enc('isom'), be32(512), enc('isomiso2avc1mp41'));
+  const total = order.reduce((a, { x }) => a + x.size, 0);
+  const mdatHdr = be32(1).concat(enc('mdat'), be64(total + 16));
+  let moovB = buildMoov(0);
+  moovB = buildMoov(ftyp.length + moovB.length + mdatHdr.length);
+  const parts = [new Uint8Array(ftyp), new Uint8Array(moovB), new Uint8Array(mdatHdr)];
+  order.forEach(({ x }) => parts.push(u8.subarray(x.off, x.off + x.size)));
+  return parts;
+}
+
 // ---------- Export MP4 ----------
 function pickMime(){
   if (!window.MediaRecorder) return null;
@@ -899,6 +1028,10 @@ $('export').onclick = async () => {
   const type = (recorder.mimeType || mime || 'video/mp4').split(';')[0];
   recorder = null;
   resultBlob = new Blob(chunks, { type });
+  if (type.includes('mp4')){
+    m.className='msg'; m.textContent = 'Finalisation de la vidéo…';
+    try { const parts = remuxMP4(await resultBlob.arrayBuffer()); if (parts) resultBlob = new Blob(parts, { type: 'video/mp4' }); } catch(e){}
+  }
   if (resultURL) URL.revokeObjectURL(resultURL);
   resultURL = URL.createObjectURL(resultBlob);
   const rv = $('resultVid'); rv.src = resultURL; rv.hidden = false; cv.hidden = true;
