@@ -22,9 +22,9 @@ const FORMATS = {
   libre: '',
   histoire: "Format « Histoire vraie » : raconte une histoire réelle comme un conteur. Accroche intrigante, montée de tension, puis révélation ou chute marquante.",
   fait: "Format « Fait incroyable » : un fait réel et surprenant. Accroche choc, explication simple, puis une conséquence ou un détail encore plus étonnant.",
-  top5: "Format « Top 5 » : un classement du 5e au 1er. Annonce clairement chaque numéro, une ou deux phrases par élément, le n°1 est le plus surprenant.",
+  top5: "Format « Top » : un classement du dernier au 1er. Annonce clairement chaque numéro. Pour chaque élément : l'idée en une phrase, puis POURQUOI c'est vrai ou faux (le mécanisme, une preuve ou un exemple concret). Le n°1 est le plus surprenant.",
   citation: "Format « Citation motivante » : commence par une citation célèbre et son auteur (uniquement si tu es sûr de l'exactitude, sinon formule-la comme une leçon de vie sans l'attribuer), puis explique ce qu'elle enseigne et termine par un appel à passer à l'action.",
-  saviezvous: "Format « Le saviez-vous ? » : commence par l'équivalent de « Le saviez-vous ? » dans la langue demandée, puis enchaîne 2 ou 3 faits surprenants liés au sujet."
+  saviezvous: "Format « Le saviez-vous ? » : commence par l'équivalent de « Le saviez-vous ? » dans la langue demandée, puis donne 1 ou 2 faits surprenants liés au sujet, chacun suivi de son explication (pourquoi ou comment ça marche)."
 };
 
 async function askGemini(prompt, json) {
@@ -97,9 +97,14 @@ Réponds en JSON : {"title":"...","caption":"...","hashtags":["#..."]}`, true);
     if (!topic) return res.status(400).json({ error: 'Sujet manquant' });
     const d = [20, 35, 60].includes(Number(b.dur)) ? Number(b.dur) : 35;
     const nWords = Math.round(d * 2.6);
+    // Moins d'éléments quand la vidéo est courte, pour avoir le temps d'expliquer chacun
+    const nTop = d <= 20 ? 3 : d <= 35 ? 3 : 5;
+    const top = b.format === 'top5' ? ` Fais un Top ${nTop} (pas plus), annoncé comme « Top ${nTop} » ou l'équivalent dans la langue.` : '';
+    const depth = `Profondeur : le spectateur doit APPRENDRE quelque chose. Chaque affirmation est immédiatement suivie de son explication : le pourquoi ou le comment, avec un mécanisme simple, un exemple concret ou un ordre de grandeur connu. Interdit : aligner des affirmations sans les expliquer. Mieux vaut moins d'idées bien expliquées que beaucoup d'idées survolées.`;
     const out = await askGemini(`Écris un script de voix off en ${lang} pour une vidéo verticale (TikTok/Reels/Shorts) sur le sujet : "${topic}".
 Ton : ${clean(b.tone, 60) || 'captivant'}. Longueur : environ ${nWords} mots (${d} secondes lues à voix haute).
-${format}
+${format}${top}
+${depth}
 Règles : la première phrase est une accroche forte ; phrases courtes et orales ; tutoiement (ou l'équivalent naturel dans la langue) ; finis par une phrase qui pousse à s'abonner ou commenter. ${facts}
 Le script ne contient QUE le texte à lire : pas de titre, pas de guillemets, pas d'indications de mise en scène, pas d'emojis, pas de numérotation du type « 1. ».
 Donne aussi "hook" : une accroche visuelle très courte (3 à 7 mots) à afficher en gros à l'écran pendant les 2 premières secondes, dans la même langue.
