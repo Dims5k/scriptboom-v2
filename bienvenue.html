@@ -63,7 +63,10 @@ h2{font-size:clamp(30px,4.5vw,44px);letter-spacing:-.03em;line-height:1.05;margi
 .feat{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:22px}
 .feat svg{color:var(--green);margin-bottom:12px}
 .join{background:var(--card);border:1px solid rgba(30,215,96,.3);border-radius:30px;padding:clamp(24px,5vw,48px);text-align:center}
-.join h2{margin-bottom:8px}.join .sub{margin:0 auto 26px}
+.join h2{margin-bottom:8px}
+.seats{max-width:460px;margin:-6px auto 24px}
+.seats-row{font-size:15px;color:#cfcfcf;margin-bottom:8px}.seats-row b{color:var(--green);font-size:20px;font-weight:900}
+.seats-bar{height:10px;border-radius:5px;background:#1f1f1f;overflow:hidden}.seats-bar i{display:block;height:100%;width:0;background:var(--green);border-radius:5px;transition:width .8s cubic-bezier(.2,.8,.2,1)}.join .sub{margin:0 auto 26px}
 form{display:grid;gap:10px;max-width:460px;margin:0 auto;text-align:left}
 input,select{width:100%;font:16px Figtree,sans-serif;padding:14px 16px;border-radius:14px;border:1px solid #2a2a2a;background:#0a0a0a;color:var(--text)}
 input:focus,select:focus{outline:2px solid var(--green);outline-offset:1px;border-color:transparent}
@@ -98,12 +101,12 @@ footer{padding:40px 0 60px;color:var(--muted);font-size:14px;display:flex;gap:16
 
   <header class="hero">
     <div>
-      <span class="tag">Bientôt disponible · accès en avant-première</span>
+      <span class="tag">Offre de lancement · 500 places seulement</span>
       <h1>Un sujet.<br>Une vidéo.<br><em>BOOM.</em></h1>
       <p class="lead">ScriptBoom écrit le script, prête sa voix, trouve les images et pose les sous-titres. Ta vidéo TikTok, Reels ou Shorts est prête à poster.</p>
       <div class="cta-row">
         <a class="btn" href="#rejoindre">Je veux y accéder</a>
-        <span class="small">Gratuit · sans engagement</span>
+        <span class="small">−50 % à vie pour les 500 premiers inscrits</span>
       </div>
     </div>
     <div class="labo" aria-hidden="true">
@@ -142,8 +145,13 @@ footer{padding:40px 0 60px;color:var(--muted);font-size:14px;display:flex;gap:16
 
   <section id="rejoindre">
     <div class="join">
-      <h2>Sois parmi les premiers</h2>
-      <p class="sub">Les inscrits reçoivent l'accès en avant-première et l'offre de lancement.</p>
+      <span class="tag" style="margin-bottom:14px">Offre réservée aux 500 premiers</span>
+      <h2>−50 % à vie.<br><em style="font-style:normal;color:var(--green)">3,99 € au lieu de 7,99 €.</em></h2>
+      <p class="sub">Inscris-toi sur la liste d'attente : tu as l'accès en avant-première et ScriptBoom à moitié prix, pour toujours. Tant que tu restes abonné, ton prix ne bouge pas.</p>
+      <div class="seats" id="seats" hidden>
+        <div class="seats-row"><b id="seatsLeft">500</b> places restantes sur 500</div>
+        <div class="seats-bar"><i id="seatsBar"></i></div>
+      </div>
       <form id="wl" novalidate>
         <label for="email">Ton email</label>
         <input id="email" type="email" inputmode="email" autocomplete="email" placeholder="ton@email.com" required>
@@ -170,6 +178,16 @@ footer{padding:40px 0 60px;color:var(--muted);font-size:14px;display:flex;gap:16
   </footer>
 </div>
 <script>
+// Compteur de places de l'offre de lancement
+const SEATS = 500;
+function showSeats(n){
+  const left = Math.max(0, SEATS - n), box = document.getElementById('seats');
+  document.getElementById('seatsLeft').textContent = left.toLocaleString('fr-BE');
+  document.getElementById('seatsBar').style.width = Math.min(100, Math.max(2, n / SEATS * 100)) + '%';
+  if (left === 0) box.querySelector('.seats-row').textContent = "L'offre des 500 premiers est complète : inscris-toi pour être prévenu du lancement.";
+  box.hidden = false;
+}
+fetch('/api/waitlist').then(r => r.ok ? r.json() : null).then(d => { if (d && typeof d.count === 'number') showSeats(d.count); }).catch(() => {});
 document.getElementById('wl').addEventListener('submit', async e => {
   e.preventDefault();
   const m = document.getElementById('msg'), b = document.getElementById('go'), email = document.getElementById('email').value.trim();
@@ -180,7 +198,11 @@ document.getElementById('wl').addEventListener('submit', async e => {
       email, platform: document.getElementById('platform').value, niche: document.getElementById('niche').value.trim(), website: document.getElementById('website').value }) });
     const d = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(d.error || 'Erreur');
-    m.className = 'ok'; m.textContent = d.already ? 'Tu es déjà sur la liste, à très vite !' : "C'est noté ! Tu fais partie des premiers, on te prévient dès l'ouverture.";
+    m.className = 'ok';
+    if (d.already) m.textContent = 'Tu es déjà sur la liste : ta place est gardée, à très vite !';
+    else if (d.count && d.count <= SEATS) m.textContent = `Ta place n° ${d.count} est réservée 🎉 −50 % à vie. On t'envoie ton accès dès l'ouverture, avec le même email.`;
+    else m.textContent = "C'est noté ! On te prévient dès l'ouverture.";
+    if (d.count) showSeats(d.count);
     document.getElementById('wl').reset();
     try { window.va('pageview', { route: '/liste-attente-ok', path: '/liste-attente-ok' }); } catch (_) {}
   } catch (err){ m.className = 'err'; m.textContent = err.message || 'Réessaie dans un instant.'; }
