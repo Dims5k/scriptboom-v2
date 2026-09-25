@@ -203,6 +203,29 @@ details.ideas summary{cursor:pointer;color:var(--green);font-weight:600;font-siz
           <div class="hist" id="histList"></div>
         </details>
       </section>
+      <section class="step" id="coachSection">
+        <details class="ideas" style="margin-top:0" id="coachBox">
+          <summary>📈 Coach : apprends de tes stats (TikTok, Insta, YouTube)</summary>
+          <p class="sub">Fais des captures d'écran des statistiques d'une vidéo TikTok, Instagram Reels ou YouTube Shorts (vues, temps de visionnage, courbe de rétention…). Le coach lit les chiffres, trouve pourquoi les gens décrochent et adapte tes prochains scripts.</p>
+          <label class="drop" style="margin-top:12px">
+            <input type="file" id="coachFiles" accept="image/*" multiple>
+            <span id="coachTxt">📷 Ajouter mes captures (jusqu'à 4)</span>
+          </label>
+          <label for="coachNote">Précision (facultatif)</label>
+          <input id="coachNote" type="text" placeholder="Ex. : vidéo sur la créatine, 35 s, postée à 4h du matin">
+          <button class="btn" id="coachBtn" style="width:100%;margin-top:12px">Analyser mes stats</button>
+          <p class="msg" id="coachMsg" role="status"></p>
+          <div id="coachOut" hidden>
+            <p id="coachSummary" style="margin:12px 0 0;font-size:15px"></p>
+            <ul class="fixes" id="coachNumbers"></ul>
+            <p class="sub" style="color:var(--text);font-weight:600">Ce qui fait décrocher :</p>
+            <ul class="fixes" id="coachProblems"></ul>
+            <p class="sub" style="color:var(--green);font-weight:600">Tes règles pour les prochains scripts :</p>
+            <ul class="fixes" id="coachRules" style="color:var(--text);list-style:none;padding-left:4px"></ul>
+            <label class="check"><input type="checkbox" id="coachOn" checked> Appliquer ces règles à mes prochains scripts</label>
+          </div>
+        </details>
+      </section>
       <section class="step" aria-labelledby="s1">
         <h2 id="s1"><span class="num">1</span>Le script</h2>
         <p class="hint">Donne un sujet, ScriptBoom écrit un script court pour TikTok, Reels ou Shorts. Tu peux aussi écrire le tien.</p>
@@ -235,6 +258,16 @@ details.ideas summary{cursor:pointer;color:var(--green);font-weight:600;font-siz
           <button class="btn" id="makeWeek" style="width:100%;margin-top:10px">Prépare ma semaine</button>
           <div class="hist" id="weekList"></div>
           <p class="msg" id="weekMsg" role="status"></p>
+        </details>
+        <details class="ideas" id="replyBox">
+          <summary>💬 Répondre à un commentaire en vidéo</summary>
+          <p class="sub">Colle un commentaire reçu : ScriptBoom écrit la réponse et affiche la bulle du commentaire dans la vidéo, comme les réponses vidéo de TikTok.</p>
+          <label for="replyUser">Pseudo (facultatif)</label>
+          <input id="replyUser" type="text" placeholder="@pseudo">
+          <label for="replyText">Le commentaire</label>
+          <textarea id="replyText" style="min-height:80px" placeholder="Ex. : c'est vrai que la créatine fait perdre les cheveux ?"></textarea>
+          <button class="btn" id="replyBtn" style="width:100%;margin-top:10px">Écrire la vidéo de réponse</button>
+          <p class="msg" id="replyMsg" role="status"></p>
         </details>
         <details class="ideas">
           <summary>Pas d'idée ? Trouve-moi des sujets</summary>
@@ -479,31 +512,87 @@ function updateCount(){
 }
 $('script').addEventListener('input', () => { updateCount(); capWords = []; if (!running) drawFrame(previewT()); });
 
-$('gen').onclick = async () => {
-  const topic = $('topic').value.trim(), msg = $('genMsg');
-  if (!topic) { msg.className='msg err'; msg.textContent="Écris d'abord un sujet."; $('topic').focus(); return; }
-  const btn = $('gen'); btn.disabled = true; btn.textContent = 'Écriture en cours…';
+// Génère le script (sujet normal, ou réponse à un commentaire)
+async function generate(reply){
+  const topic = $('topic').value.trim(), msg = reply ? $('replyMsg') : $('genMsg');
+  if (!reply && !topic) { msg.className='msg err'; msg.textContent="Écris d'abord un sujet."; $('topic').focus(); return; }
+  const btn = reply ? $('replyBtn') : $('gen'), label = btn.textContent; btn.disabled = true;
   msg.className='msg'; msg.textContent='';
   try {
-    const series = $('seriesOn').checked, check = $('checkOn').checked;
+    const series = !reply && $('seriesOn').checked, check = $('checkOn').checked;
     btn.textContent = check ? 'Écriture et vérification…' : 'Écriture en cours…';
-    const r = await fetch('/api/script', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ topic, dur, tone, format, lang: lang(), series, check }) });
+    const coach = coachRules();
+    const r = await fetch('/api/script', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ topic, dur, tone, format, lang: lang(), series, check, coach, reply }) });
     const data = await r.json();
     if (!r.ok) throw new Error(data.error || 'Erreur');
+    replyComment = reply || null;
+    if (reply && !topic) $('topic').value = 'Réponse : ' + reply.text.slice(0, 80);
     parts = [{ script: data.script, hook: data.hook || '', keywords: data.keywords || [] }];
     if (data.part2 && data.part2.script) parts.push({ script: data.part2.script, hook: data.part2.hook || '', keywords: data.part2.keywords || [] });
     part = 0; loadPart(0);
     $('partBox').hidden = parts.length < 2;
     showFixes(data.fixes || [], check);
     histId = Date.now().toString(36); saveHistory();
-    track('script');
-    msg.className='msg ok'; msg.textContent = parts.length > 1
-      ? 'Série prête : voici la partie 1. Fais sa vidéo, puis touche « Partie 2 ».'
+    track(reply ? 'reponse-commentaire' : 'script');
+    msg.className='msg ok'; msg.textContent = reply
+      ? 'Réponse prête : la bulle du commentaire apparaîtra dans la vidéo. Génère la voix (étape 2).'
+      : parts.length > 1 ? 'Série prête : voici la partie 1. Fais sa vidéo, puis touche « Partie 2 ».'
       : 'Script prêt. Modifie-le si tu veux, puis génère la voix.';
+    if (coach.length && !reply) msg.textContent += ' Les règles de ton coach ont été appliquées.';
+    if (reply) $('script').scrollIntoView({ behavior:'smooth', block:'center' });
   } catch(e) {
     msg.className='msg err'; msg.textContent='La génération a échoué : ' + (e.message || 'erreur inconnue');
-  } finally { btn.disabled=false; btn.textContent='Générer le script'; }
+  } finally { btn.disabled = false; btn.textContent = label; }
+}
+$('gen').onclick = () => generate(null);
+$('replyBtn').onclick = () => {
+  const text = $('replyText').value.trim(), m = $('replyMsg');
+  if (!text){ m.className = 'msg err'; m.textContent = 'Colle d\'abord le commentaire.'; $('replyText').focus(); return; }
+  generate({ user: $('replyUser').value.trim().replace(/^@/, ''), text });
 };
+let replyComment = null;
+
+// ---------- Coach : analyse des statistiques ----------
+const COACH_KEY = 'sb_coach';
+let coachImgs = [];
+function coachRules(){ try { const c = JSON.parse(localStorage.getItem(COACH_KEY) || 'null'); return c && $('coachOn').checked ? (c.rules || []) : []; } catch(e){ return []; } }
+// Réduit chaque capture (plus rapide à envoyer, moins de 1 Mo)
+function shrink(file){ return new Promise((ok, ko) => { const img = new Image(), u = URL.createObjectURL(file);
+  img.onload = () => { const k = Math.min(1, 1400 / Math.max(img.width, img.height)), c = document.createElement('canvas');
+    c.width = Math.round(img.width * k); c.height = Math.round(img.height * k); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    URL.revokeObjectURL(u); ok({ mime: 'image/jpeg', data: c.toDataURL('image/jpeg', 0.82).split(',')[1] }); };
+  img.onerror = () => { URL.revokeObjectURL(u); ko(new Error('image illisible')); }; img.src = u; }); }
+$('coachFiles').onchange = async e => {
+  const files = [...e.target.files].slice(0, 4), m = $('coachMsg');
+  try { coachImgs = await Promise.all(files.map(shrink));
+    $('coachTxt').textContent = `📷 ${coachImgs.length} capture${coachImgs.length > 1 ? 's' : ''} prête${coachImgs.length > 1 ? 's' : ''}`; m.textContent = ''; }
+  catch(err){ coachImgs = []; m.className = 'msg err'; m.textContent = 'Une des images ne peut pas être lue.'; }
+};
+function fillList(id, arr, prefix){ const ul = $(id); ul.innerHTML = ''; (arr || []).forEach(t => { const li = document.createElement('li'); li.textContent = (prefix || '') + t; ul.appendChild(li); }); }
+function renderCoach(c){
+  if (!c) return; $('coachOut').hidden = false;
+  $('coachSummary').textContent = c.summary || '';
+  fillList('coachNumbers', c.numbers); fillList('coachProblems', c.problems); fillList('coachRules', c.rules, '✓ ');
+}
+$('coachBtn').onclick = async () => {
+  const m = $('coachMsg'), btn = $('coachBtn');
+  if (!coachImgs.length){ m.className = 'msg err'; m.textContent = 'Ajoute d\'abord au moins une capture de tes stats.'; return; }
+  btn.disabled = true; btn.textContent = 'Analyse en cours…'; m.className = 'msg'; m.textContent = '';
+  try {
+    const r = await fetch('/api/script', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ mode:'coach', images: coachImgs, note: $('coachNote').value.trim() }) });
+    const d = await r.json(); if (!r.ok) throw new Error(d.error || 'Erreur');
+    const c = { date: Date.now(), ...d };
+    try { localStorage.setItem(COACH_KEY, JSON.stringify(c)); } catch(e){}
+    renderCoach(c); $('coachOn').checked = true; track('coach');
+    m.className = 'msg ok'; m.textContent = 'Analyse terminée. Ces règles seront appliquées à tes prochains scripts.';
+    if (d.duration && d.duration !== dur){ clickPill(`[data-dur="${d.duration}"]`); m.textContent += ` Durée conseillée : ${d.duration} s (déjà sélectionnée).`; }
+  } catch(e){ m.className = 'msg err'; m.textContent = 'L\'analyse a échoué : ' + (e.message || 'erreur inconnue'); }
+  finally { btn.disabled = false; btn.textContent = 'Analyser mes stats'; }
+};
+try { renderCoach(JSON.parse(localStorage.getItem(COACH_KEY) || 'null')); } catch(e){}
+
 
 // ---------- Série en 2 parties ----------
 let parts = [], part = 0, histId = null;
@@ -544,7 +633,7 @@ function saveHistory(){
   if (!parts.length) return;
   const list = readHist().filter(h => h.id !== histId);
   list.unshift({ id: histId, date: Date.now(), topic: $('topic').value.trim() || parts[0].script.slice(0, 60),
-    format, dur, tone, lang: lang(), voice: $('voice').value, parts, part });
+    format, dur, tone, lang: lang(), voice: $('voice').value, parts, part, reply: replyComment });
   writeHist(list);
 }
 function renderHistory(){
@@ -571,7 +660,7 @@ function restoreHistory(h){
   dur = h.dur || 35; setPills('[data-dur]', 'dur', dur); topLabel();
   tone = h.tone || tone; setPills('[data-tone]', 'tone', tone);
   if (h.lang) $('lang').value = h.lang; if (h.voice) $('voice').value = h.voice;
-  parts = h.parts || []; $('partBox').hidden = parts.length < 2; $('fixList').hidden = true;
+  parts = h.parts || []; $('partBox').hidden = parts.length < 2; $('fixList').hidden = true; replyComment = h.reply || null;
   loadPart(Math.min(h.part || 0, parts.length - 1));
   const m = $('genMsg'); m.className = 'msg ok'; m.textContent = 'Vidéo reprise. Régénère la voix (étape 2) pour continuer.';
   $('s1').scrollIntoView({ behavior:'smooth', block:'start' });
@@ -994,8 +1083,41 @@ function drawPartBadge(){
   const w = g.measureText(txt).width + 44; g.fillStyle = 'rgba(0,0,0,.6)'; rrect(28, 40, w, 64, 32); g.fill();
   g.fillStyle = '#1ed760'; g.fillText(txt, 50, 73); g.restore();
 }
+function wrapLines(text, maxW, maxLines){
+  const out = []; let line = '';
+  text.split(/\s+/).forEach(w => { const t = line ? line + ' ' + w : w;
+    if (g.measureText(t).width > maxW && line){ out.push(line); line = w; } else line = t; });
+  if (line) out.push(line);
+  if (out.length > maxLines){ out.length = maxLines; out[maxLines-1] = out[maxLines-1].replace(/\s*\S*$/, '') + '…'; }
+  return out;
+}
+// Bulle « Réponse au commentaire de @pseudo », comme sur TikTok
+function drawReplyBubble(t){
+  if (!replyComment) return;
+  const pop = Math.min(1, t / 0.3), sc = 0.85 + 0.15 * (1 - Math.pow(1 - pop, 3));
+  const x = W*0.07, y = 110, maxW = W*0.86, pad = 26, av = 54;
+  g.save(); g.globalAlpha = pop; g.translate(x, y); g.scale(sc, sc);
+  g.font = '800 40px Figtree, "Noto Sans Arabic", sans-serif';
+  const lines = wrapLines(replyComment.text, maxW - pad*2, 3);
+  const head = 'Réponse au commentaire de ' + (replyComment.user ? '@' + replyComment.user : 'un abonné');
+  g.font = '600 26px Figtree, sans-serif'; const hw = g.measureText(head).width + av + 14;
+  g.font = '800 40px Figtree, "Noto Sans Arabic", sans-serif';
+  const bw = Math.min(maxW, Math.max(hw, ...lines.map(l => g.measureText(l).width)) + pad*2), bh = pad + av + 10 + lines.length * 50 + pad - 8;
+  g.shadowColor = 'rgba(0,0,0,.35)'; g.shadowBlur = 24; g.shadowOffsetY = 6;
+  g.fillStyle = '#fff'; rrect(0, 0, bw, bh, 26); g.fill();
+  g.beginPath(); g.moveTo(34, bh - 2); g.lineTo(58, bh + 22); g.lineTo(70, bh - 2); g.closePath(); g.fill();
+  g.shadowColor = 'transparent';
+  g.fillStyle = '#1ed760'; g.beginPath(); g.arc(pad + av/2, pad + av/2, av/2, 0, Math.PI*2); g.fill();
+  g.fillStyle = '#000'; g.font = '800 28px Figtree, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText((replyComment.user || '?').charAt(0).toUpperCase(), pad + av/2, pad + av/2 + 1);
+  g.textAlign = 'left'; g.fillStyle = '#8a8a8a'; g.font = '600 26px Figtree, sans-serif'; g.fillText(head, pad + av + 14, pad + av/2);
+  g.fillStyle = '#111'; g.font = '800 40px Figtree, "Noto Sans Arabic", sans-serif'; g.textBaseline = 'top';
+  lines.forEach((l, k) => g.fillText(l, pad, pad + av + 12 + k * 50));
+  g.restore();
+}
 function drawFrame(t){
   drawBackground(t);
+  drawReplyBubble(t);
   const hookOn = drawHook(t);
   if (audioBuf || capWords.length || $('script').value.trim()){
     if (!capWords.length) prepareCaptions();
