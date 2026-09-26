@@ -646,6 +646,12 @@ body{overflow-x:hidden}
           <input type="file" id="file" accept="video/*">
           <span id="dropTxt">Choisir ma propre vidéo</span>
         </label>
+        <div class="mic-box" id="autoSubBox" hidden style="margin-top:12px">
+          <b>💬 Sous-titrer automatiquement ma vidéo</b>
+          <p class="sub">ScriptBoom écoute ta vidéo et écrit les sous-titres mot à mot, calés sur sa voix d'origine. Tu gardes ensuite tous les styles, la police, les couleurs et la traduction des sous-titres.</p>
+          <button class="btn" id="autoSubBtn" style="width:100%">💬 Créer les sous-titres</button>
+          <p class="msg" id="autoSubMsg" role="status"></p>
+        </div>
       </section>
 <section class="step" data-panel="style" aria-labelledby="sStyle" hidden>
         <h2 id="sStyle"><span class="num">4</span>Le style</h2>
@@ -987,14 +993,14 @@ let partMedia = [], partDone = [];
 function msgState(id){ const m = $(id); return m ? [m.className, m.textContent] : ['msg', '']; }
 function setMsgState(id, v){ const m = $(id); if (!m) return; m.className = (v && v[0]) || 'msg'; m.textContent = (v && v[1]) || ''; }
 function snapMedia(){
-  return { audioRaw, audioBuf, voiceBlob, voiceURL, voiceKey, bgMode, scenes, sceneStarts, bgPage, bgKey, videoURL, capTr,
+  return { audioRaw, audioBuf, voiceBlob, voiceURL, voiceKey, bgMode, scenes, sceneStarts, bgPage, bgKey, videoURL, capTr, capTimed,
     voiceMsg: msgState('voiceMsg'), bgMsg: msgState('bgMsg'), dropTxt: $('dropTxt').textContent };
 }
 function applyMedia(m){
   m = m || {};
   if (current) current.pause(); current = null;
   scenes.forEach(x => { if (x.el) x.el.pause(); });
-  ({ audioRaw = null, audioBuf = null, voiceBlob = null, voiceURL = null, voiceKey = '', bgMode = 'none', scenes = [], sceneStarts = [], bgPage = 1, bgKey = '', videoURL = null, capTr = null } = m);
+  ({ audioRaw = null, audioBuf = null, voiceBlob = null, voiceURL = null, voiceKey = '', bgMode = 'none', scenes = [], sceneStarts = [], bgPage = 1, bgKey = '', videoURL = null, capTr = null, capTimed = null } = m);
   const vp = $('voicePlayer'); vp.pause();
   if (voiceURL){ vp.src = voiceURL; vp.hidden = false; } else { vp.removeAttribute('src'); vp.hidden = true; }
   if (videoURL){ vid.src = videoURL; vid.load(); } else vid.removeAttribute('src');
@@ -1218,7 +1224,7 @@ function timeStretch(buf, rate){
 }
 function applySpeed(){
   if (!audioRaw) return;
-  audioBuf = speed === 1 ? audioRaw : timeStretch(audioRaw, speed);
+  audioBuf = speed === 1 || audioRaw.fromVideo ? audioRaw : timeStretch(audioRaw, speed);
   capWords = []; if (!running) drawFrame(previewT());
 }
 pick('[data-speed]', 'speed', v => { speed = +v; if (audioRaw && !running){ applySpeed();
@@ -1236,6 +1242,7 @@ $('file').onchange = e => {
   vid.onloadeddata = () => { vid.currentTime = 0.05; };
   vid.onseeked = () => { if (!running) drawFrame(0); };
   $('dropTxt').textContent = f.name;
+  if (audioRaw && audioRaw.fromVideo){ audioRaw = null; audioBuf = null; voiceKey = ''; capTimed = null; $('autoSubMsg').textContent = ''; } // nouvelle vidéo : on refait ses sous-titres
   bgMode = 'own'; showEmpty(false);
   $('bgMsg').className = 'msg ok'; $('bgMsg').textContent = 'Ta vidéo sera utilisée en fond.';
 };
@@ -1395,6 +1402,8 @@ function prepareCaptions(){
   let acc = 0; capStarts = weights.map(wt => { const s = acc/total*d; acc += wt; return s; });
   // Ta propre voix : les mots se répartissent seulement sur les moments où tu parles (pas pendant tes pauses)
   if (audioBuf && audioRaw && audioRaw.mic){ const warp = speechWarp(audioBuf); if (warp) capStarts = capStarts.map(warp); }
+  // Vidéo sous-titrée automatiquement : chaque mot garde l'horaire entendu par l'IA
+  if (audioBuf && audioRaw && audioRaw.fromVideo && capTimed && capTimed.starts.length === capWords.length) capStarts = capTimed.starts.slice();
   // Début de chaque scène, calé sur les mots du script
   const counts = scenes.map(s => Math.max(1, words(s.text).length)), sum = counts.reduce((a,b)=>a+b, 0) || 1;
   let c = 0; sceneStarts = counts.map(n => { const idx = Math.min(capWords.length-1, Math.round(c/sum*capWords.length)); c += n; return idx > 0 ? (capStarts[idx] || 0) : 0; });
@@ -1639,7 +1648,7 @@ function buildMix(){
 function applyVolumes(){
   if (!mix) return; const t = ctx().currentTime;
   mix.voice.gain.setTargetAtTime(vol('volVoice'), t, 0.03);
-  mix.video.gain.setTargetAtTime(hasOwnVideo() ? vol('volVideo') : 0, t, 0.03);
+  mix.video.gain.setTargetAtTime(hasOwnVideo() && !(audioRaw && audioRaw.fromVideo) ? vol('volVideo') : 0, t, 0.03);
   mix.musicVol.gain.setTargetAtTime(vol('volMusic'), t, 0.03);
   mix.sfx.gain.setTargetAtTime(vol('volSfx') * 0.9, t, 0.03);
 }
@@ -1651,7 +1660,7 @@ function applyVolumes(){
 
 // ---------- Écoute en direct quand on bouge un curseur (sans lancer l'aperçu) ----------
 function hasOwnVideo(){ return (bgMode === 'own' && !!videoURL) || (bgMode === 'auto' && scenes.some(s => s.own && s.el)); }
-function updateVideoTrack(){ const on = hasOwnVideo(); if ($('videoTrack').hidden === on) { $('videoTrack').hidden = !on; applyVolumes(); } }
+function updateVideoTrack(){ $('autoSubBox').hidden = !(bgMode === 'own' && videoURL); const on = hasOwnVideo() && !(audioRaw && audioRaw.fromVideo); if ($('videoTrack').hidden === on) { $('videoTrack').hidden = !on; applyVolumes(); } }
 // Simulation : tant que le doigt est sur un curseur, un extrait de 3 s du mix complet tourne en boucle.
 // Chaque son passe par sa vraie piste de la table de mixage : on entend le réglage bouger en direct, par rapport aux autres.
 const aud = {}; let audRaf = 0, audHold = false, audStopT = 0, audTrack = '';
@@ -1915,7 +1924,7 @@ async function start(recordDest){
   prepareCaptions();
   if (recordDest){ recDest = recordDest; m.out.connect(recordDest); }
   // Son des vidéos de fond
-  if (vol('volVideo') > 0 && hasOwnVideo()){ if (bgMode === 'own') routeVideo(vid); if (bgMode === 'auto') scenes.forEach(s => s.own && routeVideo(s.el)); }
+  if (vol('volVideo') > 0 && hasOwnVideo() && !(audioRaw && audioRaw.fromVideo)){ if (bgMode === 'own') routeVideo(vid); if (bgMode === 'auto') scenes.forEach(s => s.own && routeVideo(s.el)); }
   const t0 = c.currentTime + 0.1, D = audioBuf.duration, fades = $('fades').checked;
   // Fondus
   m.master.gain.cancelScheduledValues(0);
@@ -2797,6 +2806,62 @@ new MutationObserver(list => {
 $('lang').addEventListener('change', setUiLang);
 setUiLang();
 
+// ---------- Sous-titres automatiques d'une vidéo importée ----------
+var capTimed = null; // { key: texte, starts: [horaires des mots] }
+// Son de la vidéo → WAV 16 kHz mono (léger : ~32 Ko par seconde)
+function wavB64(samples, rate){
+  const buf = new ArrayBuffer(44 + samples.length * 2), v = new DataView(buf), w = (o, t) => [...t].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
+  w(0, 'RIFF'); v.setUint32(4, 36 + samples.length * 2, true); w(8, 'WAVE'); w(12, 'fmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, rate, true); v.setUint32(28, rate * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, 'data'); v.setUint32(40, samples.length * 2, true);
+  for (let i = 0; i < samples.length; i++){ const x = Math.max(-1, Math.min(1, samples[i])); v.setInt16(44 + i * 2, x < 0 ? x * 0x8000 : x * 0x7fff, true); }
+  const bytes = new Uint8Array(buf); let bin = ''; for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  return btoa(bin);
+}
+async function to16k(buf){
+  const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext, rate = 16000;
+  const oc = new OAC(1, Math.ceil(buf.duration * rate), rate), src = oc.createBufferSource(); src.buffer = buf; src.connect(oc.destination); src.start();
+  return (await oc.startRendering()).getChannelData(0);
+}
+$('autoSubBtn').onclick = async () => {
+  const m = $('autoSubMsg'), btn = $('autoSubBtn'), file = $('file').files[0];
+  if (!file || bgMode !== 'own'){ m.className = 'msg err'; m.textContent = 'Importe d\'abord ta vidéo juste au-dessus.'; return; }
+  if (running) return;
+  btn.disabled = true; m.className = 'msg'; ctx();
+  try {
+    m.textContent = 'Lecture du son de ta vidéo…';
+    let buf; try { buf = await decode(await file.arrayBuffer()); } catch(e){ throw new Error('le son de cette vidéo ne peut pas être lu ici (essaie un MP4 ou une vidéo filmée avec ton téléphone)'); }
+    if (buf.duration > 185) throw new Error('vidéo trop longue : 3 minutes maximum');
+    const pcm = await to16k(buf), rate = 16000, CH = 55, parts = Math.ceil(buf.duration / CH), segs = [];
+    let language = '';
+    for (let k = 0; k < parts; k++){
+      m.textContent = parts > 1 ? `L'IA écoute ta vidéo… (${k + 1}/${parts})` : 'L\'IA écoute ta vidéo et écrit les sous-titres…';
+      const a = k * CH * rate, slice = pcm.subarray(a, Math.min(pcm.length, a + CH * rate));
+      const r = await fetch('/api/transcribe', { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ audio: wavB64(slice, rate), duration: slice.length / rate, lang: lang(), part: k }) });
+      const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || 'Erreur ' + r.status);
+      language = language || d.language;
+      (d.segments || []).forEach(x => segs.push({ start: x.start + k * CH, end: x.end + k * CH, text: x.text }));
+    }
+    if (!segs.length) throw new Error('aucune parole entendue dans cette vidéo');
+    // horaires de chaque mot : répartis dans leur segment selon la longueur des mots
+    const allWords = [], starts = [];
+    segs.forEach(sg => { const ws = words(sg.text); if (!ws.length) return; const wt = ws.map(w => w.length + 2), tot = wt.reduce((x, y) => x + y, 0); let acc = 0;
+      ws.forEach((w, i) => { allWords.push(w); starts.push(sg.start + (sg.end - sg.start) * acc / tot); acc += wt[i]; }); });
+    const text = segs.map(x => x.text).join(' ').replace(/\s+/g, ' ').trim();
+    // le son de la vidéo devient la piste « voix » (même durée, parfaitement synchro avec l'image)
+    buf.fromVideo = true; audioRaw = buf; audioBuf = buf; voiceBlob = null;
+    $('script').value = text; updateCount(); keepEdits();
+    capTimed = words(text).length === allWords.length ? { key: text, starts } : null;
+    voiceKey = text + '|' + $('voice').value;
+    if (voiceURL){ URL.revokeObjectURL(voiceURL); voiceURL = null; } $('voicePlayer').hidden = true;
+    $('voiceMsg').className = 'msg ok'; $('voiceMsg').textContent = 'Voix utilisée : le son d\'origine de ta vidéo.';
+    capWords = []; showEmpty(false); updateVideoTrack(); applyVolumes(); drawFrame(previewT());
+    if (!histId) histId = Date.now().toString(36); saveHistory(); track('sous-titres-auto');
+    m.className = 'msg ok'; m.textContent = `Sous-titres prêts ✓ (${allWords.length} mots${language ? ', langue : ' + language : ''}). Lance l'aperçu. Un mot mal écrit ? Corrige-le dans Style → « Corriger un mot des sous-titres ».`;
+  } catch(e){ m.className = 'msg err'; m.textContent = 'Sous-titres impossibles : ' + (e.message || 'erreur'); }
+  finally { btn.disabled = false; }
+};
+
 // ---------- Le Labo : panneaux, idées, recette ----------
 const PANEL_TITLES = { script:'Le script', voix:'La voix', fonds:'Les fonds', style:'Le style', son:'Le son', pub:'Publier', coach:'Coach', hist:'Mes vidéos' };
 const isMobile = () => window.matchMedia('(max-width: 980px)').matches;
@@ -2887,7 +2952,7 @@ $('rcYes').onclick = () => {
   if (videoURL){ URL.revokeObjectURL(videoURL); videoURL = null; vid.removeAttribute('src'); } $('dropTxt').textContent = 'Choisir ma propre vidéo'; $('file').value = '';
   hideResult(); resultBlob = null;
   ['genMsg','voiceMsg','bgMsg','playMsg','capMsg','replyMsg','capLangMsg'].forEach(id => { if ($(id)){ $(id).textContent = ''; $(id).className = 'msg'; } });
-  delete visited.style; delete visited.son;
+  delete visited.style; delete visited.son; capTimed = null;
   capWords = []; updateCount(); showEmpty(true); drawFrame(0); updateRecipe();
   if (!isMobile()) openPanel('script'); else closePanel();
   $('topic').focus({ preventScroll: true });
