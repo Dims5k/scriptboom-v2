@@ -2817,6 +2817,70 @@ function wavB64(samples, rate){
   const bytes = new Uint8Array(buf); let bin = ''; for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
   return btoa(bin);
 }
+// Son d'une vidéo MOV/MP4 (iPhone) → flux AAC « ADTS » que Safari sait décoder.
+// On lit seulement les morceaux utiles du fichier (pas besoin de charger toute la vidéo en mémoire).
+async function movAudioADTS(file){
+  const rd = async (a, b) => new Uint8Array(await file.slice(a, b).arrayBuffer());
+  const u32 = (d, o) => ((d[o] << 24) | (d[o+1] << 16) | (d[o+2] << 8) | d[o+3]) >>> 0;
+  const typ = (d, o) => String.fromCharCode(d[o], d[o+1], d[o+2], d[o+3]);
+  // 1) trouver la boîte « moov » (le sommaire de la vidéo)
+  let pos = 0, moov = null;
+  while (pos + 8 <= file.size){
+    const h = await rd(pos, pos + 16); let size = u32(h, 0), hl = 8; const t = typ(h, 4);
+    if (size === 1){ size = u32(h, 8) * 4294967296 + u32(h, 12); hl = 16; } else if (size === 0) size = file.size - pos;
+    if (size < hl) break;
+    if (t === 'moov'){ moov = await rd(pos + hl, pos + size); break; }
+    pos += size;
+  }
+  if (!moov) throw new Error('no moov');
+  const kids = (d, a, b) => { const out = []; let p = a; while (p + 8 <= b){ let s = u32(d, p), hl = 8; if (s === 1){ s = u32(d, p+8) * 4294967296 + u32(d, p+12); hl = 16; } else if (s === 0) s = b - p; if (s < hl || p + s > b) break; out.push({ t: typ(d, p+4), a: p + hl, b: p + s }); p += s; } return out; };
+  const find = (d, box, path) => { let cur = [box]; for (const n of path){ const nx = []; cur.forEach(c => kids(d, c.a, c.b).forEach(k => k.t === n && nx.push(k))); cur = nx; } return cur; };
+  const root = { a: 0, b: moov.length };
+  const SR = [96000, 88200, 64000, 48000, 44100, 32000, 24000, 22050, 16000, 12000, 11025, 8000, 7350];
+  for (const trak of find(moov, root, ['trak'])){
+    const hdlr = find(moov, trak, ['mdia', 'hdlr'])[0]; if (!hdlr || typ(moov, hdlr.a + 8) !== 'soun') continue;
+    const stbl = find(moov, trak, ['mdia', 'minf', 'stbl'])[0]; if (!stbl) continue;
+    const stsd = find(moov, stbl, ['stsd'])[0]; if (!stsd) continue;
+    const ent = stsd.a + 8; if (typ(moov, ent + 4) !== 'mp4a') continue;
+    // chercher la config AAC (esds → DecoderSpecificInfo, tag 0x05)
+    const ver = (moov[ent + 16] << 8) | moov[ent + 17];
+    const inner = ent + 8 + 28 + (ver === 1 ? 16 : ver === 2 ? 36 : 0);
+    let esds = null; const walk = (a, b) => kids(moov, a, b).forEach(k => { if (k.t === 'esds') esds = k; else if (k.t === 'wave') walk(k.a, k.b); });
+    walk(inner, ent + u32(moov, ent));
+    if (!esds) continue;
+    let asc = null;
+    for (let i = esds.a + 4; i < esds.b - 2; i++){ if (moov[i] === 0x05){ let j = i + 1, len = 0, n = 0; do { len = (len << 7) | (moov[j] & 0x7f); n++; } while (moov[j++] & 0x80 && n < 4); if (len >= 2 && j + len <= esds.b){ asc = moov.subarray(j, j + len); break; } } }
+    if (!asc) continue;
+    let aot = asc[0] >> 3, sfi = ((asc[0] & 7) << 1) | (asc[1] >> 7), ch = (asc[1] >> 3) & 15;
+    if (sfi === 15){ const f = ((asc[1] & 0x7f) << 17) | (asc[2] << 9) | (asc[3] << 1) | (asc[4] >> 7); sfi = SR.indexOf(f); ch = (asc[4] >> 3) & 15; if (sfi < 0) continue; }
+    if (aot === 5 || aot === 29 || aot > 4) aot = 2; // HE-AAC → en-tête LC (le décodeur retrouve le reste)
+    if (!ch) ch = 2;
+    // tailles et positions des morceaux de son
+    const stsz = find(moov, stbl, ['stsz'])[0], stsc = find(moov, stbl, ['stsc'])[0], stco = find(moov, stbl, ['stco'])[0], co64 = find(moov, stbl, ['co64'])[0];
+    if (!stsz || !stsc || !(stco || co64)) continue;
+    const fixed = u32(moov, stsz.a + 4), count = u32(moov, stsz.a + 8);
+    const sizes = []; for (let i = 0; i < count; i++) sizes.push(fixed || u32(moov, stsz.a + 12 + i * 4));
+    const offs = []; if (stco){ const n = u32(moov, stco.a + 4); for (let i = 0; i < n; i++) offs.push(u32(moov, stco.a + 8 + i * 4)); }
+    else { const n = u32(moov, co64.a + 4); for (let i = 0; i < n; i++) offs.push(u32(moov, co64.a + 8 + i * 8) * 4294967296 + u32(moov, co64.a + 12 + i * 8)); }
+    const runs = []; { const n = u32(moov, stsc.a + 4); for (let i = 0; i < n; i++) runs.push({ first: u32(moov, stsc.a + 8 + i * 12), per: u32(moov, stsc.a + 12 + i * 12) }); }
+    if (!sizes.length || !offs.length || !runs.length) continue;
+    let total = 0; sizes.forEach(s => total += s + 7);
+    const out = new Uint8Array(total); let w = 0, si = 0;
+    for (let c = 0; c < offs.length && si < sizes.length; c++){
+      let r = runs.length - 1; while (r > 0 && runs[r].first > c + 1) r--;
+      const per = Math.min(runs[r].per, sizes.length - si); let len = 0; for (let k = 0; k < per; k++) len += sizes[si + k];
+      const data = await rd(offs[c], offs[c] + len); let p = 0;
+      for (let k = 0; k < per; k++, si++){
+        const s = sizes[si], fl = s + 7;
+        out[w] = 0xFF; out[w+1] = 0xF1; out[w+2] = (((aot - 1) & 3) << 6) | ((sfi & 15) << 2) | ((ch >> 2) & 1);
+        out[w+3] = ((ch & 3) << 6) | ((fl >> 11) & 3); out[w+4] = (fl >> 3) & 0xFF; out[w+5] = ((fl & 7) << 5) | 0x1F; out[w+6] = 0xFC;
+        out.set(data.subarray(p, p + s), w + 7); w += fl; p += s;
+      }
+    }
+    return { adts: out.buffer.slice(0, w), duration: si * 1024 / SR[sfi] };
+  }
+  throw new Error('no aac track');
+}
 async function to16k(buf){
   const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext, rate = 16000;
   const oc = new OAC(1, Math.ceil(buf.duration * rate), rate), src = oc.createBufferSource(); src.buffer = buf; src.connect(oc.destination); src.start();
@@ -2829,7 +2893,10 @@ $('autoSubBtn').onclick = async () => {
   btn.disabled = true; m.className = 'msg'; ctx();
   try {
     m.textContent = 'Lecture du son de ta vidéo…';
-    let buf; try { buf = await decode(await file.arrayBuffer()); } catch(e){ throw new Error('le son de cette vidéo ne peut pas être lu ici (essaie un MP4 ou une vidéo filmée avec ton téléphone)'); }
+    let buf = null;
+    // iPhone (.MOV) : Safari ne sait pas lire le son directement → on extrait la piste AAC nous-mêmes
+    try { const x = await movAudioADTS(file); if (x.duration > 185) throw new Error('long'); buf = await decode(x.adts); } catch(e){ if (e.message === 'long') throw new Error('vidéo trop longue : 3 minutes maximum'); }
+    if (!buf){ try { buf = await decode(await file.arrayBuffer()); } catch(e){ throw new Error('aucun son trouvé dans cette vidéo (vérifie qu\'elle a bien du son)'); } }
     if (buf.duration > 185) throw new Error('vidéo trop longue : 3 minutes maximum');
     const pcm = await to16k(buf), rate = 16000, CH = 55, parts = Math.ceil(buf.duration / CH), segs = [];
     let language = '';
