@@ -59,9 +59,11 @@ export default async function handler(req, res) {
     if (mode === 'ideas') {
       const niche = clean(b.niche, 120).trim();
       if (!niche) return res.status(400).json({ error: 'Niche manquante' });
+      const sec = [20, 35, 60].includes(+b.dur) ? +b.dur : 35;
+      const fit = sec <= 20 ? 'un seul fait fort et simple, qui se raconte en 20 secondes' : sec >= 60 ? 'un sujet assez riche pour tenir 60 secondes (histoire, explication, plusieurs éléments)' : 'un sujet clair et ciblé, qui se raconte en 35 secondes';
       const out = await askGemini(`Tu aides un créateur de vidéos courtes (TikTok, Reels, Shorts) sans visage.
 Niche : "${niche}". ${format}
-Propose 10 sujets de vidéos précis et accrocheurs, qui donnent envie de regarder jusqu'au bout. Chaque sujet tient en une ligne courte.
+Propose 10 sujets de vidéos précis et accrocheurs, qui donnent envie de regarder jusqu'au bout. Chaque sujet tient en une ligne courte. Durée des vidéos : ${sec} secondes, donc chaque sujet doit être ${fit}.
 Écris en ${lang}.
 Réponds en JSON : {"ideas":["...", "..."]}`, true);
       const ideas = (Array.isArray(out) ? out : out.ideas || []).filter(x => typeof x === 'string').slice(0, 10);
