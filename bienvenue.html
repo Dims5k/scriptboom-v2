@@ -5,7 +5,7 @@
 <style>html{background:#000;color-scheme:dark}</style>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>ScriptBoom · Un sujet. Une vidéo. BOOM.</title>
-<meta name="description" content="ScriptBoom transforme un sujet en vidéo prête à poster sur TikTok, Reels et Shorts : script, voix, images et sous-titres faits par l'IA. Rejoins la liste d'attente.">
+<meta name="description" content="ScriptBoom transforme un sujet en vidéo prête à poster sur TikTok, Reels et Shorts : script, voix, images et sous-titres faits par l'IA. Appli en développement : rejoins gratuitement la liste d'attente, essai gratuit au lancement.">
 <meta property="og:title" content="ScriptBoom · Un sujet. Une vidéo. BOOM.">
 <meta property="og:description" content="Script, voix, images, sous-titres : ta vidéo courte prête à poster, faite par l'IA.">
 <meta property="og:image" content="/logo.png">
@@ -93,6 +93,31 @@ form .btn{width:100%;margin-top:8px;padding:16px;font-size:17px}
 .hp{position:absolute;left:-9999px;width:1px;height:1px;opacity:0}
 #msg{min-height:1.4em;margin:12px 0 0;text-align:center;font-weight:600}
 #msg.ok{color:var(--green)}#msg.err{color:#ff6b6b}
+/* bandeau chantier + statut */
+.dev-bar{position:sticky;top:0;z-index:50;display:flex;justify-content:center;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 16px;background:repeating-linear-gradient(-45deg,#141414 0 14px,#101010 14px 28px);border-bottom:1px solid #262626;color:#e8e8e8;text-decoration:none;font-size:14px;font-weight:600;text-align:center}
+.dev-bar b{color:#fff}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#f6c343;box-shadow:0 0 0 0 rgba(246,195,67,.6);animation:pulse 1.8s ease-out infinite;flex:none}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(246,195,67,.55)}100%{box-shadow:0 0 0 10px rgba(246,195,67,0)}}
+.status{display:inline-flex;align-items:center;gap:9px;font-size:13px;font-weight:700;color:#f6c343;border:1px solid rgba(246,195,67,.35);background:rgba(246,195,67,.06);border-radius:999px;padding:6px 14px;margin-bottom:18px}
+.free-row{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0 0}
+.free-row span{font-size:13px;font-weight:700;color:#e8e8e8;background:#121212;border:1px solid #242424;border-radius:999px;padding:6px 12px}
+.free-row span i{font-style:normal;color:var(--green);margin-right:4px}
+.road{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;counter-reset:r}
+.road .st{position:relative;background:var(--card);border:1px solid var(--line);border-radius:22px;padding:22px}
+.road .st .lbl{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;margin-bottom:10px}
+.road .done .lbl{color:var(--green)}
+.road .now{border-color:rgba(246,195,67,.45)}.road .now .lbl{color:#f6c343}
+.road .next .lbl{color:var(--muted)}
+.road h3{margin:0 0 6px;font-size:19px;font-weight:800}
+.road p{margin:0;color:var(--muted);font-size:15px}
+.pay{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:16px}
+.pay .pp{background:#0b0b0b;border:1px dashed #2a2a2a;border-radius:22px;padding:22px}
+.pay .pp b{display:block;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.pay .pp strong{display:block;font-size:26px;font-weight:900;letter-spacing:-.02em;margin-bottom:4px}
+.pay .pp p{margin:0;color:var(--muted);font-size:15px}
+.pay .zero strong{color:var(--green)}
+.join .boom-offer{width:210px;height:210px;margin:0 auto 10px}.join .boom-txt b{font-size:44px}.join .boom-txt strong{font-size:20px}
+.fine{font-size:13px;color:var(--muted);margin:10px auto 0;max-width:52ch}
 footer{padding:40px 0 60px;color:var(--muted);font-size:14px;display:flex;gap:16px;flex-wrap:wrap;justify-content:space-between;border-top:1px solid var(--line);margin-top:30px}
 @media (max-width:820px){
   .hero{grid-template-columns:1fr;padding-top:16px;gap:10px;text-align:center}
@@ -102,7 +127,9 @@ footer{padding:40px 0 60px;color:var(--muted);font-size:14px;display:flex;gap:16
   .promo-bar{font-size:13px;gap:8px}
   .phone{width:168px;height:300px}.phone-in .hk{font-size:20px}.phone-in .cp{font-size:14px}
   .orb{width:54px;height:54px}.orb small{top:58px}
-  .steps,.feats{grid-template-columns:1fr}
+  .steps,.feats,.road,.pay{grid-template-columns:1fr}
+  .free-row{justify-content:center}
+  .dev-bar{font-size:13px;gap:6px}
   .row2{grid-template-columns:1fr}
   nav .btn.ghost{display:none}
 }
@@ -110,40 +137,25 @@ footer{padding:40px 0 60px;color:var(--muted);font-size:14px;display:flex;gap:16
 </style>
 </head>
 <body>
-<a class="promo-bar" href="#rejoindre"><span>🎁 <b>−50 % à vie</b> pour les 500 premiers inscrits</span><span class="pb-cta">Je réserve ma place →</span></a>
+<a class="dev-bar" href="#statut"><i class="dot"></i><span><b>ScriptBoom est en construction.</b> Lancement public bientôt · inscription gratuite, sans carte bancaire.</span></a>
 <div class="wrap">
   <nav>
     <img src="/logo.png" alt="ScriptBoom">
     <b>Script<span>Boom</span></b>
     <span class="grow"></span>
-    <a class="btn ghost" href="#rejoindre">Rejoindre la liste</a>
+    <a class="btn ghost" href="#statut">Où en est le projet ?</a>
   </nav>
 
   <header class="hero">
     <div class="hero-txt">
-      <a class="boom-offer" href="#rejoindre" aria-label="Offre de lancement : moins 50 pour cent à vie pour les 500 premiers inscrits">
-        <svg class="boom-shape" viewBox="0 0 240 240" aria-hidden="true">
-          <defs>
-            <radialGradient id="bg1" cx="40%" cy="35%" r="75%"><stop offset="0" stop-color="#9d5cff"/><stop offset=".55" stop-color="#6d28d9"/><stop offset="1" stop-color="#3b0f7a"/></radialGradient>
-            <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff1b8"/><stop offset=".45" stop-color="#f6c343"/><stop offset="1" stop-color="#c8871a"/></linearGradient>
-          </defs>
-          <polygon points="120.0,20.0 131.4,40.8 148.2,24.1 154.9,43.6 174.1,35.9 172.4,59.5 195.6,54.5 190.7,74.6 211.0,78.5 196.8,97.5 219.0,105.8 204.0,120.0 219.0,134.2 196.8,142.5 211.0,161.5 190.7,165.4 195.6,185.5 172.4,180.5 174.1,204.1 154.9,196.4 148.2,215.9 131.4,199.2 120.0,220.0 108.0,203.1 91.8,215.9 86.8,192.8 65.9,204.1 65.0,183.5 44.4,185.5 52.7,163.3 29.0,161.5 39.4,143.7 21.0,134.2 40.0,120.0 21.0,105.8 39.4,96.3 29.0,78.5 52.7,76.7 44.4,54.5 65.0,56.5 65.9,35.9 86.8,47.2 91.8,24.1 108.0,36.9" fill="#1a0638" transform="translate(6 8)"/>
-          <polygon points="120.0,20.0 131.4,40.8 148.2,24.1 154.9,43.6 174.1,35.9 172.4,59.5 195.6,54.5 190.7,74.6 211.0,78.5 196.8,97.5 219.0,105.8 204.0,120.0 219.0,134.2 196.8,142.5 211.0,161.5 190.7,165.4 195.6,185.5 172.4,180.5 174.1,204.1 154.9,196.4 148.2,215.9 131.4,199.2 120.0,220.0 108.0,203.1 91.8,215.9 86.8,192.8 65.9,204.1 65.0,183.5 44.4,185.5 52.7,163.3 29.0,161.5 39.4,143.7 21.0,134.2 40.0,120.0 21.0,105.8 39.4,96.3 29.0,78.5 52.7,76.7 44.4,54.5 65.0,56.5 65.9,35.9 86.8,47.2 91.8,24.1 108.0,36.9" fill="url(#bg1)" stroke="url(#gold)" stroke-width="5" stroke-linejoin="round"/>
-        </svg>
-        <span class="boom-txt">
-          <small>Offre de<br>lancement</small>
-          <b>−50%</b>
-          <strong>À VIE</strong>
-          <em>500 places</em>
-        </span>
-      </a>
+      <span class="status"><i class="dot"></i>En développement · lancement public bientôt</span>
       <h1>Un sujet.<br>Une vidéo.<br><em>BOOM.</em></h1>
       <p class="lead">ScriptBoom écrit le script, prête sa voix, trouve les images et pose les sous-titres. Ta vidéo TikTok, Reels ou Shorts est prête à poster.</p>
       <div class="cta-row">
-        <a class="btn btn-offer" href="#rejoindre">Je réserve ma place à −50 %</a>
-        <span class="small"><s>7,99 €</s> <b style="color:#f6c343">3,99 €/mois</b>, à vie</span>
+        <a class="btn" href="#rejoindre">Être prévenu du lancement</a>
+        <a class="small" href="#statut" style="color:var(--muted)">Où en est le projet ?</a>
       </div>
-      <p class="safe-note">🔒 Inscription par email uniquement. Aucun paiement avant le lancement.</p>
+      <div class="free-row"><span><i>✓</i>0 € aujourd'hui</span><span><i>✓</i>Aucune carte bancaire</span><span><i>✓</i>Essai gratuit au lancement</span></div>
     </div>
     <div class="labo" aria-hidden="true">
       <div class="phone"><div class="phone-in"><i class="bar"></i><div class="hk">Ton cœur peut se briser</div><div class="cp">Un <span>chagrin</span> peut abîmer ton cœur</div><img src="/logo.png" alt=""></div></div>
@@ -179,11 +191,46 @@ footer{padding:40px 0 60px;color:var(--muted);font-size:14px;display:flex;gap:16
     </div>
   </section>
 
+  <section id="statut">
+    <h2>Où en est ScriptBoom&nbsp;?</h2>
+    <p class="sub">On préfère te le dire clairement : l'appli n'est pas encore ouverte au public. Elle tourne en test privé, et on la peaufine avant de l'ouvrir à tout le monde.</p>
+    <div class="road">
+      <div class="st done"><span class="lbl">✓ Fait</span><h3>L'appli est construite</h3><p>Script, voix, images, sous-titres, musique, export : tout fonctionne déjà.</p></div>
+      <div class="st now"><span class="lbl"><i class="dot"></i>En cours</span><h3>Tests privés</h3><p>Un petit groupe de créateurs l'utilise sur invitation pour nous aider à l'améliorer.</p></div>
+      <div class="st next"><span class="lbl">📅 Bientôt</span><h3>Lancement public</h3><p>La date n'est pas encore fixée. Tu la recevras par email dès qu'elle l'est, et on l'annoncera sur TikTok.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Et le paiement, alors&nbsp;?</h2>
+    <p class="sub">Rien ne se paie maintenant. Tu testes d'abord, tu décides ensuite.</p>
+    <div class="pay">
+      <div class="pp zero"><b>Aujourd'hui</b><strong>0 €</strong><p>Tu laisses juste ton email. Pas de carte bancaire, aucun engagement.</p></div>
+      <div class="pp zero"><b>Au lancement</b><strong>Essai gratuit</strong><p>Tu reçois ton accès et tu crées tes premières vidéos gratuitement.</p></div>
+      <div class="pp"><b>Ensuite, si tu veux</b><strong>Tu choisis</strong><p>Tu t'abonnes seulement si ScriptBoom te plaît. Sinon, tu ne paies rien.</p></div>
+    </div>
+  </section>
+
   <section id="rejoindre">
     <div class="join">
-      <span class="tag" style="margin-bottom:14px">Offre réservée aux 500 premiers</span>
-      <h2>−50 % à vie.<br><em style="font-style:normal;color:var(--green)">3,99 € au lieu de 7,99 €.</em></h2>
-      <p class="sub">Inscris-toi sur la liste d'attente : tu as l'accès en avant-première et ScriptBoom à moitié prix, pour toujours. Tant que tu restes abonné, ton prix ne bouge pas.</p>
+      <a class="boom-offer" href="#rejoindre" aria-label="Offre de lancement : moins 50 pour cent à vie pour les 500 premiers inscrits">
+        <svg class="boom-shape" viewBox="0 0 240 240" aria-hidden="true">
+          <defs>
+            <radialGradient id="bg1" cx="40%" cy="35%" r="75%"><stop offset="0" stop-color="#9d5cff"/><stop offset=".55" stop-color="#6d28d9"/><stop offset="1" stop-color="#3b0f7a"/></radialGradient>
+            <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff1b8"/><stop offset=".45" stop-color="#f6c343"/><stop offset="1" stop-color="#c8871a"/></linearGradient>
+          </defs>
+          <polygon points="120.0,20.0 131.4,40.8 148.2,24.1 154.9,43.6 174.1,35.9 172.4,59.5 195.6,54.5 190.7,74.6 211.0,78.5 196.8,97.5 219.0,105.8 204.0,120.0 219.0,134.2 196.8,142.5 211.0,161.5 190.7,165.4 195.6,185.5 172.4,180.5 174.1,204.1 154.9,196.4 148.2,215.9 131.4,199.2 120.0,220.0 108.0,203.1 91.8,215.9 86.8,192.8 65.9,204.1 65.0,183.5 44.4,185.5 52.7,163.3 29.0,161.5 39.4,143.7 21.0,134.2 40.0,120.0 21.0,105.8 39.4,96.3 29.0,78.5 52.7,76.7 44.4,54.5 65.0,56.5 65.9,35.9 86.8,47.2 91.8,24.1 108.0,36.9" fill="#1a0638" transform="translate(6 8)"/>
+          <polygon points="120.0,20.0 131.4,40.8 148.2,24.1 154.9,43.6 174.1,35.9 172.4,59.5 195.6,54.5 190.7,74.6 211.0,78.5 196.8,97.5 219.0,105.8 204.0,120.0 219.0,134.2 196.8,142.5 211.0,161.5 190.7,165.4 195.6,185.5 172.4,180.5 174.1,204.1 154.9,196.4 148.2,215.9 131.4,199.2 120.0,220.0 108.0,203.1 91.8,215.9 86.8,192.8 65.9,204.1 65.0,183.5 44.4,185.5 52.7,163.3 29.0,161.5 39.4,143.7 21.0,134.2 40.0,120.0 21.0,105.8 39.4,96.3 29.0,78.5 52.7,76.7 44.4,54.5 65.0,56.5 65.9,35.9 86.8,47.2 91.8,24.1 108.0,36.9" fill="url(#bg1)" stroke="url(#gold)" stroke-width="5" stroke-linejoin="round"/>
+        </svg>
+        <span class="boom-txt">
+          <small>Offre de<br>lancement</small>
+          <b>−50%</b>
+          <strong>À VIE</strong>
+          <em>500 places</em>
+        </span>
+      </a>
+      <h2>Rejoins la liste d'attente</h2>
+      <p class="sub">C'est gratuit. Tu es prévenu en premier de la date de lancement, tu testes gratuitement, et si tu fais partie des 500 premiers inscrits, tu gardes <b style="color:#f6c343">−50 % à vie</b> le jour où tu décides de t'abonner : <span style="white-space:nowrap"><s>7,99 €</s> <b style="color:#f6c343">3,99 €/mois</b></span>.</p>
       <div class="seats" id="seats" hidden>
         <div class="seats-row"><b id="seatsLeft">500</b> places restantes sur 500</div>
         <div class="seats-bar"><i id="seatsBar"></i></div>
@@ -198,9 +245,9 @@ footer{padding:40px 0 60px;color:var(--muted);font-size:14px;display:flex;gap:16
             <input id="niche" type="text" placeholder="Ex. : muscu, histoire…"></div>
         </div>
         <input class="hp" id="website" type="text" tabindex="-1" autocomplete="off" aria-hidden="true">
-        <button class="btn" type="submit" id="go">Je rejoins la liste d'attente</button>
-        <p class="safe-note" style="text-align:center">🔒 Inscription par email uniquement. Aucun paiement avant le lancement.</p>
-        <p class="small" style="margin:6px 0 0;text-align:center">Tu recevras un email au lancement, rien d'autre. Désinscription en un clic. <a href="/confidentialite">Confidentialité</a></p>
+        <button class="btn" type="submit" id="go">Je rejoins la liste (gratuit)</button>
+        <p class="safe-note" style="text-align:center">🔒 Aucune carte bancaire demandée. Rien à payer avant le lancement.</p>
+        <p class="small" style="margin:6px 0 0;text-align:center">Tu recevras un email avec la date de lancement, rien d'autre. Désinscription en un clic. <a href="/confidentialite">Confidentialité</a></p>
       </form>
       <p id="msg" role="status"></p>
     </div>
@@ -237,13 +284,13 @@ document.getElementById('wl').addEventListener('submit', async e => {
     if (!r.ok) throw new Error(d.error || 'Erreur');
     m.className = 'ok';
     if (d.already) m.textContent = 'Tu es déjà sur la liste : ta place est gardée, à très vite !';
-    else if (d.count && d.count <= SEATS) m.textContent = `Ta place n° ${d.count} est réservée 🎉 −50 % à vie. On t'envoie ton accès dès l'ouverture, avec le même email.`;
-    else m.textContent = "C'est noté ! On te prévient dès l'ouverture.";
+    else if (d.count && d.count <= SEATS) m.textContent = `Ta place n° ${d.count} est réservée 🎉 −50 % à vie. On t'envoie la date de lancement et ton accès d'essai sur cet email. Rien à payer d'ici là.`;
+    else m.textContent = "C'est noté ! On te prévient dès que la date de lancement est fixée.";
     if (d.count) showSeats(d.count);
     document.getElementById('wl').reset();
     try { window.va('pageview', { route: '/liste-attente-ok', path: '/liste-attente-ok' }); } catch (_) {}
   } catch (err){ m.className = 'err'; m.textContent = err.message || 'Réessaie dans un instant.'; }
-  finally { b.disabled = false; b.textContent = "Je rejoins la liste d'attente"; }
+  finally { b.disabled = false; b.textContent = "Je rejoins la liste (gratuit)"; }
 });
 </script>
 </body>

@@ -215,6 +215,18 @@ body{overflow-x:hidden}
   .ring{width:min(220px,52vw)}
   .stage{padding-top:18px}
 }
+.part-switch{position:relative;display:grid;grid-template-columns:1fr 1fr;width:min(360px,100%);padding:4px;border-radius:999px;background:#121212;border:1px solid #242424}
+.ps-thumb{position:absolute;top:4px;bottom:4px;left:4px;width:calc(50% - 4px);border-radius:999px;background:var(--green);box-shadow:0 0 18px rgba(30,215,96,.3);transition:transform .38s cubic-bezier(.2,.9,.3,1.15)}
+.part-switch[data-p="1"] .ps-thumb{transform:translateX(100%)}
+.ps-btn{position:relative;z-index:1;appearance:none;background:none;border:0;padding:8px 6px;color:#cfcfcf;display:flex;flex-direction:column;align-items:center;gap:1px;cursor:pointer;transition:color .3s}
+.ps-btn b{font:800 15px Figtree,sans-serif}.ps-btn small{font:700 11px Figtree,sans-serif;letter-spacing:.04em;opacity:.85}
+.ps-btn[aria-selected="true"]{color:#000}
+.ring{position:relative}
+.part-tag{position:absolute;top:-13px;left:50%;transform:translateX(-50%);z-index:3;background:#050505;border:1px solid var(--green);color:var(--green);font:800 12px Figtree,sans-serif;letter-spacing:.08em;padding:4px 12px;border-radius:999px;white-space:nowrap}
+.ring.sw-out{animation:swOut .22s ease-in forwards}
+.ring.sw-in{animation:swIn .38s cubic-bezier(.2,.9,.3,1.1)}
+@keyframes swOut{to{transform:perspective(900px) translateX(calc(var(--dx,1) * -55%)) rotateY(calc(var(--dx,1) * 35deg)) scale(.86);opacity:0}}
+@keyframes swIn{from{transform:perspective(900px) translateX(calc(var(--dx,1) * 55%)) rotateY(calc(var(--dx,1) * -35deg)) scale(.86);opacity:0}}
 @keyframes sbUp{from{transform:translateY(100%)}to{transform:none}}
 @media (max-width:380px){.cap .ball{width:54px;height:54px}.orbit{gap:10px}.top-select{padding:7px 8px}}
 @media (prefers-reduced-motion:reduce){.cap,.boom,.boomfx .rays{animation:none}}
@@ -419,6 +431,7 @@ body{overflow-x:hidden}
       <div class="orbit">
         <div class="caps"><button class="cap" data-open="script" style="animation-delay:0s" aria-label="Script"><span class="ball"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16v4z"/><path d="M13 7l4 4"/></svg><i class="tick"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></i></span><span class="cap-l">Script</span></button><button class="cap" data-open="voix" style="animation-delay:-1.4s" aria-label="Voix"><span class="ball"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg><i class="tick"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></i></span><span class="cap-l">Voix</span></button><button class="cap" data-open="pub" style="animation-delay:-2.6s" aria-label="Publier"><span class="ball"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><path d="M12 3v12M7 8l5-5 5 5"/></svg><i class="tick"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></i></span><span class="cap-l">Publier</span></button></div>
         <div class="ring" id="ring">
+      <div class="part-tag" id="partTag" hidden>PARTIE 1</div>
       <div class="phone">
         <canvas id="cv" width="720" height="1280"></canvas>
         <video class="result" id="resultVid" playsinline controls hidden></video>
@@ -426,6 +439,11 @@ body{overflow-x:hidden}
       </div>
         </div>
         <div class="caps"><button class="cap" data-open="fonds" style="animation-delay:-0.8s" aria-label="Fonds"><span class="ball"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M10 9.5v5l4.5-2.5z"/></svg><i class="tick"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></i></span><span class="cap-l">Fonds</span></button><button class="cap" data-open="style" style="animation-delay:-2.1s" aria-label="Style"><span class="ball"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2 5 5 2-5 2-2 5-2-5-5-2 5-2z"/><path d="M19 17l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/></svg><i class="tick"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></i></span><span class="cap-l">Style</span></button><button class="cap" data-open="son" style="animation-delay:-3.3s" aria-label="Son"><span class="ball"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V6l10-2v12"/><circle cx="7" cy="18" r="2.5"/><circle cx="17" cy="16" r="2.5"/></svg><i class="tick"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></i></span><span class="cap-l">Son</span></button></div>
+      </div>
+      <div class="part-switch" id="partSwitch" data-p="0" role="tablist" aria-label="Partie de la série" hidden>
+        <i class="ps-thumb"></i>
+        <button class="ps-btn" data-sw="0" role="tab" aria-selected="true"><b>Partie 1</b><small id="ps0">○○○</small></button>
+        <button class="ps-btn" data-sw="1" role="tab" aria-selected="false"><b>Partie 2</b><small id="ps1">○○○</small></button>
       </div>
       <div class="recipe"><div class="dots" id="dots"><i></i><i></i><i></i><i></i><i></i></div><div class="recipe-t">Ta recette : <b id="recipeN">0/5</b> · <span id="recipeHint">touche un élément pour le préparer</span></div></div>
       <button class="idea-strip only-mobile" id="ideaStrip"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.8.8 1 1.5 1 2.5h6c0-1 .2-1.7 1-2.5A6 6 0 0 0 12 3z"/></svg> À court d'idées ? Trouve un sujet</button>
@@ -766,14 +784,14 @@ async function generate(reply){
     if (reply && !topic) $('topic').value = 'Réponse : ' + reply.text.slice(0, 80);
     parts = [{ script: data.script, hook: data.hook || '', keywords: data.keywords || [] }];
     if (data.part2 && data.part2.script) parts.push({ script: data.part2.script, hook: data.part2.hook || '', keywords: data.part2.keywords || [] });
-    part = 0; loadPart(0);
+    resetParts(); part = 0; loadPart(0);
     $('partBox').hidden = parts.length < 2;
     showFixes(data.fixes || [], check);
     histId = Date.now().toString(36); saveHistory();
     track(reply ? 'reponse-commentaire' : 'script');
     msg.className='msg ok'; msg.textContent = reply
       ? 'Réponse prête : la bulle du commentaire apparaîtra dans la vidéo. Génère la voix (étape 2).'
-      : parts.length > 1 ? 'Série prête : voici la partie 1. Fais sa vidéo, puis touche « Partie 2 ».'
+      : parts.length > 1 ? 'Série prête : voici la partie 1. Fais sa vidéo, puis passe à « Partie 2 » sous les bulles.'
       : 'Script prêt. Modifie-le si tu veux, puis génère la voix.';
     if (coach.length && !reply) msg.textContent += ' Les règles de ton coach ont été appliquées.';
     if (reply){ closeIdeas(); openPanel('script'); }
@@ -849,13 +867,67 @@ function loadPart(k){
 }
 function keepEdits(){ if (parts[part]) { parts[part].script = $('script').value; parts[part].hook = $('hook').value; parts[part].keywords = kwList(); } }
 function kwList(){ return $('kw').value.split(',').map(x => x.trim()).filter(Boolean); }
-document.querySelectorAll('[data-part]').forEach(b => b.onclick = () => {
-  const k = +b.dataset.part; if (k === part || !parts[k]) return;
-  keepEdits(); loadPart(k); saveHistory();
-  const m = $('genMsg'); m.className = 'msg ok';
-  m.textContent = `Partie ${k+1} chargée. Régénère la voix (étape 2) et les vidéos de fond (étape 3).`;
-});
 const isSeries = () => parts.length > 1;
+// Chaque partie garde SA voix, SES fonds et son export : on passe de l'une à l'autre comme on change de téléphone
+let partMedia = [], partDone = [];
+function msgState(id){ const m = $(id); return m ? [m.className, m.textContent] : ['msg', '']; }
+function setMsgState(id, v){ const m = $(id); if (!m) return; m.className = (v && v[0]) || 'msg'; m.textContent = (v && v[1]) || ''; }
+function snapMedia(){
+  return { audioRaw, audioBuf, voiceBlob, voiceURL, voiceKey, bgMode, scenes, sceneStarts, bgPage, bgKey, videoURL, capTr,
+    voiceMsg: msgState('voiceMsg'), bgMsg: msgState('bgMsg'), dropTxt: $('dropTxt').textContent };
+}
+function applyMedia(m){
+  m = m || {};
+  if (current) current.pause(); current = null;
+  scenes.forEach(x => { if (x.el) x.el.pause(); });
+  ({ audioRaw = null, audioBuf = null, voiceBlob = null, voiceURL = null, voiceKey = '', bgMode = 'none', scenes = [], sceneStarts = [], bgPage = 1, bgKey = '', videoURL = null, capTr = null } = m);
+  const vp = $('voicePlayer'); vp.pause();
+  if (voiceURL){ vp.src = voiceURL; vp.hidden = false; } else { vp.removeAttribute('src'); vp.hidden = true; }
+  if (videoURL){ vid.src = videoURL; vid.load(); } else vid.removeAttribute('src');
+  $('dropTxt').textContent = m.dropTxt || 'Choisir ma propre vidéo';
+  if (scenes.length) renderScenes(); else { $('scenesBox').hidden = true; $('scenesList').innerHTML = ''; }
+  setMsgState('voiceMsg', m.voiceMsg); setMsgState('bgMsg', m.bgMsg);
+  hideResult(); resultBlob = null; capWords = [];
+  showEmpty(!audioBuf && bgMode === 'none');
+}
+function partReady(k){
+  const p = parts[k]; if (!p) return 0;
+  const m = k === part ? snapMedia() : (partMedia[k] || {}), sc = (k === part ? $('script').value : p.script || '').trim();
+  let n = sc ? 1 : 0;
+  if (m.audioBuf && m.voiceKey === sc + '|' + $('voice').value) n++;
+  if (m.bgMode === 'own' || (m.bgMode === 'auto' && m.bgKey === sc)) n++;
+  return n;
+}
+function updateSwitch(){
+  const sw = $('partSwitch'), on = isSeries();
+  sw.hidden = !on; $('partTag').hidden = !on;
+  if (!on) return;
+  sw.dataset.p = part; $('partTag').textContent = 'PARTIE ' + (part + 1);
+  sw.querySelectorAll('[data-sw]').forEach(b => b.setAttribute('aria-selected', String(+b.dataset.sw === part)));
+  [0, 1].forEach(k => { const n = partReady(k);
+    $('ps' + k).textContent = partDone[k] && n >= 3 ? '✓ exportée' : n >= 3 ? '✓ prête' : '●'.repeat(n) + '○'.repeat(3 - n); });
+}
+function switchPart(k){
+  if (k === part || !parts[k]) return;
+  if (running){ const m = $('playMsg'); m.className = 'msg err'; m.textContent = 'Attends la fin de l\'aperçu ou de l\'export pour changer de partie.'; return; }
+  keepEdits(); partMedia[part] = snapMedia();
+  const ring = $('ring'); ring.style.setProperty('--dx', k > part ? 1 : -1);
+  ring.classList.remove('sw-in'); ring.classList.add('sw-out');
+  $('partSwitch').dataset.p = k;
+  setTimeout(() => {
+    applyMedia(partMedia[k]); loadPart(k); showEmpty(!audioBuf && bgMode === 'none' && !$('script').value.trim()); drawFrame(previewT());
+    saveHistory(); updateRecipe();
+    ring.classList.remove('sw-out'); void ring.offsetWidth; ring.classList.add('sw-in');
+    setTimeout(() => ring.classList.remove('sw-in'), 420);
+    const n = partReady(k), txt = n >= 3 ? `Partie ${k+1} : sa voix et ses fonds sont prêts.`
+      : n === 2 ? `Partie ${k+1} : il manque encore une étape (voix ou fonds).`
+      : `Partie ${k+1} : nouveau script. Ajoute sa voix, puis ses fonds.`;
+    ['playMsg', 'genMsg'].forEach(id => { $(id).className = 'msg ok'; $(id).textContent = txt; });
+  }, 220);
+}
+function resetParts(){ partMedia = []; partDone = []; }
+document.querySelectorAll('[data-part]').forEach(b => b.onclick = () => switchPart(+b.dataset.part));
+document.querySelectorAll('[data-sw]').forEach(b => b.onclick = () => switchPart(+b.dataset.sw));
 
 // Liste des corrections faites par la vérification des faits
 function showFixes(fixes, checked){
@@ -905,7 +977,7 @@ function restoreHistory(h){
   dur = h.dur || 35; setPills('[data-dur]', 'dur', dur); topLabel();
   tone = h.tone || tone; setPills('[data-tone]', 'tone', tone);
   if (h.lang) $('lang').value = h.lang; if (h.voice) $('voice').value = h.voice;
-  parts = h.parts || []; $('partBox').hidden = parts.length < 2; $('fixList').hidden = true; replyComment = h.reply || null;
+  resetParts(); parts = h.parts || []; $('partBox').hidden = parts.length < 2; $('fixList').hidden = true; replyComment = h.reply || null;
   loadPart(Math.min(h.part || 0, parts.length - 1));
   const m = $('genMsg'); m.className = 'msg ok'; m.textContent = 'Vidéo reprise. Régénère la voix (étape 2) pour continuer.';
   openPanel('script');
@@ -1041,7 +1113,7 @@ function decode(ab){ return new Promise((ok, ko) => { const p = ctx().decodeAudi
 
 // ---------- Étape 3 : vidéo de fond ----------
 const vid = $('srcVid');
-let bgMode = 'none', scenes = [], sceneStarts = [], bgPage = 1, current = null;
+let bgMode = 'none', scenes = [], sceneStarts = [], bgPage = 1, current = null, bgKey = '';
 $('file').onchange = e => {
   const f = e.target.files[0]; if (!f) return;
   if (videoURL) URL.revokeObjectURL(videoURL);
@@ -1107,7 +1179,7 @@ async function findBackgrounds(){
       return sc;
     }));
     if (!scenes.some(s => s.el)) throw new Error('aucune vidéo n\'a pu être chargée');
-    bgMode = 'auto'; $('dropTxt').textContent = 'Choisir ma propre vidéo';
+    bgMode = 'auto'; bgKey = text; $('dropTxt').textContent = 'Choisir ma propre vidéo';
     renderScenes(); prepareCaptions(); showEmpty(false); drawFrame(0);
     msg.className='msg ok'; msg.textContent = `${scenes.filter(s=>s.el).length} vidéos prêtes, calées sur ton script.`;
     track('fonds');
@@ -1868,6 +1940,7 @@ $('export').onclick = async () => {
   const rv = $('resultVid'); rv.src = resultURL; rv.hidden = false; cv.hidden = true;
   $('saveRow').hidden = false;
   m.className='msg ok'; m.textContent = `Vidéo prête (${(resultBlob.size/1048576).toFixed(1)} Mo). Appuie sur « Enregistrer la vidéo ».`;
+  partDone[part] = true;
   track(isSeries() ? 'export-partie-' + (part + 1) : 'export'); saveHistory(); markWeekDone(); boomFx();
 };
 function hideResult(){ $('resultVid').hidden = true; $('resultVid').pause(); cv.hidden = false; $('saveRow').hidden = true; }
@@ -1984,7 +2057,7 @@ function updateRecipe(){
   const st = {
     script: !!$('script').value.trim(),
     voix: !!audioBuf && voiceKey === $('script').value.trim() + '|' + $('voice').value,
-    fonds: bgMode !== 'none',
+    fonds: bgMode === 'own' || (bgMode === 'auto' && bgKey === $('script').value.trim()),
     style: !!visited.style,
     son: !!visited.son || !!musicBuf
   };
@@ -1994,6 +2067,7 @@ function updateRecipe(){
   $('recipeN').textContent = n + '/5';
   $('recipeHint').textContent = n >= 5 ? 'tout est prêt, fais BOOM !' : !st.script ? 'commence par le script' : !st.voix ? 'ajoute la voix' : !st.fonds ? 'ajoute les fonds' : 'peaufine le style et le son';
   $('ring').style.setProperty('--p', Math.round(n / 5 * 360) + 'deg');
+  updateSwitch();
   $('ring').style.background = `conic-gradient(var(--green) 0deg ${Math.round(n / 5 * 360)}deg, #1f1f1f ${Math.round(n / 5 * 360)}deg 360deg)`;
 }
 setInterval(updateRecipe, 500);
@@ -2008,7 +2082,7 @@ $('resetConfirm').onclick = e => { if (e.target === $('resetConfirm')) $('resetC
 $('rcYes').onclick = () => {
   $('resetConfirm').hidden = true;
   ['topic','script','hook','kw','pubTitle','pubText','replyText','replyUser'].forEach(id => { if ($(id)) $(id).value = ''; });
-  parts = []; part = 0; histId = null; replyComment = null; capTr = null; weekIdx = null;
+  parts = []; part = 0; histId = null; replyComment = null; capTr = null; weekIdx = null; resetParts(); bgKey = '';
   $('partBox').hidden = true; $('fixList').hidden = true; $('capBox').hidden = true;
   audioBuf = null; audioRaw = null; voiceBlob = null; voiceKey = '';
   if (voiceURL){ URL.revokeObjectURL(voiceURL); voiceURL = null; } const vp = $('voicePlayer'); vp.pause(); vp.removeAttribute('src'); vp.hidden = true;
@@ -2040,7 +2114,7 @@ $('trBtn').onclick = async () => {
     const newHook = hook ? out[src.length] : '', newKw = kwTxt ? out[src.length + 1] : '';
     keepEdits();
     $('lang').value = to; $('script').value = newScript; $('hook').value = newHook || ''; $('kw').value = newKw && newKw !== '-' ? newKw : '';
-    parts = [{ script: newScript, hook: $('hook').value, keywords: kwList() }]; part = 0; $('partBox').hidden = true;
+    parts = [{ script: newScript, hook: $('hook').value, keywords: kwList() }]; part = 0; resetParts(); $('partBox').hidden = true;
     if ($('capLang').value === to) $('capLang').value = '';
     capTr = null; capWords = []; updateCount(); if (!running) drawFrame(previewT());
     if ($('topic').value && !/\(\w\w\)$/.test($('topic').value)) $('topic').value += ' (' + to.toUpperCase() + ')';
