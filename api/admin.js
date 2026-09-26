@@ -3,6 +3,7 @@
 import { randomInt } from 'crypto';
 import { invited, isAdmin, invitedList, getInvite } from './_auth.js';
 import { kv, kvReady } from './_kv.js';
+import { notify, notifyReady } from './_notify.js';
 
 const EMAIL = /^[^\s@:,;]+@[^\s@:,;]+\.[^\s@:,;]+$/;
 const newCode = () => { const a = 'abcdefghjkmnpqrstuvwxyz23456789'; let c = ''; for (let i = 0; i < 6; i++) c += a[randomInt(a.length)]; return c; };
@@ -28,7 +29,7 @@ async function snapshot() {
   const waitlist = Object.values(pairs(wl)).map(v => { try { return JSON.parse(v); } catch (e) { return null; } })
     .filter(Boolean).sort((a, b) => (a.rank || 0) - (b.rank || 0))
     .map(w => ({ ...w, invited: rows.some(r => r.email === w.email) }));
-  return { rows, waitlist, quota: Number(process.env.QUOTA_JOUR) || 60 };
+  return { rows, waitlist, quota: Number(process.env.QUOTA_JOUR) || 60, notify: notifyReady() };
 }
 
 export default async function handler(req, res) {
@@ -41,6 +42,12 @@ export default async function handler(req, res) {
   const b = req.body || {}, action = String(b.action || 'list');
   const email = String(b.email || '').trim().toLowerCase().slice(0, 200);
   try {
+    if (action === 'notifyTest') {
+      if (!notifyReady()) return res.status(400).json({ error: 'Ajoute d\'abord NTFY_TOPIC dans Vercel (voir les étapes).' });
+      const ok = await notify('🔔 Test ScriptBoom', 'Les notifications marchent ! Tu seras prévenu à chaque nouvel inscrit.', ['bell']);
+      if (!ok) return res.status(500).json({ error: 'La notification n\'est pas partie. Réessaie dans un instant.' });
+      return res.status(200).json({ ...(await snapshot()), sent: true });
+    }
     if (action !== 'list') {
       if (!EMAIL.test(email)) return res.status(400).json({ error: 'Email invalide' });
       if (invitedList().some(x => x.split(':')[0] === email)) return res.status(400).json({ error: 'Cet accès est fixé dans Vercel (EMAILS_AUTORISES) : modifie-le là-bas.' });
