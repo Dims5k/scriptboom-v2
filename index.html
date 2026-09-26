@@ -247,20 +247,9 @@ body{overflow-x:hidden}
   <div class="sbg-box">
     <img class="sbg-icon" src="/logo.png" alt=""><div class="sbg-logo">Script<span>Boom</span></div>
     <p class="sbg-tag">Un sujet. Une vidéo. <b>BOOM.</b></p>
-    <a class="sbg-burst" href="/bienvenue#rejoindre" aria-label="Offre de lancement : moins 50 pour cent à vie pour les 500 premiers inscrits">
-      <svg class="boom-shape" viewBox="0 0 240 240" aria-hidden="true">
-          <defs>
-            <radialGradient id="gbg1" cx="40%" cy="35%" r="75%"><stop offset="0" stop-color="#9d5cff"/><stop offset=".55" stop-color="#6d28d9"/><stop offset="1" stop-color="#3b0f7a"/></radialGradient>
-            <linearGradient id="ggold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff1b8"/><stop offset=".45" stop-color="#f6c343"/><stop offset="1" stop-color="#c8871a"/></linearGradient>
-          </defs>
-          <polygon points="120.0,20.0 131.4,40.8 148.2,24.1 154.9,43.6 174.1,35.9 172.4,59.5 195.6,54.5 190.7,74.6 211.0,78.5 196.8,97.5 219.0,105.8 204.0,120.0 219.0,134.2 196.8,142.5 211.0,161.5 190.7,165.4 195.6,185.5 172.4,180.5 174.1,204.1 154.9,196.4 148.2,215.9 131.4,199.2 120.0,220.0 108.0,203.1 91.8,215.9 86.8,192.8 65.9,204.1 65.0,183.5 44.4,185.5 52.7,163.3 29.0,161.5 39.4,143.7 21.0,134.2 40.0,120.0 21.0,105.8 39.4,96.3 29.0,78.5 52.7,76.7 44.4,54.5 65.0,56.5 65.9,35.9 86.8,47.2 91.8,24.1 108.0,36.9" fill="#1a0638" transform="translate(6 8)"/>
-          <polygon points="120.0,20.0 131.4,40.8 148.2,24.1 154.9,43.6 174.1,35.9 172.4,59.5 195.6,54.5 190.7,74.6 211.0,78.5 196.8,97.5 219.0,105.8 204.0,120.0 219.0,134.2 196.8,142.5 211.0,161.5 190.7,165.4 195.6,185.5 172.4,180.5 174.1,204.1 154.9,196.4 148.2,215.9 131.4,199.2 120.0,220.0 108.0,203.1 91.8,215.9 86.8,192.8 65.9,204.1 65.0,183.5 44.4,185.5 52.7,163.3 29.0,161.5 39.4,143.7 21.0,134.2 40.0,120.0 21.0,105.8 39.4,96.3 29.0,78.5 52.7,76.7 44.4,54.5 65.0,56.5 65.9,35.9 86.8,47.2 91.8,24.1 108.0,36.9" fill="url(#gbg1)" stroke="url(#ggold)" stroke-width="5" stroke-linejoin="round"/>
-        </svg>
-      <span class="sbg-btxt"><small>Offre de<br>lancement</small><b>−50%</b><strong>À VIE</strong><em>500 places</em></span>
-    </a>
-    <a class="sbg-offer" href="/bienvenue#rejoindre">Je réserve ma place à −50 %</a>
-    <p class="sbg-safe">🔒 Inscription par email uniquement. Aucun paiement avant le lancement.</p>
-    <p class="sbg-price"><s>7,99 €</s> <b>3,99 €/mois</b>, à vie · pour les 500 premiers</p>
+    <span class="sbg-status"><i></i>En développement · lancement bientôt</span>
+    <a class="sbg-offer" href="/bienvenue#rejoindre">Rejoindre les 500 →</a>
+    <p class="sbg-safe">Essai en avant-première · date de lancement en premier · accès exclusifs du Club des 500</p>
     <div class="sbg-sep"><span>Déjà invité ?</span></div>
     <form id="sbgForm" autocomplete="on">
       <input id="sbgEmail" type="email" inputmode="email" autocomplete="email" placeholder="ton@email.com" required>
@@ -302,8 +291,11 @@ body{overflow-x:hidden}
 @media (max-width:699px){#sbGate .sbg-box{padding-top:110px}}
 @media (max-width:380px){.sbg-burst{width:132px;height:132px;right:6px}.sbg-btxt b{font-size:24px}.sbg-btxt strong{font-size:12px}}
 @media (min-width:700px){.sbg-burst{top:28px;right:40px;width:180px;height:180px}.sbg-btxt b{font-size:34px}.sbg-btxt strong{font-size:17px}.sbg-btxt small{font-size:8px}.sbg-btxt em{font-size:9px}}
-#sbGate .sbg-offer{display:block;margin:6px 0 0;padding:15px;border-radius:999px;font-weight:800;font-size:17px;text-decoration:none;color:#2a0a52;background:linear-gradient(135deg,#fff1b8,#f6c343 45%,#d18f1c);box-shadow:0 8px 24px rgba(246,195,67,.25)}
-#sbGate .sbg-safe{color:#e8e8e8;font-size:13.5px;font-weight:600;margin:12px 0 0}#sbGate .sbg-price{color:#9a9a9a;font-size:13px;margin:6px 0 0}#sbGate .sbg-price b{color:#f6c343}
+#sbGate .sbg-offer{display:block;margin:6px 0 0;padding:15px;border-radius:999px;font-weight:800;font-size:17px;text-decoration:none;color:#000;background:#1ed760;box-shadow:0 8px 24px rgba(30,215,96,.22)}
+#sbGate .sbg-status{display:inline-flex;align-items:center;gap:9px;font-size:13px;font-weight:700;color:#f6c343;border:1px solid rgba(246,195,67,.35);background:rgba(246,195,67,.06);border-radius:999px;padding:6px 14px;margin:0 0 18px}
+#sbGate .sbg-status i{width:9px;height:9px;border-radius:50%;background:#f6c343;animation:sbgPulse 1.8s ease-out infinite}
+@keyframes sbgPulse{0%{box-shadow:0 0 0 0 rgba(246,195,67,.55)}100%{box-shadow:0 0 0 10px rgba(246,195,67,0)}}
+#sbGate .sbg-safe{color:#9a9a9a;font-size:13px;font-weight:600;margin:12px 0 0;line-height:1.5}#sbGate .sbg-price{color:#9a9a9a;font-size:13px;margin:6px 0 0}#sbGate .sbg-price b{color:#f6c343}
 #sbGate .sbg-sep{display:flex;align-items:center;gap:10px;color:#777;font-size:13px;margin:26px 0 12px}
 #sbGate .sbg-sep:before,#sbGate .sbg-sep:after{content:"";flex:1;height:1px;background:#262626}
 #sbGate button{background:#1a1a1a!important;color:#f2f2f2!important;border:1px solid #333!important}
@@ -2269,7 +2261,7 @@ html:not([data-admin]) .admin-only{display:none!important}
       L.appendChild(row);
     });
     var W = data.waitlist || [], WL = $a('avWlList'); WL.textContent = '';
-    $a('avWlSum').textContent = W.length + ' inscrit' + (W.length > 1 ? 's' : '') + ' · ' + Math.max(0, 500 - W.length) + ' places −50 % restantes';
+    $a('avWlSum').textContent = W.length + ' inscrit' + (W.length > 1 ? 's' : '') + ' · ' + Math.max(0, 500 - W.length) + ' places du Club des 500 restantes';
     W.forEach(function(w){
       var row = el('div', 'av-row'), who = el('div', 'who');
       who.appendChild(el('div', 'em', '#' + (w.rank || '?') + ' · ' + w.email));
