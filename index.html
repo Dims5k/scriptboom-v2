@@ -17,7 +17,7 @@
 <script defer src="/_vercel/insights/script.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=Figtree:wght@400;500;600&display=swap" media="print" onload="this.media='all'">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=Figtree:wght@400;500;600&family=Anton&family=Poppins:wght@800&display=swap" media="print" onload="this.media='all'">
 <style>
 :root{
   --bg:#000; --panel:#141414; --panel2:#1c1c1c; --line:#2a2a2a;
@@ -273,6 +273,39 @@ body{overflow-x:hidden}
 </head>
 <body>
 <!-- Porte d'entrée : accès sur invitation -->
+<div id="coachView" hidden>
+  <div class="cv-top">
+    <button class="av-back" id="cvBack">← ScriptBoom</button>
+    <b>📈 Coach</b>
+    <span style="width:110px"></span>
+  </div>
+  <div class="av-tabs" role="tablist">
+    <button role="tab" data-cvtab="an" aria-selected="true">Analyser</button>
+    <button role="tab" data-cvtab="db" aria-selected="false">Mes stats</button>
+    <button role="tab" data-cvtab="hi" aria-selected="false">Historique <span id="cvHiN"></span></button>
+  </div>
+  <div class="cv-body">
+    <section id="cvAn">
+      <div id="cvForm">
+        <p class="cv-lead">Envoie les stats et la vidéo d'un short : le coach te dit pourquoi il marche ou pas, et règle ton projet en un toucher.</p>
+        <p class="cv-lbl">Plateforme</p>
+        <div class="cv-pills" id="cvPlat">
+          <button data-plat="tiktok" aria-pressed="true">TikTok</button><button data-plat="youtube" aria-pressed="false">YouTube</button><button data-plat="instagram" aria-pressed="false">Instagram</button><button data-plat="threads" aria-pressed="false">Threads</button><button data-plat="x" aria-pressed="false">X</button><button data-plat="autre" aria-pressed="false">Autre</button>
+        </div>
+        <label class="cv-drop"><input type="file" id="cvShots" accept="image/*" multiple><span id="cvShotsTxt">📷 Captures de tes stats (jusqu'à 4)</span><small>Vues, rétention, temps de visionnage, likes…</small></label>
+        <label class="cv-drop"><input type="file" id="cvVideo" accept="video/*"><span id="cvVideoTxt">🎬 Ta vidéo (conseillé)</span><small>Le coach regarde l'accroche, le rythme et les sous-titres</small></label>
+        <label class="cv-check" id="cvUseExportRow" hidden><input type="checkbox" id="cvUseExport"> Utiliser la vidéo que je viens d'exporter</label>
+        <label class="cv-check"><input type="checkbox" id="cvUseProject" checked> Joindre les réglages de mon projet actuel (pour que le coach puisse les corriger)</label>
+        <input id="cvNote" type="text" placeholder="Précision (facultatif) : postée à 18 h, niche muscu…">
+        <button class="cv-go" id="cvGo">Analyser</button>
+        <p class="cv-msg" id="cvMsg" role="status"></p>
+      </div>
+      <div id="cvResult" hidden></div>
+    </section>
+    <section id="cvDb" hidden></section>
+    <section id="cvHi" hidden></section>
+  </div>
+</div>
 <div id="micOverlay" hidden>
   <div class="mo-top"><span class="mo-rec" id="micState"><i></i>Prépare-toi…</span><span id="micTime">0:00</span></div>
   <p class="mo-hint">Lis le texte tel quel, à ton rythme. Fais défiler avec le doigt si besoin.</p>
@@ -403,7 +436,7 @@ body{overflow-x:hidden}
     <span class="tb-break"></span>
     <button class="icon-btn admin-only" id="adminBtn" aria-label="Admin" title="Admin : invités"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6l8-3z"/><path d="M9 12l2 2 4-4"/></svg></button>
     <button class="icon-btn" id="tourBtn" aria-label="Revoir la visite guidée" title="Visite guidée"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17.5v.01"/></svg></button>
-    <button class="icon-btn" data-open="coach" aria-label="Coach : mes stats" title="Coach"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19h16M7 16v-4M12 16V8M17 16v-7"/></svg></button>
+    <button class="icon-btn" id="coachOpen" aria-label="Coach : analyse tes vidéos" title="Coach"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19h16M7 16v-4M12 16V8M17 16v-7"/></svg></button>
     <button class="icon-btn" data-open="hist" aria-label="Mes vidéos" title="Mes vidéos"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg></button>
     <button class="icon-btn" id="logoutBtn" aria-label="Se déconnecter" title="Se déconnecter"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l-5-5 5-5M5 12h11"/></svg></button>
     <button class="btn ghost" id="installBtn" hidden>Installer</button>
@@ -624,6 +657,12 @@ body{overflow-x:hidden}
           <button class="pill" data-vfmt="169" aria-pressed="false">16:9 · YouTube</button>
         </div>
         <p class="msg" id="fmtMsg" role="status"></p>
+        <label>Police des sous-titres</label>
+        <div class="pills" role="group" aria-label="Police des sous-titres" style="margin-top:0">
+          <button class="pill" data-font="bricolage" aria-pressed="true" style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800">Bricolage</button>
+          <button class="pill" data-font="anton" aria-pressed="false" style="font-family:Anton,sans-serif">ANTON</button>
+          <button class="pill" data-font="poppins" aria-pressed="false" style="font-family:Poppins,sans-serif;font-weight:800">Poppins</button>
+        </div>
         <label>Sous-titres</label>
         <div class="pills" role="group" aria-label="Style des sous-titres" style="margin-top:0">
           <button class="pill" data-cap="classique" aria-pressed="true">Classique</button>
@@ -1454,7 +1493,7 @@ function drawCaption(idx){
   const n = +$('capWords').value, start = Math.floor(idx/n)*n, up = $('capUpper').checked;
   const chunk = capWords.slice(start, start+n).map(w => up ? w.toLocaleUpperCase() : w);
   const size = capStyle === 'minimal' ? 50 : n <= 2 ? 84 : 66;
-  g.font = `800 ${size}px "Bricolage Grotesque", Figtree, "Noto Sans Arabic", sans-serif`;
+  g.font = capFontCss(size);
   g.textBaseline = 'alphabetic'; g.lineJoin = 'round';
   const space = noSpace(capLangNow()) ? 0 : g.measureText(' ').width;
   const kws = $('kwOn').checked ? new Set(kwList().map(norm)) : null;
@@ -1485,7 +1524,7 @@ function drawHook(t){
   const pop = Math.min(1, t / 0.25), out = t > HOOK_DUR - 0.25 ? (HOOK_DUR - t) / 0.25 : 1;
   const scale = 0.7 + 0.3 * (1 - Math.pow(1 - pop, 3)), size = 92;
   g.save(); g.globalAlpha = Math.max(0, out); g.translate(W/2, H*0.42); g.scale(scale, scale);
-  g.font = `800 ${size}px "Bricolage Grotesque", Figtree, "Noto Sans Arabic", sans-serif`; g.textBaseline = 'middle'; g.lineJoin = 'round';
+  g.font = capFontCss(size); g.textBaseline = 'middle'; g.lineJoin = 'round';
   const space = noSpace(capLangNow()) ? 0 : g.measureText(' ').width;
   const list = words(text, capLangNow()).map(w => ({ w, ww: g.measureText(w).width }));
   const lines = layoutLines(list, W*0.86, space, isRTL(capLangNow())), lh = size*1.12;
@@ -1868,7 +1907,7 @@ async function start(recordDest){
   stopListen(); stopAllAud();
   const c = ctx(); await c.resume();
   const m = buildMix(); applyVolumes();
-  try { await document.fonts.load('800 64px "Bricolage Grotesque"'); } catch(e){}
+  try { await document.fonts.load('800 64px "Bricolage Grotesque"'); await document.fonts.load(capFontCss(64)); } catch(e){}
   try { await makeSfx(); } catch(e){}
   try { await ensureTranslation(); } catch(e){}
   // Musique par défaut encore en préparation : on l'attend
@@ -2139,7 +2178,7 @@ const DEF_KEY = 'sb_defaults';
 const pressed = sel => { const b = document.querySelector(sel + '[aria-pressed="true"]'); return b ? Object.values(b.dataset)[0] : null; };
 $('saveDefaults').onclick = () => {
   const d = { voice: $('voice').value, lang: lang(), speed, cap: capStyle, fx, mood: pressed('[data-mood]'),
-    capPos: $('capPos').value, capWords: $('capWords').value, capUpper: $('capUpper').checked, kwOn: $('kwOn').checked, endOn: $('endOn').checked, progOn: $('progOn').checked, vfmt,
+    capPos: $('capPos').value, capWords: $('capWords').value, capUpper: $('capUpper').checked, kwOn: $('kwOn').checked, endOn: $('endOn').checked, progOn: $('progOn').checked, vfmt, capFont,
     duck: $('duck').checked, fades: $('fades').checked, checkOn: $('checkOn').checked, capLang: $('capLang').value,
     volVoice: $('volVoice').value, volVideo: $('volVideo').value, volMusic: $('volMusic').value, volSfx: $('volSfx').value };
   try { localStorage.setItem(uk(DEF_KEY), JSON.stringify(d)); $('defMsg').className = 'msg ok'; $('defMsg').textContent = 'Réglages gardés ✓ Ils seront appliqués à chaque ouverture.'; }
@@ -2151,6 +2190,7 @@ $('saveDefaults').onclick = () => {
   if (d.voice) $('voice').value = d.voice; if (d.lang) $('lang').value = d.lang; if (d.capLang != null) $('capLang').value = d.capLang;
   ['capPos','capWords'].forEach(k => { if (d[k]) $(k).value = d[k]; });
   if (d.vfmt) window.sbPendingFmt = d.vfmt;
+  if (d.capFont) window.sbPendingFont = d.capFont;
   ['capUpper','kwOn','endOn','progOn','duck','fades','checkOn'].forEach(k => { if (typeof d[k] === 'boolean') $(k).checked = d[k]; });
   [['volVoice','oVoice'],['volVideo','oVideo'],['volMusic','oMusic'],['volSfx','oSfx']].forEach(([k,o]) => { if (d[k] != null){ $(k).value = d[k]; $(o).textContent = d[k] + ' %'; } });
   if (d.speed) clickPill(`[data-speed="${d.speed}"]`);
@@ -2404,6 +2444,273 @@ async function cloudPull(){
 }
 setTimeout(cloudPull, 1200);
 
+// ---------- Police des sous-titres ----------
+var capFont = 'bricolage';
+var FONTS = { bricolage: ['800', '"Bricolage Grotesque"'], anton: ['400', 'Anton'], poppins: ['800', 'Poppins'] };
+function capFontCss(size){ const f = FONTS[capFont] || FONTS.bricolage; return `${f[0]} ${size}px ${f[1]}, Figtree, "Noto Sans Arabic", sans-serif`; }
+async function setCapFont(v){
+  if (!FONTS[v]) return; capFont = v; setPills('[data-font]', 'font', v);
+  try { await document.fonts.load(capFontCss(64)); } catch(e){}
+  capWords = []; if (!running) drawFrame(previewT());
+}
+document.querySelectorAll('[data-font]').forEach(b => b.onclick = () => setCapFont(b.dataset.font));
+if (window.sbPendingFont) setCapFont(window.sbPendingFont);
+
+// ---------- COACH : analyse de shorts (toutes plateformes) + raccourci « appliquer les réglages » ----------
+const CV_KEY = 'sb_coach2';
+const PLAT_NAME = { tiktok:'TikTok', youtube:'YouTube Shorts', instagram:'Instagram Reels', threads:'Threads', x:'X', autre:'Autre' };
+const SET_LABEL = { capStyle:'Style des sous-titres', capFont:'Police des sous-titres', capPos:'Position des sous-titres', capWords:'Mots à la fois', capUpper:'Tout en majuscules',
+  kwOn:'Mots importants en couleur', progOn:'Barre de progression', endOn:'Carte de fin « Abonne-toi »', fx:'Mouvement', dur:'Durée', tone:'Ton', format:'Format',
+  mood:'Musique', speed:'Vitesse de la voix', voice:'Voix', volMusic:'Volume de la musique', volSfx:'Volume des bruitages', vfmt:'Format de la vidéo', hook:'Accroche à l\'écran' };
+const APPLY_ORDER = ['vfmt','format','tone','dur','voice','speed','capFont','capStyle','capPos','capWords','capUpper','kwOn','progOn','endOn','fx','mood','volMusic','volSfx','hook'];
+function valLabel(k, v){
+  if (v == null || v === '') return '—';
+  if (v === true || v === 'true') return 'Oui'; if (v === false || v === 'false') return 'Non';
+  const M = { capPos:{'.3':'Haut','.52':'Milieu','.72':'Bas'}, capFont:{bricolage:'Bricolage',anton:'Anton',poppins:'Poppins'},
+    capStyle:{classique:'Classique',jaune:'Jaune',neon:'Néon',karaoke:'Karaoké',minimal:'Minimal'}, fx:{aucun:'Aucun',doux:'Zoom doux',dynamique:'Dynamique'},
+    vfmt:{'916':'9:16 vertical','11':'1:1 carré','169':'16:9 YouTube'}, mood:{none:'Aucune',triste:'Triste',calme:'Calme',suspense:'Suspense',motivation:'Motivation',joyeux:'Joyeux'} };
+  if (M[k] && M[k][v]) return M[k][v];
+  if (k === 'tone') return TONE_NAME[v] || v; if (k === 'format') return FORMAT_NAME[v] || v;
+  if (k === 'dur') return v + ' s'; if (k === 'speed') return String(v).replace('.', ',') + 'x';
+  if (k === 'volMusic' || k === 'volSfx') return v + ' %'; if (k === 'hook') return '« ' + v + ' »';
+  return String(v);
+}
+function currentSettings(){
+  return { capStyle, capFont, capPos: $('capPos').value, capWords: $('capWords').value, capUpper: $('capUpper').checked, kwOn: $('kwOn').checked,
+    progOn: $('progOn').checked, endOn: $('endOn').checked, fx, dur: String(dur), tone, format, mood: pressed('[data-mood]') || 'none',
+    speed: String(speed), voice: $('voice').value, volMusic: $('volMusic').value, volSfx: $('volSfx').value, vfmt, hook: $('hook').value.trim() };
+}
+function applySetting(k, v){
+  const fire = (id, ev) => $(id).dispatchEvent(new Event(ev));
+  switch (k){
+    case 'capStyle': clickPill(`[data-cap="${v}"]`); break;
+    case 'capFont': setCapFont(v); break;
+    case 'capPos': case 'capWords': $(k).value = v; fire(k, 'change'); break;
+    case 'capUpper': case 'kwOn': case 'progOn': case 'endOn': $(k).checked = v === true || v === 'true'; fire(k, 'change'); break;
+    case 'fx': clickPill(`[data-fx="${v}"]`); break;
+    case 'dur': clickPill(`[data-dur="${v}"]`); break;
+    case 'tone': clickPill(`[data-tone="${v}"]`); break;
+    case 'format': clickPill(`[data-format="${v}"]`); break;
+    case 'mood': clickPill(`[data-mood="${v}"]`); break;
+    case 'speed': clickPill(`[data-speed="${v}"]`); break;
+    case 'voice': $('voice').value = v; fire('voice', 'change'); break;
+    case 'volMusic': case 'volSfx': $(k).value = v; $(k === 'volMusic' ? 'oMusic' : 'oSfx').textContent = v + ' %'; applyVolumes(); break;
+    case 'vfmt': setVfmt(v, true); break;
+    case 'hook': $('hook').value = v; fire('hook', 'input'); keepEdits(); break;
+  }
+}
+function applyChanges(list){
+  list.slice().sort((a, b) => APPLY_ORDER.indexOf(a.key) - APPLY_ORDER.indexOf(b.key)).forEach(c => { try { applySetting(c.key, c.value); } catch(e){} });
+  capWords = []; if (!running) drawFrame(previewT()); saveHistory(); updateRecipe();
+}
+// garde les règles du coach pour les prochains scripts (coach déjà branché sur la génération)
+function keepRules(item){
+  const c = { date: item.date, summary: item.verdict, numbers: metricLines(item), problems: item.problems.map(p => p.issue), rules: item.rules };
+  try { localStorage.setItem(uk(COACH_KEY), JSON.stringify(c)); } catch(e){}
+  renderCoach(c); $('coachOn').checked = true;
+}
+function fmtNum(n){ if (n == null) return '—'; return n >= 1e6 ? (n/1e6).toFixed(1).replace('.', ',') + '\u00a0M' : n >= 1e4 ? Math.round(n/1e3) + '\u00a0k' : n >= 1e3 ? (n/1e3).toFixed(1).replace('.', ',') + '\u00a0k' : String(Math.round(n)); }
+function fmtT(t){ if (t == null) return ''; t = Math.max(0, Math.round(t)); return Math.floor(t/60) + ':' + String(t%60).padStart(2, '0'); }
+function metricLines(it){ const m = it.metrics || {}, L = [];
+  if (m.views != null) L.push(fmtNum(m.views) + ' vues'); if (m.likes != null) L.push(fmtNum(m.likes) + ' likes'); if (m.comments != null) L.push(fmtNum(m.comments) + ' commentaires');
+  if (m.shares != null) L.push(fmtNum(m.shares) + ' partages'); if (m.saves != null) L.push(fmtNum(m.saves) + ' enregistrements');
+  if (m.avgWatchSec != null) L.push(String(m.avgWatchSec).replace('.', ',') + ' s regardées en moyenne'); if (m.completionPct != null) L.push(m.completionPct + ' % regardée en entier');
+  if (m.retention3sPct != null) L.push(m.retention3sPct + ' % encore là à 3 s'); if (m.followersGained != null) L.push('+' + fmtNum(m.followersGained) + ' abonnés');
+  return L; }
+function cvRead(){ try { return JSON.parse(localStorage.getItem(uk(CV_KEY)) || '[]'); } catch(e){ return []; } }
+function cvWrite(list){ try { localStorage.setItem(uk(CV_KEY), JSON.stringify(list.slice(0, 80))); } catch(e){} $('cvHiN').textContent = list.length || ''; }
+async function cvPull(){
+  try { const r = await fetch('/api/coach'); if (!r.ok) return; const d = await r.json(); const byId = {};
+    cvRead().concat(d.items || []).forEach(x => { if (x && x.id) byId[x.id] = x; });
+    cvWrite(Object.values(byId).sort((a, b) => (b.date || 0) - (a.date || 0)));
+    if (cvTab === 'db') renderDb(); if (cvTab === 'hi') renderHi(); } catch(e){}
+}
+let cvTab = 'an', cvPlat = 'tiktok', cvShotsData = [], cvVideoFile = null, cvCurrent = null;
+function cvSetTab(t){ cvTab = t; document.querySelectorAll('[data-cvtab]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.cvtab === t)));
+  $('cvAn').hidden = t !== 'an'; $('cvDb').hidden = t !== 'db'; $('cvHi').hidden = t !== 'hi';
+  if (t === 'db') renderDb(); if (t === 'hi') renderHi(); $('coachView').querySelector('.cv-body').scrollTop = 0; }
+document.querySelectorAll('[data-cvtab]').forEach(b => b.onclick = () => cvSetTab(b.dataset.cvtab));
+function cvShowForm(){ $('cvForm').hidden = false; $('cvResult').hidden = true; }
+$('coachOpen').onclick = () => {
+  $('coachView').hidden = false; document.documentElement.style.overflow = 'hidden';
+  $('cvUseExportRow').hidden = !resultBlob; $('cvUseExport').checked = !!resultBlob && !cvVideoFile;
+  $('cvUseProject').checked = !!$('script').value.trim();
+  $('cvHiN').textContent = cvRead().length || ''; cvPull(); track('coach-ouvert');
+};
+$('cvBack').onclick = () => { $('coachView').hidden = true; document.documentElement.style.overflow = ''; };
+document.querySelectorAll('[data-plat]').forEach(b => b.onclick = () => { cvPlat = b.dataset.plat; document.querySelectorAll('[data-plat]').forEach(x => x.setAttribute('aria-pressed', String(x === b))); });
+$('cvShots').onchange = async e => {
+  const files = [...e.target.files].slice(0, 4), m = $('cvMsg'); m.className = 'cv-msg'; m.textContent = '';
+  try { cvShotsData = await Promise.all(files.map(shrink)); $('cvShotsTxt').textContent = `📷 ${cvShotsData.length} capture${cvShotsData.length > 1 ? 's' : ''} prête${cvShotsData.length > 1 ? 's' : ''} ✓`; $('cvShotsTxt').parentNode.classList.toggle('ok', cvShotsData.length > 0); }
+  catch(err){ cvShotsData = []; m.className = 'cv-msg err'; m.textContent = 'Une des images ne peut pas être lue.'; }
+};
+$('cvVideo').onchange = e => { cvVideoFile = e.target.files[0] || null; $('cvUseExport').checked = false;
+  $('cvVideoTxt').textContent = cvVideoFile ? '🎬 ' + cvVideoFile.name + ' ✓' : '🎬 Ta vidéo (conseillé)'; $('cvVideoTxt').parentNode.classList.toggle('ok', !!cvVideoFile); };
+// Images clés de la vidéo (accroche serrée au début, puis réparties) : légères, sans envoyer toute la vidéo
+async function extractFrames(blob){
+  const url = URL.createObjectURL(blob), v = document.createElement('video');
+  v.muted = true; v.playsInline = true; v.setAttribute('playsinline', ''); v.preload = 'auto'; v.src = url;
+  try {
+    await new Promise((ok, ko) => { v.onloadeddata = ok; v.onerror = () => ko(new Error('vidéo illisible')); setTimeout(() => ko(new Error('vidéo trop longue à ouvrir')), 20000); v.load(); });
+    const d = v.duration; if (!isFinite(d) || d <= 0) throw new Error('durée inconnue');
+    const times = [0.1, 0.7, 1.4, 2.2, 3.2].filter(t => t < d - 0.05);
+    for (let k = 1; k <= 8; k++){ const t = 3.2 + (d - 3.4) * k / 8; if (t < d - 0.05 && t - times[times.length - 1] >= 0.8) times.push(t); }
+    const c = document.createElement('canvas'), cx = c.getContext('2d'), out = [];
+    const wide = v.videoWidth > v.videoHeight, w = wide ? 480 : 360; c.width = w; c.height = Math.round(w * v.videoHeight / v.videoWidth);
+    for (const t of times){
+      await new Promise(ok => { const done = () => { v.onseeked = null; ok(); }; v.onseeked = done; setTimeout(done, 3000); v.currentTime = t; });
+      cx.drawImage(v, 0, 0, c.width, c.height); out.push({ t: +t.toFixed(1), data: c.toDataURL('image/jpeg', 0.7).split(',')[1] });
+    }
+    return { frames: out, duration: d };
+  } finally { URL.revokeObjectURL(url); }
+}
+$('cvGo').onclick = async () => {
+  const m = $('cvMsg'), btn = $('cvGo'); m.className = 'cv-msg';
+  const vid2 = $('cvUseExport').checked && resultBlob ? resultBlob : cvVideoFile;
+  if (!cvShotsData.length && !vid2){ m.className = 'cv-msg err'; m.textContent = 'Ajoute au moins une capture de tes stats ou ta vidéo.'; return; }
+  btn.disabled = true;
+  try {
+    let frames = [], duration = null;
+    if (vid2){ btn.textContent = 'Le coach regarde ta vidéo…'; try { const r = await extractFrames(vid2); frames = r.frames; duration = r.duration; } catch(e){ m.textContent = 'Vidéo pas lisible ici (' + e.message + ') : analyse avec les captures seulement.'; } }
+    if (!cvShotsData.length && !frames.length) throw new Error('la vidéo n\'a pas pu être lue. Ajoute des captures de tes stats.');
+    btn.textContent = 'Analyse en cours… (jusqu\'à 1 minute)';
+    const project = $('cvUseProject').checked ? { settings: currentSettings(), script: $('script').value.trim(), hook: $('hook').value.trim(), topic: $('topic').value.trim() } : null;
+    const r = await fetch('/api/coach', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ action:'analyze', platform: cvPlat, images: cvShotsData, frames, duration, note: $('cvNote').value.trim(), project }) });
+    const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || 'Erreur ' + r.status);
+    const item = d.item; cvWrite([item, ...cvRead().filter(x => x.id !== item.id)]);
+    keepRules(item); track('coach-analyse-' + item.platform);
+    m.textContent = ''; renderAnalysis(item);
+  } catch(e){ m.className = 'cv-msg err'; m.textContent = 'L\'analyse a échoué : ' + (e.message || 'erreur'); }
+  finally { btn.disabled = false; btn.textContent = 'Analyser'; }
+};
+function el2(tag, cls, text){ const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+function renderAnalysis(it){
+  cvCurrent = it; const box = $('cvResult'); box.innerHTML = ''; $('cvForm').hidden = true; box.hidden = false; cvSetTab('an');
+  const back = el2('button', 'cv-btn ghost', '← Nouvelle analyse'); back.style.marginBottom = '12px'; back.onclick = cvShowForm; box.appendChild(back);
+  // en-tête : note + verdict
+  const h = el2('div', 'cv-card'), hd = el2('div', 'cv-head'), sc = el2('div', 'cv-score'); sc.style.setProperty('--s', it.score);
+  sc.append(el2('b', null, it.score), el2('small', null, '/100'));
+  const tt = el2('div'); tt.append(el2('div', 'cv-title', it.title), el2('div', 'cv-sub', (PLAT_NAME[it.platform] || it.platform) + ' · ' + new Date(it.date).toLocaleDateString('fr-BE', { day:'numeric', month:'short' }) + (it.hadVideo ? ' · vidéo analysée' : '')));
+  hd.append(sc, tt); h.append(hd, el2('p', 'cv-verdict', it.verdict)); box.appendChild(h);
+  // chiffres
+  const ml = metricLines(it); if (ml.length){ const c = el2('div', 'cv-card'); c.appendChild(el2('h3', null, 'Tes chiffres')); const ch = el2('div', 'cv-chips');
+    ml.forEach(t => { const i = t.indexOf(' '); const x = el2('div', 'cv-chip'); x.append(el2('b', null, t.slice(0, i)), document.createTextNode(t.slice(i + 1))); ch.appendChild(x); }); c.appendChild(ch); box.appendChild(c); }
+  // ⚡ raccourci : réglages conseillés
+  if (it.changes && it.changes.length){
+    const c = el2('div', 'cv-card cv-apply'); c.appendChild(el2('h3', null, '⚡ Réglages conseillés'));
+    const now = currentSettings(), checks = [];
+    it.changes.forEach(ch => { const row = el2('label', 'cv-chg'), cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = true; checks.push([cb, ch]);
+      const w = el2('div'); w.appendChild(el2('b', null, SET_LABEL[ch.key] || ch.key));
+      const ft = el2('div', 'fromto'); ft.append(valLabel(ch.key, ch.from != null ? ch.from : now[ch.key]) + ' → '); ft.appendChild(el2('i', null, valLabel(ch.key, ch.value)));
+      w.append(ft, el2('small', null, ch.why)); row.append(cb, w); c.appendChild(row); });
+    const bt = el2('div', 'cv-btns'), b1 = el2('button', 'cv-btn', '⚡ Appliquer à mon projet'), b2 = el2('button', 'cv-btn ghost', '✨ Nouvelle vidéo avec ces réglages');
+    const picked = () => checks.filter(([cb]) => cb.checked).map(([, ch]) => ch);
+    b1.onclick = () => { const l = picked(); if (!l.length) return; applyChanges(l); cvDone(`Réglages du coach appliqués ✓ (${l.length} changement${l.length > 1 ? 's' : ''}).`, 'style'); track('coach-appliquer'); };
+    b2.onclick = () => newVideoWith(picked(), (it.nextIdeas || [])[0] || '');
+    bt.append(b1, b2); c.appendChild(bt); box.appendChild(c);
+  }
+  // ce qui fait décrocher (ligne du temps)
+  if (it.problems && it.problems.length){ const c = el2('div', 'cv-card'); c.appendChild(el2('h3', null, 'Ce qui fait décrocher')); const ul = el2('ul', 'cv-list');
+    it.problems.slice().sort((a, b) => (a.time ?? 999) - (b.time ?? 999)).forEach(p => { const li = el2('li'); if (p.time != null) li.appendChild(el2('span', 't', fmtT(p.time)));
+      li.appendChild(el2('span', 'cat', p.category)); li.append(p.issue); li.appendChild(el2('span', 'fx', '→ ' + p.fix)); ul.appendChild(li); });
+    c.appendChild(ul); box.appendChild(c); }
+  if (it.strengths && it.strengths.length){ const c = el2('div', 'cv-card'); c.appendChild(el2('h3', null, 'Ce qui marche')); const ul = el2('ul', 'cv-list');
+    it.strengths.forEach(t => { const li = el2('li'); li.appendChild(el2('span', 't', '✓')); li.append(t); ul.appendChild(li); }); c.appendChild(ul); box.appendChild(c); }
+  if (it.nextIdeas && it.nextIdeas.length){ const c = el2('div', 'cv-card'); c.appendChild(el2('h3', null, 'Tes prochaines vidéos'));
+    c.appendChild(el2('p', 'cv-sub', 'Touche une idée : nouvelle vidéo avec les réglages conseillés.'));
+    it.nextIdeas.forEach(t => { const b = el2('button', 'cv-idea', t); b.onclick = () => newVideoWith(it.changes || [], t); c.appendChild(b); }); box.appendChild(c); }
+  if (it.rules && it.rules.length){ const c = el2('div', 'cv-card'); c.appendChild(el2('h3', null, 'Tes règles pour les prochains scripts')); const ul = el2('ul', 'cv-list');
+    it.rules.forEach(t => { const li = el2('li'); li.appendChild(el2('span', 't', '•')); li.append(t); ul.appendChild(li); }); c.appendChild(ul);
+    const lab = el2('label', 'cv-check'), cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = $('coachOn').checked; cb.onchange = () => { $('coachOn').checked = cb.checked; };
+    lab.append(cb, document.createTextNode(' Appliquer mes règles aux prochains scripts')); c.appendChild(lab); box.appendChild(c); }
+  $('coachView').querySelector('.cv-body').scrollTop = 0;
+}
+function cvDone(text, panel){
+  $('coachView').hidden = true; document.documentElement.style.overflow = '';
+  openPanel(panel || 'script'); const m = $('playMsg'); m.className = 'msg ok'; m.textContent = text;
+  if (panel === 'script'){ const g2 = $('genMsg'); g2.className = 'msg ok'; g2.textContent = text; }
+}
+function newVideoWith(changes, topic){
+  if (running) return;
+  $('rcYes').click(); // projet vierge (les réglages restent)
+  applyChanges((changes || []).filter(c => c.key !== 'hook'));
+  if (topic) $('topic').value = topic;
+  cvDone(`Nouvelle vidéo prête avec les réglages du coach ✓${topic ? ' Sujet ajouté : touche « Générer le script ».' : ''}`, 'script');
+  track('coach-nouvelle-video');
+}
+// ---------- Tableau de bord ----------
+let dbPlat = 'all';
+function svgEl(tag, attrs){ const e = document.createElementNS('http://www.w3.org/2000/svg', tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; }
+function renderDb(){
+  const box = $('cvDb'); box.innerHTML = ''; const all = cvRead();
+  if (!all.length){ box.appendChild(el2('p', 'cv-empty', 'Pas encore d\'analyse. Fais ta première dans l\'onglet « Analyser » : ton tableau de bord se remplira tout seul.')); return; }
+  const plats = [...new Set(all.map(x => x.platform))];
+  const pf = el2('div', 'cv-pills'); ['all', ...plats].forEach(p => { const b = el2('button', null, p === 'all' ? 'Toutes' : PLAT_NAME[p] || p); b.setAttribute('aria-pressed', String(dbPlat === p));
+    b.onclick = () => { dbPlat = p; renderDb(); }; pf.appendChild(b); }); box.appendChild(pf);
+  const list = all.filter(x => dbPlat === 'all' || x.platform === dbPlat), chron = list.slice().sort((a, b) => a.date - b.date);
+  const withViews = list.filter(x => x.metrics && x.metrics.views != null);
+  const avg = a => a.length ? a.reduce((s, x) => s + x, 0) / a.length : null;
+  const best = withViews.length ? withViews.slice().sort((a, b) => b.metrics.views - a.metrics.views)[0] : list.slice().sort((a, b) => b.score - a.score)[0];
+  const k = el2('div', 'cv-kpis');
+  const kpi = (lab, val, sub) => { const d = el2('div', 'cv-kpi'); d.append(el2('small', null, lab), el2('b', null, val)); if (sub) d.appendChild(el2('span', null, sub)); k.appendChild(d); };
+  kpi('Vidéos analysées', list.length);
+  kpi('Note moyenne', Math.round(avg(list.map(x => x.score))) + '/100', chron.length > 1 ? (chron[chron.length-1].score >= chron[0].score ? '↗ en progrès' : '↘ à surveiller') : '');
+  kpi('Vues moyennes', withViews.length ? fmtNum(avg(withViews.map(x => x.metrics.views))) : '—', withViews.length ? `sur ${withViews.length} vidéo${withViews.length > 1 ? 's' : ''} avec stats` : 'ajoute des captures');
+  kpi('Meilleure vidéo', best ? (withViews.length ? fmtNum(best.metrics.views) + ' vues' : best.score + '/100') : '—', best ? best.title : '');
+  box.appendChild(k);
+  // Graphique 1 : vues par vidéo (barres, une seule série)
+  const vs = chron.filter(x => x.metrics && x.metrics.views != null).slice(-12);
+  if (vs.length){ const c = el2('div', 'cv-card cv-chart'); c.appendChild(el2('h3', null, 'Vues par vidéo'));
+    const Wd = 320, Hd = 150, pad = 22, max = Math.max(...vs.map(x => x.metrics.views)) || 1, bw = (Wd - pad) / vs.length;
+    const sv = svgEl('svg', { viewBox: `0 0 ${Wd} ${Hd + 18}`, role: 'img', 'aria-label': 'Vues par vidéo' });
+    [0.5, 1].forEach(f => { const y = Hd - (Hd - 10) * f; sv.appendChild(svgEl('line', { x1: pad, x2: Wd, y1: y, y2: y, stroke: '#262626', 'stroke-width': 1 }));
+      const t = svgEl('text', { x: 0, y: y + 4, fill: '#8a8a8a', 'font-size': 10 }); t.textContent = fmtNum(max * f); sv.appendChild(t); });
+    sv.appendChild(svgEl('line', { x1: pad, x2: Wd, y1: Hd, y2: Hd, stroke: '#3a3a3a', 'stroke-width': 1 }));
+    const tip = el2('p', 'cv-tip', 'Touche une barre pour voir le détail.');
+    vs.forEach((x, i) => { const h = Math.max(2, (Hd - 10) * x.metrics.views / max), bx = pad + i * bw + 2, w = Math.max(4, bw - 4);
+      const r = Math.min(4, w / 2), y = Hd - h;
+      const bar = svgEl('path', { class: 'cv-bar', d: `M${bx},${Hd} V${y + r} Q${bx},${y} ${bx + r},${y} H${bx + w - r} Q${bx + w},${y} ${bx + w},${y + r} V${Hd} Z` });
+      const hit = svgEl('rect', { class: 'cv-hit', x: pad + i * bw, y: 0, width: bw, height: Hd });
+      const show = () => { sv.querySelectorAll('.cv-bar').forEach(b => b.classList.remove('on')); bar.classList.add('on');
+        tip.textContent = `${x.title} · ${fmtNum(x.metrics.views)} vues · ${x.score}/100 · ${new Date(x.date).toLocaleDateString('fr-BE', { day:'numeric', month:'short' })}`; };
+      hit.addEventListener('mouseenter', show); hit.addEventListener('click', show); sv.append(bar, hit); });
+    c.append(sv, tip); box.appendChild(c); }
+  // Graphique 2 : note du coach dans le temps (ligne, une seule série)
+  const ss = chron.slice(-15);
+  if (ss.length > 1){ const c = el2('div', 'cv-card cv-chart'); c.appendChild(el2('h3', null, 'Ta note dans le temps'));
+    const Wd = 320, Hd = 120, pad = 22, X = i => pad + 6 + (Wd - pad - 12) * i / (ss.length - 1), Y = v => Hd - (Hd - 10) * v / 100;
+    const sv = svgEl('svg', { viewBox: `0 0 ${Wd} ${Hd + 14}`, role: 'img', 'aria-label': 'Note du coach dans le temps' });
+    [50, 100].forEach(v => { sv.appendChild(svgEl('line', { x1: pad, x2: Wd, y1: Y(v), y2: Y(v), stroke: '#262626', 'stroke-width': 1 }));
+      const t = svgEl('text', { x: 0, y: Y(v) + 4, fill: '#8a8a8a', 'font-size': 10 }); t.textContent = v; sv.appendChild(t); });
+    sv.appendChild(svgEl('line', { x1: pad, x2: Wd, y1: Hd, y2: Hd, stroke: '#3a3a3a', 'stroke-width': 1 }));
+    sv.appendChild(svgEl('polyline', { points: ss.map((x, i) => X(i) + ',' + Y(x.score)).join(' '), fill: 'none', stroke: '#1ed760', 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }));
+    const tip = el2('p', 'cv-tip', 'Touche un point pour voir le détail.');
+    ss.forEach((x, i) => { const dot = svgEl('circle', { cx: X(i), cy: Y(x.score), r: 4.5, fill: '#1ed760', stroke: '#0e0e0e', 'stroke-width': 2 });
+      const hit = svgEl('circle', { cx: X(i), cy: Y(x.score), r: 14, class: 'cv-hit' });
+      const show = () => { tip.textContent = `${x.title} · ${x.score}/100 · ${PLAT_NAME[x.platform] || x.platform}`; };
+      hit.addEventListener('mouseenter', show); hit.addEventListener('click', show); sv.append(dot, hit); });
+    c.append(sv, tip); box.appendChild(c); }
+  // Problèmes qui reviennent le plus
+  const cnt = {}; list.forEach(x => (x.problems || []).forEach(p => cnt[p.category] = (cnt[p.category] || 0) + 1));
+  const top = Object.entries(cnt).sort((a, b) => b[1] - a[1]).slice(0, 6);
+  if (top.length){ const c = el2('div', 'cv-card'); c.appendChild(el2('h3', null, 'Ce qui revient le plus')); const bx = el2('div', 'cv-bars'), mx = top[0][1];
+    top.forEach(([cat, n]) => { const r = el2('div', 'cv-brow'), bar = el2('i'); bar.style.width = Math.max(6, n / mx * 100) + '%';
+      const lab = el2('span', null, cat.charAt(0).toUpperCase() + cat.slice(1)), wrap = el2('div'); wrap.appendChild(bar); r.append(lab, wrap, el2('b', null, n)); bx.appendChild(r); });
+    c.append(bx, el2('p', 'cv-sub', 'Nombre de fois où le coach a relevé ce problème. Commence par corriger le premier.')); box.appendChild(c); }
+}
+// ---------- Historique ----------
+function renderHi(){
+  const box = $('cvHi'); box.innerHTML = ''; const all = cvRead();
+  if (!all.length){ box.appendChild(el2('p', 'cv-empty', 'Tes analyses apparaîtront ici, sur tous tes appareils.')); return; }
+  all.forEach(x => { const row = el2('div', 'cv-item'), n = el2('div', 'n', x.score), w = el2('div', 'w');
+    w.append(el2('b', null, x.title), el2('small', null, (PLAT_NAME[x.platform] || x.platform) + ' · ' + new Date(x.date).toLocaleDateString('fr-BE', { day:'numeric', month:'short' }) + (x.metrics && x.metrics.views != null ? ' · ' + fmtNum(x.metrics.views) + ' vues' : '')));
+    const del = el2('button', 'x', '✕'); del.setAttribute('aria-label', 'Supprimer');
+    del.onclick = e => { e.stopPropagation(); if (!confirm('Supprimer cette analyse ?')) return; cvWrite(cvRead().filter(y => y.id !== x.id)); renderHi();
+      fetch('/api/coach', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'delete', id: x.id }) }).catch(() => {}); };
+    row.onclick = () => renderAnalysis(x); row.append(n, w, del); box.appendChild(row); });
+}
+
 // ---------- Le Labo : panneaux, idées, recette ----------
 const PANEL_TITLES = { script:'Le script', voix:'La voix', fonds:'Les fonds', style:'Le style', son:'Le son', pub:'Publier', coach:'Coach', hist:'Mes vidéos' };
 const isMobile = () => window.matchMedia('(max-width: 980px)').matches;
@@ -2464,6 +2771,7 @@ function updateRecipe(){
     style: !!visited.style,
     son: !!visited.son || !!musicBuf
   };
+  if (st.script && !$('empty').hidden) showEmpty(false); // le texte d'aide ne cache plus l'accroche
   const n = Object.values(st).filter(Boolean).length;
   document.querySelectorAll('.cap').forEach(c => { const k = c.dataset.open; if (k in st) c.classList.toggle('done', st[k]); if (k === 'pub') c.classList.toggle('done', !!$('pubText').value); });
   document.querySelectorAll('#dots i').forEach((d, i) => d.classList.toggle('on', i < n));
@@ -2597,6 +2905,51 @@ drawFrame(0);
 html:not([data-admin]) .admin-only{display:none!important}
 #adminView{position:fixed;inset:0;z-index:2000;background:#050505;color:#f2f2f2;display:flex;flex-direction:column;font-family:Figtree,system-ui,sans-serif}
 #adminView[hidden]{display:none}
+#coachView{position:fixed;inset:0;z-index:1900;background:#050505;color:#f2f2f2;display:flex;flex-direction:column;font-family:Figtree,system-ui,sans-serif}
+#coachView[hidden]{display:none}
+.cv-top{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid #1a1a1a}.cv-top b{flex:1;text-align:center;font-size:17px}
+.cv-body{flex:1;overflow:auto;padding:14px 16px 60px;max-width:760px;width:100%;margin:0 auto;box-sizing:border-box}
+.cv-lead{color:#bdbdbd;margin:2px 0 14px;font-size:15px;line-height:1.5}
+.cv-lbl{margin:0 0 8px;font-size:13px;color:#9a9a9a;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+.cv-pills{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+.cv-pills button{background:#0d0d0d;border:1.5px solid #2a2a2a;color:#e6e6e6;border-radius:999px;padding:8px 14px;font:600 14px Figtree,sans-serif;cursor:pointer}
+.cv-pills button[aria-pressed=true]{border-color:#1ed760;color:#1ed760;background:rgba(30,215,96,.1)}
+.cv-drop{display:block;position:relative;border:1.5px dashed #2f2f2f;border-radius:16px;padding:14px;margin-bottom:10px;cursor:pointer;background:#0b0b0b}
+.cv-drop input{position:absolute;inset:0;opacity:0;cursor:pointer}.cv-drop span{display:block;font-weight:700}.cv-drop small{color:#8a8a8a;font-size:13px}
+.cv-drop.ok{border-color:#1ed760}.cv-drop.ok span{color:#1ed760}
+.cv-check{display:flex;gap:10px;align-items:flex-start;font-size:14px;color:#cfcfcf;margin:8px 0}.cv-check input{width:18px;height:18px;accent-color:#1ed760;flex:none;margin-top:1px}
+#cvNote{width:100%;box-sizing:border-box;margin:8px 0 12px;padding:13px 14px;border-radius:14px;border:1px solid #2a2a2a;background:#0a0a0a;color:#f2f2f2;font:16px Figtree,sans-serif}
+.cv-go{width:100%;border:0;border-radius:999px;background:#1ed760;color:#000;font:800 17px Figtree,sans-serif;padding:15px;cursor:pointer}.cv-go[disabled]{opacity:.55}
+.cv-msg{min-height:1.3em;margin:10px 0 0;font-size:14px;color:#bdbdbd}.cv-msg.err{color:#ff6b6b}
+.cv-card{background:#0e0e0e;border:1px solid #222;border-radius:18px;padding:16px;margin-bottom:12px}
+.cv-card h3{margin:0 0 10px;font-size:17px}
+.cv-head{display:flex;gap:14px;align-items:center}
+.cv-score{--s:0;flex:none;width:78px;height:78px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(#1ed760 calc(var(--s)*3.6deg),#222 0);position:relative}
+.cv-score:before{content:"";position:absolute;inset:7px;border-radius:50%;background:#0e0e0e}
+.cv-score b{position:relative;font-size:24px}.cv-score small{position:absolute;bottom:14px;font-size:10px;color:#8a8a8a}
+.cv-title{font-weight:800;font-size:17px;line-height:1.25}.cv-sub{color:#9a9a9a;font-size:13px;margin-top:3px}.cv-verdict{margin:10px 0 0;color:#e6e6e6;line-height:1.5}
+.cv-chips{display:flex;flex-wrap:wrap;gap:8px}.cv-chip{background:#141414;border:1px solid #262626;border-radius:12px;padding:8px 10px;font-size:13px;color:#9a9a9a}.cv-chip b{display:block;color:#f2f2f2;font-size:17px}
+.cv-apply{border-color:rgba(30,215,96,.5);background:linear-gradient(160deg,rgba(30,215,96,.08),#0e0e0e 55%)}
+.cv-chg{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-top:1px solid #1e1e1e}.cv-chg:first-of-type{border-top:0}
+.cv-chg input{width:20px;height:20px;accent-color:#1ed760;flex:none;margin-top:2px}
+.cv-chg b{display:block;font-size:15px}.cv-chg .fromto{font-size:14px;color:#cfcfcf;margin:2px 0}.cv-chg .fromto i{font-style:normal;color:#1ed760;font-weight:800}.cv-chg small{color:#9a9a9a;font-size:13px;line-height:1.45}
+.cv-btns{display:grid;gap:8px;margin-top:12px}
+.cv-btn{border:0;border-radius:999px;padding:13px;font:800 15px Figtree,sans-serif;cursor:pointer;background:#1ed760;color:#000}.cv-btn.ghost{background:#141414;color:#f2f2f2;border:1px solid #2a2a2a}
+.cv-list{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.cv-list li{font-size:14px;line-height:1.5;color:#e6e6e6}.cv-list .t{display:inline-block;min-width:40px;font-weight:800;color:#1ed760}.cv-list .cat{display:inline-block;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#f6c343;margin-right:6px}
+.cv-list .fx{display:block;color:#9a9a9a;margin-top:2px}
+.cv-idea{display:block;width:100%;text-align:left;background:#141414;border:1px solid #262626;border-radius:12px;color:#f2f2f2;padding:11px 12px;margin-top:8px;font:600 14px Figtree,sans-serif;cursor:pointer}.cv-idea:before{content:"✨ "}
+.cv-kpis{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:12px}
+.cv-kpi{background:#0e0e0e;border:1px solid #222;border-radius:16px;padding:12px}.cv-kpi small{color:#9a9a9a;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em}.cv-kpi b{display:block;font-size:24px;margin-top:4px}.cv-kpi span{display:block;color:#9a9a9a;font-size:12px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cv-chart svg{display:block;width:100%;height:auto;overflow:visible}.cv-tip{min-height:1.3em;font-size:13px;color:#cfcfcf;margin-top:6px}
+.cv-bar{fill:#1ed760}.cv-bar.on{fill:#7ff0a8}.cv-hit{fill:transparent;cursor:pointer}
+.cv-bars{display:grid;gap:8px;margin-bottom:10px}.cv-brow{display:grid;grid-template-columns:120px 1fr 26px;gap:8px;align-items:center;font-size:13px;color:#cfcfcf}.cv-brow i{display:block;height:10px;border-radius:0 4px 4px 0;background:#1ed760}.cv-brow b{text-align:right;color:#f2f2f2}
+.cv-item{display:flex;gap:12px;align-items:center;background:#0e0e0e;border:1px solid #222;border-radius:16px;padding:12px;margin-bottom:10px;cursor:pointer}
+.cv-item .n{flex:none;width:46px;height:46px;border-radius:50%;display:grid;place-items:center;font-weight:800;border:2px solid #1ed760;color:#1ed760}
+.cv-item .w{flex:1;min-width:0}.cv-item .w b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.cv-item .w small{color:#9a9a9a;font-size:13px}
+.cv-item .x{background:none;border:0;color:#777;font-size:16px;cursor:pointer;padding:6px}
+.cv-empty{color:#9a9a9a;text-align:center;padding:40px 10px;line-height:1.6}
+
 .av-notif{display:flex;align-items:center;gap:10px;background:#0e0e0e;border:1px solid #232323;border-radius:14px;padding:10px 12px;margin-bottom:6px;font-size:14px}.av-notif span{flex:1}.av-notif button{background:#1ed760;color:#000;border:0;border-radius:999px;padding:7px 14px;font:800 13px Figtree,sans-serif;cursor:pointer}
 .av-top{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid #1a1a1a}
 .av-top b{flex:1;text-align:center;font-size:17px}
