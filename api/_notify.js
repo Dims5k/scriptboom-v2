@@ -1,7 +1,10 @@
 // Notifications sur ton téléphone, gratuites, avec l'appli ntfy (iPhone / Android).
 // Dans Vercel → Settings → Environment Variables : NTFY_TOPIC = un nom secret et long (ex. scriptboom-salim-8f3k2q9x).
 // Dans l'appli ntfy : « S'abonner à un sujet » avec exactement le même nom.
-const topicName = () => String(process.env.NTFY_TOPIC || '').trim().replace(/^["']|["']$/g, '').replace(/^https?:\/\/ntfy\.sh\//, '').replace(/\s+/g, '');
+// Garde seulement ce que ntfy accepte (lettres sans accent, chiffres, - et _), même si la valeur a été collée avec des guillemets, « NTFY_TOPIC= » ou l'adresse complète
+export const topicName = () => String(process.env.NTFY_TOPIC || '').normalize('NFKC').trim()
+  .replace(/^NTFY_TOPIC\s*[=:]\s*/i, '').replace(/^https?:\/\/[^/]+\//i, '').replace(/[‐-―−]/g, '-')
+  .replace(/[^-_A-Za-z0-9]/g, '').slice(0, 64);
 const server = () => String(process.env.NTFY_SERVER || 'https://ntfy.sh').trim().replace(/\/+$/, '');
 export const notifyReady = () => !!topicName();
 
