@@ -2586,6 +2586,8 @@ drawFrame(0);
       <div id="avList"></div>
     </section>
     <section id="avWl" hidden>
+      <div class="av-notif"><span id="avNotifTxt">🔔 Notifications…</span><button id="avNotifTest" type="button">Tester</button></div>
+      <p class="av-msg" id="avNotifMsg" role="status"></p>
       <p class="av-sum" id="avWlSum"></p>
       <div id="avWlList"></div>
     </section>
@@ -2595,6 +2597,7 @@ drawFrame(0);
 html:not([data-admin]) .admin-only{display:none!important}
 #adminView{position:fixed;inset:0;z-index:2000;background:#050505;color:#f2f2f2;display:flex;flex-direction:column;font-family:Figtree,system-ui,sans-serif}
 #adminView[hidden]{display:none}
+.av-notif{display:flex;align-items:center;gap:10px;background:#0e0e0e;border:1px solid #232323;border-radius:14px;padding:10px 12px;margin-bottom:6px;font-size:14px}.av-notif span{flex:1}.av-notif button{background:#1ed760;color:#000;border:0;border-radius:999px;padding:7px 14px;font:800 13px Figtree,sans-serif;cursor:pointer}
 .av-top{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid #1a1a1a}
 .av-top b{flex:1;text-align:center;font-size:17px}
 .av-back,.av-ref{background:#111;border:1px solid #262626;color:#e6e6e6;border-radius:999px;padding:8px 14px;font:600 14px Figtree,sans-serif;cursor:pointer}
@@ -2636,6 +2639,8 @@ html:not([data-admin]) .admin-only{display:none!important}
   function shareText(email, code){ return 'Salut ! Voici ton accès à ScriptBoom 🎬\n👉 ' + location.origin + '\nEmail : ' + email + '\nCode : ' + code; }
   function msg(t, err){ var m = $a('avMsg'); m.className = 'av-msg' + (err ? ' err' : ''); m.textContent = t || ''; }
   function showShare(email, code){ var t = shareText(email, code); $a('avShareTxt').textContent = t; $a('avShare').hidden = false; $a('avShare').dataset.t = t; $a('avSend').hidden = !navigator.share; }
+  document.getElementById('avNotifTest').onclick = function(){ var m = $a('avNotifMsg'); m.className = 'av-msg'; m.textContent = 'Envoi…';
+    api({ action:'notifyTest' }).then(function(){ m.textContent = 'Notification envoyée : regarde ton téléphone 📱'; }).catch(function(e){ m.className = 'av-msg err'; m.textContent = e.message; }); };
   async function api(body){
     var r = await fetch('/api/admin', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
     var d = await r.json().catch(function(){ return {}; }); if (!r.ok) throw new Error(d.error || 'Erreur');
@@ -2672,6 +2677,7 @@ html:not([data-admin]) .admin-only{display:none!important}
       L.appendChild(row);
     });
     var W = data.waitlist || [], WL = $a('avWlList'); WL.textContent = '';
+    $a('avNotifTxt').textContent = data.notify ? '🔔 Notifications activées : tu es prévenu à chaque nouvel inscrit.' : '🔕 Notifications pas encore activées (NTFY_TOPIC manquant dans Vercel).';
     $a('avWlSum').textContent = W.length + ' inscrit' + (W.length > 1 ? 's' : '') + ' · ' + Math.max(0, 500 - W.length) + ' places du Club des 500 restantes';
     W.forEach(function(w){
       var row = el('div', 'av-row'), who = el('div', 'who');
