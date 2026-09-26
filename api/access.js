@@ -1,7 +1,8 @@
 // Porte d'entrée de ScriptBoom : accès sur invitation (email, ou email + code personnel).
 // Chaque tentative est écrite dans les logs Vercel (ACCES OK / ACCES REFUSE).
 import { invited, findEntry, makeToken, isAdmin } from './_auth.js';
-import { rateLimit, clientIp, TOO_MANY } from './_kv.js';
+import { rateLimit, clientIp, TOO_MANY, kv, kvReady } from './_kv.js';
+import { notify, maskEmail } from './_notify.js';
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
@@ -29,5 +30,9 @@ export default async function handler(req, res) {
     return res.status(403).json({ error: "Email ou code incorrect. ScriptBoom est en accès privé pour le moment." });
   }
   console.log('ACCES OK', email);
+  // Première connexion d'un invité : on te prévient
+  if (!isAdmin(email) && kvReady()) {
+    try { const [first] = await kv([['SADD', 'firstlogin', email]]); if (first) await notify('👋 Un invité vient d\'entrer', `${maskEmail(email)} s'est connecté à ScriptBoom pour la première fois.`, ['wave']); } catch (e) {}
+  }
   return res.status(200).json({ token: makeToken(entry), admin: isAdmin(email) });
 }
