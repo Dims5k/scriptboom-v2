@@ -2580,7 +2580,7 @@ drawFrame(0);
   <div class="av-body">
     <section id="avInv">
       <form id="avAdd" class="av-add"><input id="avEmail" type="email" inputmode="email" placeholder="email de la personne à inviter" required><button type="submit">Inviter</button></form>
-      <div id="avShare" class="av-share" hidden><p id="avShareTxt"></p><div><button id="avCopy">Copier le message</button><button id="avSend" hidden>Envoyer…</button></div></div>
+      <div id="avShare" class="av-share" hidden><p id="avShareTxt"></p><div><button id="avMail">📧 Envoyer par email</button><button id="avCopy">Copier le message</button><button id="avSend" hidden>Envoyer…</button></div></div>
       <p class="av-msg" id="avMsg" role="status"></p>
       <p class="av-sum" id="avSum"></p>
       <div id="avList"></div>
@@ -2638,7 +2638,7 @@ html:not([data-admin]) .admin-only{display:none!important}
     if (h < 24) return 'Vu il y a ' + h + ' h'; return 'Vu il y a ' + Math.round(h / 24) + ' j'; }
   function shareText(email, code){ return 'Salut ! Voici ton accès à ScriptBoom 🎬\n👉 ' + location.origin + '\nEmail : ' + email + '\nCode : ' + code; }
   function msg(t, err){ var m = $a('avMsg'); m.className = 'av-msg' + (err ? ' err' : ''); m.textContent = t || ''; }
-  function showShare(email, code){ var t = shareText(email, code); $a('avShareTxt').textContent = t; $a('avShare').hidden = false; $a('avShare').dataset.t = t; $a('avSend').hidden = !navigator.share; }
+  function showShare(email, code){ $a('avShare').dataset.email = email; var t = shareText(email, code); $a('avShareTxt').textContent = t; $a('avShare').hidden = false; $a('avShare').dataset.t = t; $a('avSend').hidden = !navigator.share; }
   document.getElementById('avNotifTest').onclick = function(){ var m = $a('avNotifMsg'); m.className = 'av-msg'; m.textContent = 'Envoi…';
     api({ action:'notifyTest' }).then(function(d){ m.textContent = 'Notification envoyée sur le sujet « ' + (d.topic || '') + ' » : regarde ton téléphone 📱'; }).catch(function(e){ m.className = 'av-msg err'; m.textContent = e.message; }); };
   async function api(body){
@@ -2696,7 +2696,9 @@ html:not([data-admin]) .admin-only{display:none!important}
     msg('Invitation…');
     return api({ action:'add', email: email }).then(function(d){
       var x = d.rows.find(function(y){ return y.email === email; }); setTab('inv');
-      if (x) showShare(x.email, x.code); msg('Invité ✓ Envoie-lui le message ci-dessus.'); $a('avEmail').value = '';
+      if (x) showShare(x.email, x.code); $a('avEmail').value = '';
+      if (d.mailed) msg('Invité ✓ Son email et son code lui ont été envoyés par email 📧');
+      else msg('Invité ✓ Envoie-lui le message ci-dessus' + (d.mailDetail ? ' (email automatique pas parti : ' + d.mailDetail + ')' : '') + '.');
     }).catch(function(e){ msg(e.message, 1); });
   }
   function setTab(t){ tab = t; document.querySelectorAll('[data-avtab]').forEach(function(b){ b.setAttribute('aria-selected', b.dataset.avtab === t ? 'true' : 'false'); });
@@ -2711,6 +2713,8 @@ html:not([data-admin]) .admin-only{display:none!important}
   document.querySelectorAll('[data-avtab]').forEach(function(b){ b.onclick = function(){ setTab(b.dataset.avtab); }; });
   $a('avAdd').addEventListener('submit', function(e){ e.preventDefault(); var v = $a('avEmail').value.trim().toLowerCase(); if (v) invite(v); });
   $a('avCopy').onclick = function(){ var t = $a('avShare').dataset.t; (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function(){ msg('Message copié ✓ Colle-le dans WhatsApp, Insta…'); }).catch(function(){ msg('Copie impossible : sélectionne le texte à la main.', 1); }); };
+  $a('avMail').onclick = function(){ var em = $a('avShare').dataset.email; if (!em) return; msg('Envoi de l\'email…');
+    api({ action:'mail', email: em }).then(function(){ msg('Email envoyé à ' + em + ' ✓'); }).catch(function(e){ msg(e.message, 1); }); };
   $a('avSend').onclick = function(){ navigator.share({ text: $a('avShare').dataset.t }).catch(function(){}); };
 })();
 </script>
