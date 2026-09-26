@@ -2,6 +2,7 @@
 // Renvoie un fichier audio WAV.
 import { invited } from './_auth.js';
 import { useQuota, QUOTA_MSG, friendly } from './_kv.js';
+import { LANGS, ACCENTS } from './_langs.js';
 
 const VOICES = ['Kore', 'Aoede', 'Leda', 'Sulafat', 'Puck', 'Charon', 'Fenrir', 'Orus'];
 const BASE = 'https://generativelanguage.googleapis.com/v1beta';
@@ -53,11 +54,10 @@ export default async function handler(req, res) {
   if (!who) return res.status(401).json({ error: 'Accès sur invitation' });
   if (!(await useQuota(who)).ok) return res.status(429).json({ error: QUOTA_MSG, quota: true });
   const { text, voice = 'Kore', tone = 'dynamique', lang = 'fr' } = req.body || {};
-  const LANGS = { fr: 'français', en: 'anglais', es: 'espagnol', pt: 'portugais', de: 'allemand', it: 'italien', ar: 'arabe', tr: 'turc', nl: 'néerlandais', ma: "darija marocaine (dialecte arabe du Maroc tel qu'on le parle à Casablanca, écrit en lettres arabes ; PAS l'arabe littéraire : mots et tournures du quotidien marocain, avec les mots français courants que les Marocains utilisent)" };
   const langue = LANGS[lang] || LANGS.fr;
   if (!text || typeof text !== 'string' || text.length > 2500) return res.status(400).json({ error: 'Script manquant ou trop long' });
   const v = VOICES.includes(voice) ? voice : 'Kore';
-  const accent = lang === 'ma' ? 'accent marocain authentique (Casablanca), prononciation darija' : 'accent natif';
+  const accent = ACCENTS[lang] || 'accent natif';
   const style = `voix off en ${langue} de vidéo TikTok, ${accent}, ton ${String(tone).slice(0, 60)}, rythme vivant et naturel`;
 
   const attempts = [
