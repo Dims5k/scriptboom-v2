@@ -255,6 +255,7 @@ body{overflow-x:hidden}
 .wchips button{appearance:none;border:1px solid #2a2a2a;background:#0d0d0d;color:#eaeaea;border-radius:10px;padding:6px 9px;font:600 14px Figtree,sans-serif;cursor:pointer}
 .wchips button.fixed{border-color:var(--green);color:var(--green)}
 .ring.fmt-11{width:min(330px,56vw)}.ring.fmt-169{width:min(420px,58vw)}
+#mixTest.on{box-shadow:0 0 0 4px rgba(30,215,96,.3)}
 .track.live{box-shadow:0 0 0 2px var(--green),0 0 22px rgba(30,215,96,.18)}
 @keyframes sbUp{from{transform:translateY(100%)}to{transform:none}}
 @media (max-width:380px){.cap .ball{width:54px;height:54px}.orbit{gap:10px}.top-select{padding:7px 8px}}
@@ -661,8 +662,8 @@ body{overflow-x:hidden}
       </section>
 <section class="step" data-panel="son" aria-labelledby="s4" hidden>
         <h2 id="s4"><span class="num">5</span>Le mix audio</h2>
-        <p class="hint">Pose le doigt sur un curseur : un extrait de 3 s de ta vidéo tourne en boucle (voix, musique, bruitages) et tu entends le son que tu règles monter ou baisser en direct. L'export garde ces réglages.</p>
-        <button class="btn ghost" id="mixTest" type="button" style="width:100%;margin-bottom:12px">▶ Écouter le mix (3 s en boucle)</button>
+        <p class="hint">Règle chaque son séparément : garde le doigt sur un curseur, tu entends seulement ce son-là, et il monte ou baisse pendant que tu glisses. Quand tout est réglé, écoute le mix final en bas.</p>
+
         <div class="track">
           <div class="trow"><label for="volVoice">Voix</label><output id="oVoice">100 %</output></div>
           <input type="range" id="volVoice" min="0" max="150" value="100">
@@ -704,6 +705,8 @@ body{overflow-x:hidden}
         </div>
         <label class="check"><input type="checkbox" id="duck" checked> Baisser la musique quand la voix parle</label>
         <label class="check"><input type="checkbox" id="fades" checked> Fondu au début et à la fin</label>
+        <button class="btn big" id="mixTest" type="button" style="width:100%;margin-top:14px;touch-action:none;-webkit-user-select:none;user-select:none">▶ Écouter le mix final</button>
+        <p class="sub" style="text-align:center">Un appui : 3 secondes de ta vidéo avec tous les sons. Reste appuyé : ça joue tant que tu appuies.</p>
         <p class="msg" id="mixMsg" role="status"></p>
         <button class="btn" id="saveDefaults" style="width:100%;margin-top:14px">💾 Garder ces réglages par défaut</button>
         <p class="sub">Voix, vitesse, sous-titres, mouvement, musique, volumes et options : tout sera déjà réglé la prochaine fois.</p>
@@ -1624,32 +1627,41 @@ function audSource(buf, dest, offset, len){
   return { stop(){ const t = c.currentTime; f.gain.cancelScheduledValues(0); f.gain.setValueAtTime(f.gain.value, t); f.gain.linearRampToValueAtTime(0, t + 0.15); try { s.stop(t + 0.2); } catch(e){} } };
 }
 function audSay(txt){ const m = $('mixMsg'); m.className = 'msg'; m.textContent = txt; }
-async function mixSample(){
+async function mixSample(only){
+  const want = k => !only || only === k;
   if (running) return;
   const c = ctx(); c.resume(); const m = buildMix(); applyVolumes();
   const t = c.currentTime;
   [m.master, m.duck].forEach(n => { n.gain.cancelScheduledValues(0); n.gain.setValueAtTime(1, t); });
-  if (Object.keys(aud).length) return; // déjà en cours : les volumes suivent le curseur en direct
+  if (Object.keys(aud).length){ if (audOnly === (only || '')) return; stopMixSample(true); } // déjà en cours : les volumes suivent le curseur en direct
+  audOnly = only || '';
   const off = previewT();
-  if (audioBuf) aud.voice = audSource(audioBuf, m.voice, off, SAMPLE_LEN);
-  if (musicBuf){ aud.music = audSource(musicBuf, m.duck, 0, 0); if ($('duck').checked && audioBuf) m.duck.gain.setValueAtTime(0.35, t); }
-  const el = hasOwnVideo() ? (bgMode === 'own' ? vid : (scenes.find(s => s.own && s.el) || {}).el) : null;
+  if (audioBuf && want('volVoice')) aud.voice = audSource(audioBuf, m.voice, off, SAMPLE_LEN);
+  if (musicBuf && want('volMusic')){ aud.music = audSource(musicBuf, m.duck, 0, 0); if (!only && $('duck').checked && audioBuf) m.duck.gain.setValueAtTime(0.35, t); }
+  const el = want('volVideo') && hasOwnVideo() ? (bgMode === 'own' ? vid : (scenes.find(s => s.own && s.el) || {}).el) : null;
   if (el && el.tagName !== 'IMG'){ routeVideo(el); el.muted = false; try { el.play().catch(() => {}); } catch(e){} aud.video = { stop(){ el.pause(); } }; }
-  const me = aud.sfx = { iv: 0, stop(){ clearInterval(this.iv); } };
-  try { await makeSfx(); } catch(e){}
-  if (aud.sfx === me && sfxBufs){
+  const me = want('volSfx') ? (aud.sfx = { iv: 0, stop(){ clearInterval(this.iv); } }) : null;
+  if (me) try { await makeSfx(); } catch(e){}
+  if (me && aud.sfx === me && sfxBufs){
     // un bruitage à chaque « changement de scène » de l'extrait, comme dans la vraie vidéo
     const seq = ['whoosh', 'boom', 'whoosh', 'ding']; let k = 0;
     const hit = () => { const s2 = c.createBufferSource(), g2 = c.createGain(); s2.buffer = sfxBufs[seq[k++ % seq.length]]; g2.gain.value = 0.6; s2.connect(g2); g2.connect(m.sfx); s2.start(); };
     hit(); me.iv = setInterval(hit, 750);
   }
-  const miss = [!audioBuf && 'la voix', !musicBuf && 'la musique'].filter(Boolean);
-  audSay('🔊 Extrait en boucle : garde le doigt sur le curseur et glisse.' + (miss.length ? ` (Pas encore de ${miss.join(' ni de ')} dans l'extrait.)` : ''));
+  const NAME = { volVoice:'la voix', volMusic:'la musique', volSfx:'les bruitages', volVideo:'le son de ta vidéo' };
+  if (only){
+    const none = (only === 'volVoice' && !audioBuf) || (only === 'volMusic' && !musicBuf);
+    audSay(none ? `Pas encore de ${only === 'volVoice' ? 'voix' : 'musique'} à faire écouter.` : `🔊 Tu entends seulement ${NAME[only]} : glisse pour régler son volume.`);
+  } else {
+    const miss = [!audioBuf && 'voix', !musicBuf && 'musique'].filter(Boolean);
+    audSay('🔊 Le mix complet' + (miss.length ? ` (pas encore de ${miss.join(' ni de ')})` : '') + '.');
+  }
   if (!audRaf) audMeters();
 }
-function stopMixSample(){ Object.keys(aud).forEach(k => { try { aud[k].stop(); } catch(e){} delete aud[k]; }); setTimeout(drawMeters, 250); if (mix){ const t = ctx().currentTime; mix.duck.gain.cancelScheduledValues(0); mix.duck.gain.setValueAtTime(1, t); } }
+let audOnly = '';
+function stopMixSample(keepMsg){ Object.keys(aud).forEach(k => { try { aud[k].stop(); } catch(e){} delete aud[k]; }); setTimeout(drawMeters, 250); if (mix){ const t = ctx().currentTime; mix.duck.gain.cancelScheduledValues(0); mix.duck.gain.setValueAtTime(1, t); } }
 const stopAllAud = stopMixSample;
-function audition(id){ audTrack = id; clearTimeout(audStopT); mixSample(); if (!audHold) audStopT = setTimeout(stopMixSample, 1500); markTrack(id); }
+function audition(id){ audTrack = id; clearTimeout(audStopT); mixSample(id); if (!audHold) audStopT = setTimeout(stopMixSample, 1500); markTrack(id); }
 function markTrack(id){ document.querySelectorAll('.track').forEach(tr => tr.classList.toggle('live', !!id && !!tr.querySelector('#' + id))); }
 function audRelease(){ if (!audHold) return; audHold = false; clearTimeout(audStopT); audStopT = setTimeout(() => { stopMixSample(); markTrack(''); }, 1000); }
 ['volVoice','volVideo','volMusic','volSfx'].forEach(i => {
@@ -1659,11 +1671,17 @@ function audRelease(){ if (!audHold) return; audHold = false; clearTimeout(audSt
   ['pointerup','pointercancel','touchend','touchcancel','change'].forEach(ev => r.addEventListener(ev, audRelease));
 });
 window.addEventListener('pointerup', audRelease);
-$('mixTest').onclick = () => {
-  if (Object.keys(aud).length){ clearTimeout(audStopT); stopMixSample(); markTrack(''); $('mixTest').textContent = '▶ Écouter le mix (3 s en boucle)'; return; }
-  audHold = true; mixSample(); $('mixTest').textContent = '■ Arrêter l\'extrait';
-  clearTimeout(audStopT); audStopT = setTimeout(() => { audHold = false; stopMixSample(); $('mixTest').textContent = '▶ Écouter le mix (3 s en boucle)'; }, 9000);
-};
+let mixDown = 0;
+function mixBtnState(on){ $('mixTest').classList.toggle('on', on); $('mixTest').textContent = on ? '🔊 Écoute du mix…' : '▶ Écouter le mix final'; }
+function mixPress(e){ if (e && e.cancelable) e.preventDefault(); if (running) return; clearTimeout(audStopT); audHold = true; mixDown = Date.now(); markTrack(''); mixSample(); mixBtnState(true); }
+function mixUp(){
+  if (!mixDown) return; const held = Date.now() - mixDown; mixDown = 0; audHold = false; clearTimeout(audStopT);
+  // appui court : 3 s d'extrait ; appui long : le son s'arrête quand on lâche
+  audStopT = setTimeout(() => { stopMixSample(); mixBtnState(false); }, held < 400 ? 3000 : 150);
+}
+$('mixTest').addEventListener('pointerdown', mixPress);
+['pointerup','pointercancel','pointerleave'].forEach(ev => $('mixTest').addEventListener(ev, mixUp));
+$('mixTest').addEventListener('contextmenu', e => e.preventDefault());
 // Le son d'une vidéo passe par la table de mixage (une seule fois par vidéo)
 function routeVideo(el){
   if (!el || routed.has(el)) return;
