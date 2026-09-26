@@ -50,7 +50,7 @@ async function callGoogle(url, body) {
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
   if (req.method !== 'POST') return res.status(405).json({ error: 'Méthode non autorisée' });
-  const who = invited(req);
+  const who = await invited(req);
   if (!who) return res.status(401).json({ error: 'Accès sur invitation' });
   if (!(await useQuota(who)).ok) return res.status(429).json({ error: QUOTA_MSG, quota: true });
   const { text, voice = 'Kore', tone = 'dynamique', lang = 'fr' } = req.body || {};

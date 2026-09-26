@@ -110,7 +110,7 @@ async function findMedia({ query, alt, wiki }, page, used) {
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
   if (req.method !== 'POST') return res.status(405).json({ error: 'Méthode non autorisée' });
-  const who = invited(req);
+  const who = await invited(req);
   if (!who) return res.status(401).json({ error: 'Accès sur invitation' });
   if (!(await useQuota(who)).ok) return res.status(429).json({ error: QUOTA_MSG, quota: true });
   if (!process.env.PEXELS_API_KEY) return res.status(500).json({ error: 'Clé PEXELS_API_KEY manquante dans Vercel' });
