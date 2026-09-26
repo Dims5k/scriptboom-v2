@@ -3,6 +3,7 @@
 import { kv, kvReady, rateLimit, clientIp, TOO_MANY } from './_kv.js';
 import { sameText } from './_auth.js';
 import { notify, maskEmail } from './_notify.js';
+import { sendMail, waitlistMail } from './_mail.js';
 
 // Protège Excel/Sheets contre les formules cachées dans un champ (=, +, -, @)
 const cell = v => { const t = String(v || '').replace(/[;\n\r]/g, ' '); return /^[=+\-@\t]/.test(t) ? "'" + t : t; };
@@ -61,8 +62,9 @@ export default async function handler(req, res) {
     // Rang d'inscription gardé pour le lancement : les 500 premiers auront −50 % à vie
     if (added) await kv([['HSET', 'waitlist:info', email, JSON.stringify({ email, platform, niche, rank: n, early: n <= 500, date: new Date().toISOString() })]]);
     console.log('LISTE ATTENTE', added ? 'nouveau' : 'déjà inscrit', email);
-    if (added) await notify(n <= 500 ? `🎟️ Nouvel inscrit · n° ${n}` : `Nouvel inscrit · n° ${n}`,
-      `${maskEmail(email)}\nPlateforme : ${platform || '—'} · Niche : ${niche || '—'}\n` + (n <= 500 ? `Club des 500 : ${500 - n} places restantes` : 'Club des 500 complet'), ['tada']);
+    // Email de bienvenue + notification pour toi, en même temps
+    if (added) await Promise.all([sendMail({ to: email, ...waitlistMail(n) }), notify(n <= 500 ? `🎟️ Nouvel inscrit · n° ${n}` : `Nouvel inscrit · n° ${n}`,
+      `${maskEmail(email)}\nPlateforme : ${platform || '—'} · Niche : ${niche || '—'}\n` + (n <= 500 ? `Club des 500 : ${500 - n} places restantes` : 'Club des 500 complet'), ['tada'])]);
     return res.status(200).json({ ok: true, already: !added, count: n });
   } catch (e) {
     return res.status(500).json({ error: "L'inscription a échoué, réessaie dans un instant." });
