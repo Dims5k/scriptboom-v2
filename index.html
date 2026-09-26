@@ -354,7 +354,7 @@ body{overflow-x:hidden}
           <option value="it">Italiano</option>
           <option value="ar">العربية</option>
           <option value="tr">Türkçe</option>
-          <option value="nl">Nederlands</option>
+          <option value="nl">Nederlands</option><option value="ma">الدارجة 🇲🇦 Darija</option>
         </select>
     <div class="pills top-pills" role="group" aria-label="Durée">
           <button class="pill" data-dur="20" aria-pressed="false">20 s</button>
@@ -477,7 +477,7 @@ body{overflow-x:hidden}
           <summary>🌍 Refaire cette vidéo dans une autre langue</summary>
           <p class="sub" style="margin-top:6px">Le script, l'accroche et les mots en couleur sont traduits. Il suffit ensuite de régénérer la voix.</p>
           <label for="trLang">Nouvelle langue</label>
-          <select id="trLang"><option value="fr">Français</option><option value="en">English</option><option value="es">Español</option><option value="pt">Português</option><option value="de">Deutsch</option><option value="it">Italiano</option><option value="ar">العربية</option><option value="tr">Türkçe</option><option value="nl">Nederlands</option></select>
+          <select id="trLang"><option value="fr">Français</option><option value="en">English</option><option value="es">Español</option><option value="pt">Português</option><option value="de">Deutsch</option><option value="it">Italiano</option><option value="ar">العربية</option><option value="tr">Türkçe</option><option value="nl">Nederlands</option><option value="ma">الدارجة 🇲🇦 Darija</option></select>
           <button class="btn" id="trBtn" style="width:100%;margin-top:10px">Traduire la vidéo</button>
           <p class="msg" id="trMsg" role="status"></p>
         </details>
@@ -554,7 +554,7 @@ body{overflow-x:hidden}
           <option value="it">Italiano</option>
           <option value="ar">العربية</option>
           <option value="tr">Türkçe</option>
-          <option value="nl">Nederlands</option>
+          <option value="nl">Nederlands</option><option value="ma">الدارجة 🇲🇦 Darija</option>
         </select>
         <p class="sub">Ex. : voix en anglais, sous-titres en français. L'accroche à l'écran est traduite aussi.</p>
         <p class="msg" id="capLangMsg" role="status"></p>
@@ -701,7 +701,8 @@ const FORMAT_TONE = { histoire:'mystérieux et captivant', fait:'mystérieux et 
 pick('[data-format]','format', v => { format = v;
   const t = FORMAT_TONE[v]; if (t){ tone = t; document.querySelectorAll('[data-tone]').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.tone === t))); } });
 const lang = () => $('lang').value;
-const RTL = () => lang() === 'ar';
+const isRTL = l => l === 'ar' || l === 'ma';
+const RTL = () => isRTL(lang());
 
 // Idées de sujets
 $('findIdeas').onclick = async () => {
@@ -1275,7 +1276,7 @@ function drawCaption(idx){
   const kws = $('kwOn').checked ? new Set(kwList().map(norm)) : null;
   const list = chunk.map((w, j) => ({ w, ww: g.measureText(w).width, active: start+j === idx, kw: !!kws && (/\d|^[%€$]+[.,!?]*$/.test(w) || kws.has(norm(w))) }));
   const KW = capStyle === 'jaune' ? '#1ed760' : '#ffd400';
-  const lines = layoutLines(list, W*0.84, space, capLangNow() === 'ar');
+  const lines = layoutLines(list, W*0.84, space, isRTL(capLangNow()));
   const lh = size*1.22; let y = H*(+$('capPos').value) - (lines.length-1)*lh/2;
   const ACTIVE = { classique:'#1ed760', jaune:'#ffd400', neon:'#ff4fd8', karaoke:'#000', minimal:'#1ed760' };
   lines.forEach(line => {
@@ -1303,7 +1304,7 @@ function drawHook(t){
   g.font = `800 ${size}px "Bricolage Grotesque", Figtree, "Noto Sans Arabic", sans-serif`; g.textBaseline = 'middle'; g.lineJoin = 'round';
   const space = g.measureText(' ').width;
   const list = text.split(/\s+/).map(w => ({ w, ww: g.measureText(w).width }));
-  const lines = layoutLines(list, W*0.86, space, capLangNow() === 'ar'), lh = size*1.12;
+  const lines = layoutLines(list, W*0.86, space, isRTL(capLangNow())), lh = size*1.12;
   let y = -(lines.length-1)*lh/2;
   lines.forEach(line => { const tw = line.reduce((a,o)=>a+o.ww,0) + space*(line.length-1); let x = -tw/2;
     line.forEach(o => { g.lineWidth = 18; g.strokeStyle = '#000'; g.strokeText(o.w, x, y); g.fillStyle = '#ffd400'; g.fillText(o.w, x, y); x += o.ww + space; });
@@ -1321,9 +1322,10 @@ const END_TXT = {
   it: ['CONTINUA', 'NELLA PARTE 2', 'Seguimi', 'per non perderla'],
   nl: ['WORDT VERVOLGD', 'IN DEEL 2', 'Volg mij', 'zodat je niets mist'],
   tr: ['DEVAMI', '2. BÖLÜMDE', 'Takip et', 'kaçırma'],
-  ar: ['يتبع', 'في الجزء 2', 'تابعني', 'حتى لا يفوتك']
+  ar: ['يتبع', 'في الجزء 2', 'تابعني', 'حتى لا يفوتك'],
+  ma: ['يتبع', 'ف الجزء 2', 'تابعني', 'باش ما يفوتكش']
 };
-const PART_TXT = { fr:'PARTIE', en:'PART', es:'PARTE', pt:'PARTE', de:'TEIL', it:'PARTE', nl:'DEEL', tr:'BÖLÜM', ar:'الجزء' };
+const PART_TXT = { fr:'PARTIE', en:'PART', es:'PARTE', pt:'PARTE', de:'TEIL', it:'PARTE', nl:'DEEL', tr:'BÖLÜM', ar:'الجزء', ma:'الجزء' };
 function drawEndCard(e){
   const T = END_TXT[lang()] || END_TXT.fr, cliff = isSeries() && part === 0;
   const a = Math.min(1, e / 0.3), pop = 1 - Math.pow(1 - Math.min(1, e / 0.35), 3);
@@ -2002,7 +2004,7 @@ $('rcYes').onclick = () => {
 };
 
 // ---------- Refaire la vidéo dans une autre langue ----------
-const LANG_NAME = { fr:'français', en:'anglais', es:'espagnol', pt:'portugais', de:'allemand', it:'italien', ar:'arabe', tr:'turc', nl:'néerlandais' };
+const LANG_NAME = { fr:'français', en:'anglais', es:'espagnol', pt:'portugais', de:'allemand', it:'italien', ar:'arabe', tr:'turc', nl:'néerlandais', ma:'darija marocaine' };
 $('trBtn').onclick = async () => {
   const to = $('trLang').value, from = lang(), m = $('trMsg'), btn = $('trBtn');
   const src = splitSentences($('script').value);
