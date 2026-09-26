@@ -376,6 +376,21 @@ body{overflow-x:hidden}
           <summary>Pas d'idée ? Trouve-moi des sujets</summary>
           <label for="niche">Ta niche</label>
           <input id="niche" type="text" placeholder="Ex. : histoire de l'Égypte, football, psychologie…">
+          <label>Durée</label>
+          <div class="pills" role="group" aria-label="Durée de la vidéo" style="margin-top:0">
+          <button class="pill" data-dur="20" aria-pressed="false">⏱ 20 s</button>
+          <button class="pill" data-dur="35" aria-pressed="true">⏱ 35 s</button>
+          <button class="pill" data-dur="60" aria-pressed="false">⏱ 60 s</button>
+        </div>
+          <label>Format</label>
+          <div class="pills" role="group" aria-label="Format" style="margin-top:0">
+          <button class="pill" data-format="libre" aria-pressed="true">Libre</button>
+          <button class="pill" data-format="histoire" aria-pressed="false">Histoire vraie</button>
+          <button class="pill" data-format="fait" aria-pressed="false">Fait incroyable</button>
+          <button class="pill" data-format="top5" aria-pressed="false">Top 5</button>
+          <button class="pill" data-format="citation" aria-pressed="false">Citation motivante</button>
+          <button class="pill" data-format="saviezvous" aria-pressed="false">Le saviez-vous ?</button>
+        </div>
           <button class="btn" id="findIdeas" style="width:100%;margin-top:10px">Trouve-moi 10 idées</button>
           <div class="chips" id="ideasList"></div>
           <p class="msg" id="ideasMsg" role="status"></p>
@@ -433,6 +448,12 @@ body{overflow-x:hidden}
 <section class="step" data-panel="script" aria-labelledby="s1" hidden>
         <h2 id="s1"><span class="num">1</span>Le script</h2>
         <p class="hint">Donne un sujet, ScriptBoom écrit un script court pour TikTok, Reels ou Shorts. Tu peux aussi écrire le tien.</p>
+        <label>Durée</label>
+        <div class="pills" role="group" aria-label="Durée de la vidéo" style="margin-top:0">
+          <button class="pill" data-dur="20" aria-pressed="false">⏱ 20 s</button>
+          <button class="pill" data-dur="35" aria-pressed="true">⏱ 35 s</button>
+          <button class="pill" data-dur="60" aria-pressed="false">⏱ 60 s</button>
+        </div>
         <label>Format</label>
         <div class="pills" role="group" aria-label="Format" style="margin-top:0">
           <button class="pill" data-format="libre" aria-pressed="true">Libre</button>
@@ -673,12 +694,12 @@ let actx = null, src = null, startAt = 0, running = false, raf = 0, recorder = n
 
 // ---------- Étape 1 : script ----------
 function pick(sel, attr, cb){ document.querySelectorAll(sel).forEach(b => b.onclick = () => {
-  document.querySelectorAll(sel).forEach(x => x.setAttribute('aria-pressed','false'));
-  b.setAttribute('aria-pressed','true'); cb(b.dataset[attr]);
+  document.querySelectorAll(sel).forEach(x => x.setAttribute('aria-pressed', String(x.dataset[attr] === b.dataset[attr])));
+  cb(b.dataset[attr]);
 }); }
 pick('[data-dur]','dur', v => { dur = +v; topLabel(); });
 // Le bouton affiche Top 3 pour les vidéos courtes (20 s, 35 s) et Top 5 pour 60 s
-function topLabel(){ const b = document.querySelector('[data-format="top5"]'); if (b) b.textContent = dur >= 60 ? 'Top 5' : 'Top 3'; }
+function topLabel(){ document.querySelectorAll('[data-format="top5"]').forEach(b => b.textContent = dur >= 60 ? 'Top 5' : 'Top 3'); }
 topLabel();
 pick('[data-tone]','tone', v => tone = v);
 let format = 'libre';
@@ -697,7 +718,7 @@ $('findIdeas').onclick = async () => {
   if (!niche){ msg.className='msg err'; msg.textContent='Écris d\'abord ta niche.'; $('niche').focus(); return; }
   btn.disabled = true; btn.textContent = 'Recherche d\'idées…'; msg.className='msg'; msg.textContent='';
   try {
-    const r = await fetch('/api/script', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ mode:'ideas', niche, format, lang: lang() }) });
+    const r = await fetch('/api/script', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ mode:'ideas', niche, format, dur, lang: lang() }) });
     const d = await r.json(); if (!r.ok) throw new Error(d.error || 'Erreur');
     const box = $('ideasList'); box.innerHTML = '';
     d.ideas.forEach(idea => { const c = document.createElement('button'); c.className = 'chip'; c.textContent = idea;
