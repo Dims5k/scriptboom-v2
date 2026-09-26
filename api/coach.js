@@ -3,6 +3,8 @@
 // Gratuit : Gemini (formule gratuite) + Upstash.
 import { invited, isAdmin } from './_auth.js';
 import { kv, kvReady, useQuota, QUOTA_MSG, friendly } from './_kv.js';
+import { LANGS } from './_langs.js';
+const UI_BASE = { ma: 'ar', dz: 'ar', tn: 'ar', eg: 'ar', lb: 'ar' };
 
 const MODELS = ['gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-3.1-flash-lite', 'gemini-3.5-flash-lite'];
 const MAX_ITEMS = 80;
@@ -73,7 +75,7 @@ ${p.script ? `Script de la voix off : « ${txt(p.script, 1500)} »` : ''}${p.hoo
 Réglages actuels du projet ScriptBoom (JSON) : ${JSON.stringify(cur)}
 Réglages possibles et leurs valeurs autorisées : ${JSON.stringify(SETTINGS)} (capFont : bricolage = arrondie moderne, anton = très grasse et serrée style TikTok, poppins = ronde et nette ; capPos : .3 haut, .52 milieu, .72 bas ; vfmt : 916 vertical, 11 carré, 169 paysage ; volMusic/volSfx en % de 0 à 100 ; hook = nouvelle accroche à l'écran de 8 mots maximum).
 
-Réponds en français, en tutoyant, de façon concrète et directe. Réponds UNIQUEMENT en JSON :
+Réponds en ${LANGS[UI_BASE[b.lang] || b.lang] || 'français'} (tous les textes du JSON, sauf les clés, les valeurs de réglages et les catégories qui restent exactement comme dans la liste), en tutoyant, de façon concrète et directe. Réponds UNIQUEMENT en JSON :
 {"platform":"tiktok|youtube|instagram|threads|x|autre (celle que tu reconnais sur les captures, sinon celle indiquée)",
 "title":"titre court de la vidéo (déduit du sujet ou des images)",
 "metrics":{"views":nombre|null,"likes":nombre|null,"comments":nombre|null,"shares":nombre|null,"saves":nombre|null,"avgWatchSec":nombre|null,"completionPct":nombre|null,"retention3sPct":nombre|null,"followersGained":nombre|null},

@@ -309,7 +309,7 @@ body{overflow-x:hidden}
 <div id="micOverlay" hidden>
   <div class="mo-top"><span class="mo-rec" id="micState"><i></i>Prépare-toi…</span><span id="micTime">0:00</span></div>
   <p class="mo-hint">Lis le texte tel quel, à ton rythme. Fais défiler avec le doigt si besoin.</p>
-  <div id="micText"></div>
+  <div id="micText" data-nt></div>
   <div class="mo-actions">
     <button class="btn ghost" id="micCancelBtn" type="button">Annuler</button>
     <button class="btn mo-stop" id="micStop" type="button" disabled>■ Terminer</button>
@@ -469,7 +469,7 @@ body{overflow-x:hidden}
           <button class="pill" data-format="saviezvous" aria-pressed="false">Le saviez-vous ?</button>
         </div>
           <button class="btn" id="findIdeas" style="width:100%;margin-top:10px">Trouve-moi 10 idées</button>
-          <div class="chips" id="ideasList"></div>
+          <div class="chips" id="ideasList" data-nt></div>
           <p class="msg" id="ideasMsg" role="status"></p>
         </details>
       <details class="ideas" id="weekBox">
@@ -580,7 +580,7 @@ body{overflow-x:hidden}
           <button class="btn" id="trBtn" style="width:100%;margin-top:10px">Traduire la vidéo</button>
           <p class="msg" id="trMsg" role="status"></p>
         </details>
-        <ul class="fixes" id="fixList" hidden></ul>
+        <ul class="fixes" id="fixList" hidden data-nt></ul>
       </section>
 <section class="step" data-panel="voix" aria-labelledby="s2" hidden>
         <h2 id="s2"><span class="num">2</span>La voix</h2>
@@ -622,7 +622,7 @@ body{overflow-x:hidden}
         <details class="ideas" id="pronBox">
           <summary>🗣️ Prononciation des mots difficiles</summary>
           <p class="sub" style="margin-top:6px">Écris une fois comment la voix IA doit dire un mot (un nom, une marque, un sigle). Le sous-titre, lui, garde la bonne orthographe.</p>
-          <div class="pron-list" id="pronList"></div>
+          <div class="pron-list" id="pronList" data-nt></div>
           <div class="pron-add">
             <input id="pronFrom" type="text" placeholder="Écrit : ScriptBoom">
             <input id="pronTo" type="text" placeholder="Dit : Script Boum">
@@ -636,9 +636,9 @@ body{overflow-x:hidden}
         <p class="hint">Automatique : ScriptBoom découpe ton script en scènes et trouve une vidéo libre de droits pour chacune. Ou utilise ta propre vidéo.</p>
         <button class="btn big" id="autoBg">Trouver les vidéos automatiquement</button>
         <div id="scenesBox" hidden>
-          <ol class="scenes" id="scenesList"></ol>
+          <ol class="scenes" id="scenesList" data-nt></ol>
           <button class="btn ghost" id="moreBg" style="width:100%">Tout remplacer (toutes les scènes)</button>
-          <p class="credit" id="credit"></p>
+          <p class="credit" id="credit" data-nt></p>
         </div>
         <p class="msg" id="bgMsg" role="status"></p>
         <p class="or">ou</p>
@@ -689,7 +689,7 @@ body{overflow-x:hidden}
         <details class="ideas" id="capFixBox">
           <summary>✏️ Corriger un mot des sous-titres</summary>
           <p class="sub" style="margin-top:6px">Touche un mot pour le corriger. Seul le texte affiché change, pas la voix. Les mots corrigés sont en vert.</p>
-          <div class="wchips" id="capChips"></div>
+          <div class="wchips" id="capChips" data-nt></div>
         </details>
         <label style="margin-top:16px">Mouvement</label>
         <div class="pills" role="group" aria-label="Mouvement" style="margin-top:0">
@@ -1074,9 +1074,9 @@ function renderHistory(){
   list.forEach(h => {
     const row = document.createElement('div'); row.className = 'hist-item';
     const open = document.createElement('button'); open.className = 'open';
-    const t = document.createElement('span'); t.textContent = h.topic;
+    const t = document.createElement('span'); t.className = 'nt'; t.textContent = h.topic;
     const d = document.createElement('small');
-    d.textContent = new Date(h.date).toLocaleDateString('fr-BE', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' })
+    d.textContent = new Date(h.date).toLocaleDateString(uiLocale(), { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' })
       + (h.parts && h.parts.length > 1 ? ' · série 2 parties' : '') + ` · ${h.dur} s`;
     open.append(t, d); open.onclick = () => restoreHistory(h);
     const del = document.createElement('button'); del.className = 'del'; del.textContent = '✕'; del.setAttribute('aria-label', 'Supprimer');
@@ -1110,8 +1110,8 @@ function renderWeek(){
     const row = document.createElement('div'); row.className = 'hist-item' + (it.done ? ' done' : '');
     const b = document.createElement('button'); b.className = 'open';
     const d = document.createElement('small'); d.textContent = `Jour ${i+1} · ${FORMAT_NAME[it.format] || it.format} · ${it.dur} s · ${TONE_NAME[it.tone] || ''} · ${it.voice}`;
-    const t = document.createElement('span'); t.textContent = it.topic; t.style.whiteSpace = 'normal';
-    const why = document.createElement('em'); why.textContent = it.why || '';
+    const t = document.createElement('span'); t.className = 'nt'; t.textContent = it.topic; t.style.whiteSpace = 'normal';
+    const why = document.createElement('em'); why.className = 'nt'; why.textContent = it.why || '';
     b.append(d, t, why); b.onclick = () => useWeekItem(i);
     row.appendChild(b);
     if (it.done){ const k = document.createElement('span'); k.className = 'tick'; k.textContent = '✓'; k.title = 'Vidéo faite'; row.appendChild(k); }
@@ -2509,6 +2509,7 @@ function keepRules(item){
   try { localStorage.setItem(uk(COACH_KEY), JSON.stringify(c)); } catch(e){}
   renderCoach(c); $('coachOn').checked = true;
 }
+function uiLocale(){ return document.documentElement.dataset.ui ? document.documentElement.lang : 'fr-BE'; }
 function fmtNum(n){ if (n == null) return '—'; return n >= 1e6 ? (n/1e6).toFixed(1).replace('.', ',') + '\u00a0M' : n >= 1e4 ? Math.round(n/1e3) + '\u00a0k' : n >= 1e3 ? (n/1e3).toFixed(1).replace('.', ',') + '\u00a0k' : String(Math.round(n)); }
 function fmtT(t){ if (t == null) return ''; t = Math.max(0, Math.round(t)); return Math.floor(t/60) + ':' + String(t%60).padStart(2, '0'); }
 function metricLines(it){ const m = it.metrics || {}, L = [];
@@ -2576,7 +2577,7 @@ $('cvGo').onclick = async () => {
     btn.textContent = 'Analyse en cours… (jusqu\'à 1 minute)';
     const project = $('cvUseProject').checked ? { settings: currentSettings(), script: $('script').value.trim(), hook: $('hook').value.trim(), topic: $('topic').value.trim() } : null;
     const r = await fetch('/api/coach', { method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ action:'analyze', platform: cvPlat, images: cvShotsData, frames, duration, note: $('cvNote').value.trim(), project }) });
+      body: JSON.stringify({ action:'analyze', platform: cvPlat, images: cvShotsData, frames, duration, note: $('cvNote').value.trim(), project, lang: lang() }) });
     const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || 'Erreur ' + r.status);
     const item = d.item; cvWrite([item, ...cvRead().filter(x => x.id !== item.id)]);
     keepRules(item); track('coach-analyse-' + item.platform);
@@ -2591,8 +2592,8 @@ function renderAnalysis(it){
   // en-tête : note + verdict
   const h = el2('div', 'cv-card'), hd = el2('div', 'cv-head'), sc = el2('div', 'cv-score'); sc.style.setProperty('--s', it.score);
   sc.append(el2('b', null, it.score), el2('small', null, '/100'));
-  const tt = el2('div'); tt.append(el2('div', 'cv-title', it.title), el2('div', 'cv-sub', (PLAT_NAME[it.platform] || it.platform) + ' · ' + new Date(it.date).toLocaleDateString('fr-BE', { day:'numeric', month:'short' }) + (it.hadVideo ? ' · vidéo analysée' : '')));
-  hd.append(sc, tt); h.append(hd, el2('p', 'cv-verdict', it.verdict)); box.appendChild(h);
+  const tt = el2('div'); tt.append(el2('div', 'cv-title nt', it.title), el2('div', 'cv-sub', (PLAT_NAME[it.platform] || it.platform) + ' · ' + new Date(it.date).toLocaleDateString(uiLocale(), { day:'numeric', month:'short' }) + (it.hadVideo ? ' · vidéo analysée' : '')));
+  hd.append(sc, tt); h.append(hd, el2('p', 'cv-verdict nt', it.verdict)); box.appendChild(h);
   // chiffres
   const ml = metricLines(it); if (ml.length){ const c = el2('div', 'cv-card'); c.appendChild(el2('h3', null, 'Tes chiffres')); const ch = el2('div', 'cv-chips');
     ml.forEach(t => { const i = t.indexOf(' '); const x = el2('div', 'cv-chip'); x.append(el2('b', null, t.slice(0, i)), document.createTextNode(t.slice(i + 1))); ch.appendChild(x); }); c.appendChild(ch); box.appendChild(c); }
@@ -2603,7 +2604,7 @@ function renderAnalysis(it){
     it.changes.forEach(ch => { const row = el2('label', 'cv-chg'), cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = true; checks.push([cb, ch]);
       const w = el2('div'); w.appendChild(el2('b', null, SET_LABEL[ch.key] || ch.key));
       const ft = el2('div', 'fromto'); ft.append(valLabel(ch.key, ch.from != null ? ch.from : now[ch.key]) + ' → '); ft.appendChild(el2('i', null, valLabel(ch.key, ch.value)));
-      w.append(ft, el2('small', null, ch.why)); row.append(cb, w); c.appendChild(row); });
+      w.append(ft, el2('small', 'nt', ch.why)); row.append(cb, w); c.appendChild(row); });
     const bt = el2('div', 'cv-btns'), b1 = el2('button', 'cv-btn', '⚡ Appliquer à mon projet'), b2 = el2('button', 'cv-btn ghost', '✨ Nouvelle vidéo avec ces réglages');
     const picked = () => checks.filter(([cb]) => cb.checked).map(([, ch]) => ch);
     b1.onclick = () => { const l = picked(); if (!l.length) return; applyChanges(l); cvDone(`Réglages du coach appliqués ✓ (${l.length} changement${l.length > 1 ? 's' : ''}).`, 'style'); track('coach-appliquer'); };
@@ -2613,15 +2614,15 @@ function renderAnalysis(it){
   // ce qui fait décrocher (ligne du temps)
   if (it.problems && it.problems.length){ const c = el2('div', 'cv-card'); c.appendChild(el2('h3', null, 'Ce qui fait décrocher')); const ul = el2('ul', 'cv-list');
     it.problems.slice().sort((a, b) => (a.time ?? 999) - (b.time ?? 999)).forEach(p => { const li = el2('li'); if (p.time != null) li.appendChild(el2('span', 't', fmtT(p.time)));
-      li.appendChild(el2('span', 'cat', p.category)); li.append(p.issue); li.appendChild(el2('span', 'fx', '→ ' + p.fix)); ul.appendChild(li); });
+      li.appendChild(el2('span', 'cat', p.category)); li.appendChild(el2('span', 'nt', p.issue)); li.appendChild(el2('span', 'fx nt', '→ ' + p.fix)); ul.appendChild(li); });
     c.appendChild(ul); box.appendChild(c); }
   if (it.strengths && it.strengths.length){ const c = el2('div', 'cv-card'); c.appendChild(el2('h3', null, 'Ce qui marche')); const ul = el2('ul', 'cv-list');
-    it.strengths.forEach(t => { const li = el2('li'); li.appendChild(el2('span', 't', '✓')); li.append(t); ul.appendChild(li); }); c.appendChild(ul); box.appendChild(c); }
+    it.strengths.forEach(t => { const li = el2('li'); li.appendChild(el2('span', 't', '✓')); li.appendChild(el2('span', 'nt', t)); ul.appendChild(li); }); c.appendChild(ul); box.appendChild(c); }
   if (it.nextIdeas && it.nextIdeas.length){ const c = el2('div', 'cv-card'); c.appendChild(el2('h3', null, 'Tes prochaines vidéos'));
     c.appendChild(el2('p', 'cv-sub', 'Touche une idée : nouvelle vidéo avec les réglages conseillés.'));
-    it.nextIdeas.forEach(t => { const b = el2('button', 'cv-idea', t); b.onclick = () => newVideoWith(it.changes || [], t); c.appendChild(b); }); box.appendChild(c); }
+    it.nextIdeas.forEach(t => { const b = el2('button', 'cv-idea nt', t); b.onclick = () => newVideoWith(it.changes || [], t); c.appendChild(b); }); box.appendChild(c); }
   if (it.rules && it.rules.length){ const c = el2('div', 'cv-card'); c.appendChild(el2('h3', null, 'Tes règles pour les prochains scripts')); const ul = el2('ul', 'cv-list');
-    it.rules.forEach(t => { const li = el2('li'); li.appendChild(el2('span', 't', '•')); li.append(t); ul.appendChild(li); }); c.appendChild(ul);
+    it.rules.forEach(t => { const li = el2('li'); li.appendChild(el2('span', 't', '•')); li.appendChild(el2('span', 'nt', t)); ul.appendChild(li); }); c.appendChild(ul);
     const lab = el2('label', 'cv-check'), cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = $('coachOn').checked; cb.onchange = () => { $('coachOn').checked = cb.checked; };
     lab.append(cb, document.createTextNode(' Appliquer mes règles aux prochains scripts')); c.appendChild(lab); box.appendChild(c); }
   $('coachView').querySelector('.cv-body').scrollTop = 0;
@@ -2673,7 +2674,7 @@ function renderDb(){
       const bar = svgEl('path', { class: 'cv-bar', d: `M${bx},${Hd} V${y + r} Q${bx},${y} ${bx + r},${y} H${bx + w - r} Q${bx + w},${y} ${bx + w},${y + r} V${Hd} Z` });
       const hit = svgEl('rect', { class: 'cv-hit', x: pad + i * bw, y: 0, width: bw, height: Hd });
       const show = () => { sv.querySelectorAll('.cv-bar').forEach(b => b.classList.remove('on')); bar.classList.add('on');
-        tip.textContent = `${x.title} · ${fmtNum(x.metrics.views)} vues · ${x.score}/100 · ${new Date(x.date).toLocaleDateString('fr-BE', { day:'numeric', month:'short' })}`; };
+        tip.textContent = `${x.title} · ${fmtNum(x.metrics.views)} vues · ${x.score}/100 · ${new Date(x.date).toLocaleDateString(uiLocale(), { day:'numeric', month:'short' })}`; };
       hit.addEventListener('mouseenter', show); hit.addEventListener('click', show); sv.append(bar, hit); });
     c.append(sv, tip); box.appendChild(c); }
   // Graphique 2 : note du coach dans le temps (ligne, une seule série)
@@ -2704,12 +2705,97 @@ function renderHi(){
   const box = $('cvHi'); box.innerHTML = ''; const all = cvRead();
   if (!all.length){ box.appendChild(el2('p', 'cv-empty', 'Tes analyses apparaîtront ici, sur tous tes appareils.')); return; }
   all.forEach(x => { const row = el2('div', 'cv-item'), n = el2('div', 'n', x.score), w = el2('div', 'w');
-    w.append(el2('b', null, x.title), el2('small', null, (PLAT_NAME[x.platform] || x.platform) + ' · ' + new Date(x.date).toLocaleDateString('fr-BE', { day:'numeric', month:'short' }) + (x.metrics && x.metrics.views != null ? ' · ' + fmtNum(x.metrics.views) + ' vues' : '')));
+    w.append(el2('b', 'nt', x.title), el2('small', null, (PLAT_NAME[x.platform] || x.platform) + ' · ' + new Date(x.date).toLocaleDateString(uiLocale(), { day:'numeric', month:'short' }) + (x.metrics && x.metrics.views != null ? ' · ' + fmtNum(x.metrics.views) + ' vues' : '')));
     const del = el2('button', 'x', '✕'); del.setAttribute('aria-label', 'Supprimer');
     del.onclick = e => { e.stopPropagation(); if (!confirm('Supprimer cette analyse ?')) return; cvWrite(cvRead().filter(y => y.id !== x.id)); renderHi();
       fetch('/api/coach', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'delete', id: x.id }) }).catch(() => {}); };
     row.onclick = () => renderAnalysis(x); row.append(n, w, del); box.appendChild(row); });
 }
+
+// ---------- Interface dans la langue choisie (68 langues) ----------
+// Chaque texte français est traduit une fois par l'IA (puis gardé en mémoire, sur l'appareil et en ligne).
+var I18N = { lang: 'fr', map: {}, rev: {}, orig: new WeakMap(), mine: new WeakMap(), pending: new Set(), timer: 0, busy: false, fails: 0 };
+const UI_BASE = { ma:'ar', dz:'ar', tn:'ar', eg:'ar', lb:'ar' };
+const RTL_UI = new Set(['ar', 'he', 'fa', 'ur']);
+const I18N_SKIP = 'script,style,textarea,noscript,canvas,svg,select#lang,select#trLang,select#capLang,[data-nt],.nt,#adminView,#sbGate,#avList';
+const I18N_ATTRS = ['placeholder', 'aria-label', 'title'];
+const uiLang = () => { const l = lang(); return UI_BASE[l] || l; };
+function i18nTpl(s){ const nums = []; const t = s.replace(/\d+(?:[.,]\d+)?/g, m => { nums.push(m); return '{' + (nums.length - 1) + '}'; }); return [t, nums]; }
+const i18nFill = (t, nums) => t.replace(/\{(\d+)\}/g, (m, i) => nums[+i] != null ? nums[+i] : m);
+function i18nStr(src){
+  const core = src.trim(); if (!core || !/\p{L}{2,}/u.test(core)) return src;
+  const [t, nums] = i18nTpl(core), hit = I18N.map[t];
+  if (hit != null) return src.replace(core, i18nFill(hit, nums));
+  I18N.pending.add(t); i18nSoon(); return null;
+}
+// texte déjà traduit remis par le code (ex. un bouton qui retrouve son libellé) : on retrouve le français d'origine
+function i18nOrigOf(cur){ const core = cur.trim(); if (!core) return cur; const [t, nums] = i18nTpl(core), fr = I18N.rev[t]; return fr != null ? cur.replace(core, i18nFill(fr, nums)) : cur; }
+const i18nSkip = n => { const e = n.nodeType === 1 ? n : n.parentElement; return !e || !!e.closest(I18N_SKIP); };
+function i18nText(n){
+  if (i18nSkip(n)) return;
+  const cur = n.nodeValue; let o = I18N.orig.get(n);
+  if (o == null || (cur !== o && cur !== I18N.mine.get(n))){ o = I18N.lang === 'fr' ? cur : i18nOrigOf(cur); I18N.orig.set(n, o); }
+  const r = I18N.lang === 'fr' ? o : i18nStr(o);
+  if (r != null){ I18N.mine.set(n, r); if (r !== cur){ I18N.busy = true; n.nodeValue = r; I18N.busy = false; } }
+}
+function i18nAttrs(e){
+  if (i18nSkip(e)) return;
+  e._i18n = e._i18n || {};
+  I18N_ATTRS.forEach(a => {
+    if (!e.hasAttribute(a)) return; const cur = e.getAttribute(a), st = e._i18n[a] || (e._i18n[a] = {});
+    if (st.o == null || (cur !== st.o && cur !== st.m)) st.o = I18N.lang === 'fr' ? cur : i18nOrigOf(cur);
+    const r = I18N.lang === 'fr' ? st.o : i18nStr(st.o);
+    if (r != null){ st.m = r; if (r !== cur) e.setAttribute(a, r); }
+  });
+}
+function i18nTree(root){
+  if (!root) return;
+  if (root.nodeType === 3) return i18nText(root);
+  if (root.nodeType !== 1 || i18nSkip(root)) return;
+  i18nAttrs(root); root.querySelectorAll('[placeholder],[aria-label],[title]').forEach(i18nAttrs);
+  const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT); let n; while ((n = w.nextNode())) i18nText(n);
+}
+function i18nSoon(){ if (!I18N.timer) I18N.timer = setTimeout(i18nFlush, 250); }
+async function i18nFlush(){
+  I18N.timer = 0; if (I18N.lang === 'fr' || !I18N.pending.size) return;
+  const lg = I18N.lang, all = [...I18N.pending].filter(t => I18N.map[t] == null).slice(0, 240);
+  all.forEach(t => I18N.pending.delete(t)); if (!all.length) return;
+  const chunks = []; for (let i = 0; i < all.length; i += 60) chunks.push(all.slice(i, i + 60));
+  // paquets de 60 textes envoyés en parallèle (une requête courte chacun)
+  const res = await Promise.all(chunks.map(async batch => {
+    try {
+      const r = await fetch('/api/i18n', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ lang: lg, strings: batch }) });
+      const d = await r.json().catch(() => ({}));
+      if (lg === I18N.lang) Object.entries(d.map || {}).forEach(([k, v]) => { I18N.map[k] = v; I18N.rev[v] = k; });
+      if (!r.ok) throw new Error(d.error || r.status); return true;
+    } catch(e){ return batch; }
+  }));
+  if (lg !== I18N.lang) return;
+  const failed = res.filter(x => x !== true).flat();
+  if (failed.length){ if (++I18N.fails < 4) setTimeout(() => { failed.forEach(t => I18N.pending.add(t)); i18nSoon(); }, 4000 * I18N.fails); } // le texte reste en français en attendant
+  else I18N.fails = 0;
+  try { localStorage.setItem('sb_i18n:' + lg, JSON.stringify(I18N.map)); } catch(e){}
+  i18nTree(document.body);
+  if (I18N.pending.size) i18nSoon();
+}
+function setUiLang(){
+  const lg = uiLang(); if (lg === I18N.lang && document.documentElement.dataset.ui === lg) return;
+  I18N.lang = lg; I18N.pending.clear(); I18N.map = {}; I18N.rev = {};
+  if (lg !== 'fr'){ try { I18N.map = JSON.parse(localStorage.getItem('sb_i18n:' + lg) || '{}'); } catch(e){} Object.entries(I18N.map).forEach(([k, v]) => I18N.rev[v] = k); }
+  document.documentElement.lang = lg === 'br' ? 'pt-BR' : lg; document.documentElement.dataset.ui = lg;
+  const rtl = RTL_UI.has(lg); document.querySelectorAll('.panel-body,.idea-card,.cv-body,#micText').forEach(e => e.dir = rtl ? 'rtl' : 'ltr');
+  i18nTree(document.body);
+}
+new MutationObserver(list => {
+  if (I18N.busy) return;
+  list.forEach(m => {
+    if (m.type === 'characterData') i18nText(m.target);
+    else if (m.type === 'attributes') i18nAttrs(m.target);
+    else m.addedNodes.forEach(i18nTree);
+  });
+}).observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: I18N_ATTRS });
+$('lang').addEventListener('change', setUiLang);
+setUiLang();
 
 // ---------- Le Labo : panneaux, idées, recette ----------
 const PANEL_TITLES = { script:'Le script', voix:'La voix', fonds:'Les fonds', style:'Le style', son:'Le son', pub:'Publier', coach:'Coach', hist:'Mes vidéos' };
@@ -3037,7 +3123,7 @@ html:not([data-admin]) .admin-only{display:none!important}
       who.appendChild(el('div', 'em', '#' + (w.rank || '?') + ' · ' + w.email));
       var meta = el('div', 'meta');
       meta.appendChild(el('span', null, [w.platform, w.niche].filter(Boolean).join(' · ') || '—'));
-      if (w.date) meta.appendChild(el('span', null, new Date(w.date).toLocaleDateString('fr-BE')));
+      if (w.date) meta.appendChild(el('span', null, new Date(w.date).toLocaleDateString(uiLocale())));
       if (w.early) meta.appendChild(el('span', 'av-tag adm', '−50 %'));
       who.appendChild(meta); row.appendChild(who);
       var b = el('button', 'inv', w.invited ? '✓ Invité' : 'Inviter'); b.disabled = !!w.invited;
