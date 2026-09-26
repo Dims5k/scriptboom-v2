@@ -30,8 +30,8 @@ async function askGemini(prompt) {
   throw new Error(lastError);
 }
 
-async function searchPexels(query, page = 1) {
-  const qs = new URLSearchParams({ query, orientation: 'portrait', size: 'medium', per_page: '8', page: String(page) });
+async function searchPexels(query, page = 1, orient = 'portrait') {
+  const qs = new URLSearchParams({ query, orientation: orient, size: 'medium', per_page: '8', page: String(page) });
   let lastError = 'Erreur Pexels';
   for (const base of PEXELS) {
     try {
@@ -44,12 +44,14 @@ async function searchPexels(query, page = 1) {
   throw new Error(lastError);
 }
 
-// Choisit le fichier vertical le plus proche de 720 px de large, hébergé chez Pexels.
-function pickFile(video) {
+// Choisit le fichier au bon format (vertical, carré ou paysage) le plus proche de la taille voulue, hébergé chez Pexels.
+function pickFile(video, orient = 'portrait') {
+  const okShape = f => orient === 'landscape' ? f.width >= f.height : orient === 'square' ? true : f.height >= f.width;
   const files = (video.video_files || []).filter(f =>
-    f.link && (f.file_type || '').includes('mp4') && f.height >= f.width && /^https:\/\/videos\.pexels\.com\//.test(f.link));
+    f.link && (f.file_type || '').includes('mp4') && okShape(f) && /^https:\/\/videos\.pexels\.com\//.test(f.link));
   if (!files.length) return null;
-  files.sort((a, b) => Math.abs(a.width - 720) - Math.abs(b.width - 720));
+  const target = orient === 'landscape' ? 1280 : 720;
+  files.sort((a, b) => Math.abs(a.width - target) - Math.abs(b.width - target));
   return files[0];
 }
 
@@ -88,21 +90,22 @@ async function searchCommons(title) {
              author: strip(ii.extmetadata?.Artist?.value) || 'Wikimedia Commons', license: lic, page: ii.descriptionurl || 'https://commons.wikimedia.org', source: 'Wikimedia Commons' };
   }).filter(Boolean);
 }
-function fromPexels(v) {
-  const f = pickFile(v); if (!f) return null;
+function fromPexels(v, orient) {
+  const f = pickFile(v, orient); if (!f) return null;
   return { id: v.id, src: '/pexels/' + f.link.replace(/^https:\/\/videos\.pexels\.com\//, ''), width: f.width, height: f.height,
            author: v.user?.name || 'Pexels', page: v.url || 'https://www.pexels.com', source: 'Pexels' };
 }
 // Cherche un média : photo libre du vrai sujet d'abord (si la scène en nomme un), puis vidéos Pexels, puis Pixabay
-async function findMedia({ query, alt, wiki }, page, used) {
+async function findMedia({ query, alt, wiki }, page, used, orient = 'portrait') {
+  const px = async q => (await searchPexels(q, page, orient).catch(() => [])).map(v => fromPexels(v, orient));
   const pick = list => list.find(m => m && !used.has(String(m.id)));
   const tries = [];
   if (wiki) tries.push(() => searchCommons(wiki));
-  tries.push(async () => (await searchPexels(query, page).catch(() => [])).map(fromPexels));
-  if (alt) tries.push(async () => (await searchPexels(alt, page).catch(() => [])).map(fromPexels));
+  tries.push(() => px(query));
+  if (alt) tries.push(() => px(alt));
   tries.push(() => searchPixabay(query, page).catch(() => []));
   if (alt) tries.push(() => searchPixabay(alt, page).catch(() => []));
-  if (query.includes(' ')) tries.push(async () => (await searchPexels(query.split(' ').slice(-1)[0], page).catch(() => [])).map(fromPexels));
+  if (query.includes(' ')) tries.push(() => px(query.split(' ').slice(-1)[0]));
   for (const t of tries) { let m = null; try { m = pick(await t()); } catch (e) {} if (m) { used.add(String(m.id)); return m; } }
   return null;
 }
@@ -115,6 +118,7 @@ export default async function handler(req, res) {
   if (!(await useQuota(who)).ok) return res.status(429).json({ error: QUOTA_MSG, quota: true });
   if (!process.env.PEXELS_API_KEY) return res.status(500).json({ error: 'Clé PEXELS_API_KEY manquante dans Vercel' });
   const { script, page = 1, query, exclude = [] } = req.body || {};
+  const orient = ['portrait', 'square', 'landscape'].includes(req.body?.orient) ? req.body.orient : 'portrait';
 
   // Remplacer UNE scène : nouvelle recherche sur des mots-clés, en évitant les médias déjà utilisés
   if (query) {
@@ -122,7 +126,7 @@ export default async function handler(req, res) {
     const used = new Set((Array.isArray(exclude) ? exclude : []).map(String));
     try {
       for (let p = Number(page) || 1, tries = 0; tries < 3; p++, tries++) {
-        const m = await findMedia({ query: q, wiki: req.body.wiki ? String(req.body.wiki).slice(0, 80) : '' }, p, used);
+        const m = await findMedia({ query: q, wiki: req.body.wiki ? String(req.body.wiki).slice(0, 80) : '' }, p, used, orient);
         if (m) return res.status(200).json({ video: m, page: p });
       }
       return res.status(404).json({ error: 'Aucun autre média trouvé pour « ' + q + ' »' });
@@ -153,7 +157,7 @@ Réponds en JSON : {"scenes":[{"text":"texte exact de la scène","query":"englis
     const used = new Set();
     const out = [];
     // Une scène après l'autre pour ne jamais réutiliser le même média
-    for (const sc of scenes) out.push({ text: sc.text, query: sc.query, wiki: sc.wiki, video: await findMedia(sc, page, used) });
+    for (const sc of scenes) out.push({ text: sc.text, query: sc.query, wiki: sc.wiki, video: await findMedia(sc, page, used, orient) });
     if (!out.some(s => s.video)) return res.status(500).json({ error: 'Aucune vidéo trouvée' });
     return res.status(200).json({ scenes: out });
   } catch (e) {
