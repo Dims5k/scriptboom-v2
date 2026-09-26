@@ -7,7 +7,7 @@ const MODELS = ['gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-3.1-flash-lite',
 
 const LANGS = {
   fr: 'français', en: 'anglais', es: 'espagnol', pt: 'portugais', de: 'allemand',
-  it: 'italien', ar: 'arabe', tr: 'turc', nl: 'néerlandais'
+  it: 'italien', ar: 'arabe', tr: 'turc', nl: 'néerlandais', ma: "darija marocaine (dialecte arabe du Maroc tel qu'on le parle à Casablanca, écrit en lettres arabes ; PAS l'arabe littéraire : mots et tournures du quotidien marocain, avec les mots français courants que les Marocains utilisent)"
 };
 
 const FORMATS = {
