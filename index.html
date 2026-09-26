@@ -301,7 +301,10 @@ body{overflow-x:hidden}
   var KEY='sb_token', gate=document.getElementById('sbGate'), token=null;
   try{ token=localStorage.getItem(KEY); }catch(e){}
   function save(t){ token=t; try{ t?localStorage.setItem(KEY,t):localStorage.removeItem(KEY); }catch(e){} }
-  function lock(){ save(null); gate.style.display='flex'; document.documentElement.style.overflow='hidden'; }
+  function setAdmin(v){ try{ v?localStorage.setItem('sb_admin','1'):localStorage.removeItem('sb_admin'); }catch(e){} if(v) document.documentElement.setAttribute('data-admin','1'); else document.documentElement.removeAttribute('data-admin'); }
+  try{ if(localStorage.getItem('sb_admin')) document.documentElement.setAttribute('data-admin','1'); }catch(e){}
+  window.sbLock=function(){ lock(); };
+  function lock(){ save(null); setAdmin(false); var av=document.getElementById('adminView'); if(av) av.hidden=true; gate.style.display='flex'; document.documentElement.style.overflow='hidden'; }
   function unlock(){ gate.style.display='none'; document.documentElement.style.overflow=''; }
 
   // Ajoute le jeton d'accès à chaque appel de l'appli ; si l'accès est retiré, on revient à la porte.
@@ -317,7 +320,7 @@ body{overflow-x:hidden}
   if(!token){ lock(); }
   else {
     realFetch('/api/access',{method:'POST',headers:{'Content-Type':'application/json','x-sb-token':token},body:JSON.stringify({check:true})})
-      .then(function(r){ if(r.status===401) lock(); }).catch(function(){});
+      .then(function(r){ if(r.status===401) lock(); else r.json().then(function(d){ setAdmin(!!d.admin); }).catch(function(){}); }).catch(function(){});
   }
 
   document.addEventListener('click',function(ev){
@@ -334,7 +337,7 @@ body{overflow-x:hidden}
     btn.disabled=true; err.textContent='';
     realFetch('/api/access',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email,code:code})})
       .then(function(r){ return r.json().catch(function(){return {};}).then(function(d){ return {ok:r.ok,d:d}; }); })
-      .then(function(x){ if(x.ok && x.d.token){ save(x.d.token); unlock(); } else { err.textContent=x.d.error||'Accès refusé'; } })
+      .then(function(x){ if(x.ok && x.d.token){ save(x.d.token); setAdmin(!!x.d.admin); unlock(); } else { err.textContent=x.d.error||'Accès refusé'; } })
       .catch(function(){ err.textContent='Connexion impossible, réessaie.'; })
       .then(function(){ btn.disabled=false; });
   });
@@ -353,6 +356,7 @@ body{overflow-x:hidden}
         </div>
     <span class="grow"></span>
     <span class="tb-break"></span>
+    <button class="icon-btn admin-only" id="adminBtn" aria-label="Admin" title="Admin : invités"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6l8-3z"/><path d="M9 12l2 2 4-4"/></svg></button>
     <button class="icon-btn" id="tourBtn" aria-label="Revoir la visite guidée" title="Visite guidée"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17.5v.01"/></svg></button>
     <button class="icon-btn" data-open="coach" aria-label="Coach : mes stats" title="Coach"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19h16M7 16v-4M12 16V8M17 16v-7"/></svg></button>
     <button class="icon-btn" data-open="hist" aria-label="Mes vidéos" title="Mes vidéos"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg></button>
@@ -2053,6 +2057,148 @@ window.addEventListener('resize', () => { if (!$('tour').hidden) tourShow(); });
 })();
 
 drawFrame(0);
+</script>
+<!-- ============ Tableau Admin ============ -->
+<div id="adminView" hidden>
+  <div class="av-top">
+    <button class="av-back" id="avBack">← ScriptBoom</button>
+    <b>Admin</b>
+    <button class="av-ref" id="avRefresh" aria-label="Actualiser">↻</button>
+  </div>
+  <div class="av-tabs" role="tablist">
+    <button role="tab" data-avtab="inv" aria-selected="true">Invités <span id="avInvN"></span></button>
+    <button role="tab" data-avtab="wl" aria-selected="false">Liste d'attente <span id="avWlN"></span></button>
+  </div>
+  <div class="av-body">
+    <section id="avInv">
+      <form id="avAdd" class="av-add"><input id="avEmail" type="email" inputmode="email" placeholder="email de la personne à inviter" required><button type="submit">Inviter</button></form>
+      <div id="avShare" class="av-share" hidden><p id="avShareTxt"></p><div><button id="avCopy">Copier le message</button><button id="avSend" hidden>Envoyer…</button></div></div>
+      <p class="av-msg" id="avMsg" role="status"></p>
+      <p class="av-sum" id="avSum"></p>
+      <div id="avList"></div>
+    </section>
+    <section id="avWl" hidden>
+      <p class="av-sum" id="avWlSum"></p>
+      <div id="avWlList"></div>
+    </section>
+  </div>
+</div>
+<style>
+html:not([data-admin]) .admin-only{display:none!important}
+#adminView{position:fixed;inset:0;z-index:2000;background:#050505;color:#f2f2f2;display:flex;flex-direction:column;font-family:Figtree,system-ui,sans-serif}
+#adminView[hidden]{display:none}
+.av-top{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid #1a1a1a}
+.av-top b{flex:1;text-align:center;font-size:17px}
+.av-back,.av-ref{background:#111;border:1px solid #262626;color:#e6e6e6;border-radius:999px;padding:8px 14px;font:600 14px Figtree,sans-serif;cursor:pointer}
+.av-ref{width:38px;padding:8px 0;font-size:17px}
+.av-tabs{display:flex;gap:6px;padding:10px 16px 0;max-width:760px;width:100%;margin:0 auto;box-sizing:border-box}
+.av-tabs button{flex:1;background:none;border:0;border-bottom:2px solid transparent;color:#9a9a9a;padding:10px 4px;font:700 15px Figtree,sans-serif;cursor:pointer}
+.av-tabs button[aria-selected=true]{color:#fff;border-color:#1ed760}
+.av-tabs span{color:#1ed760;font-weight:800}
+.av-body{flex:1;overflow-y:auto;padding:14px 16px 40px;max-width:760px;width:100%;margin:0 auto;box-sizing:border-box}
+.av-add{display:flex;gap:8px}
+.av-add input{flex:1;min-width:0;font-size:16px;padding:12px 14px;border-radius:12px;border:1px solid #2a2a2a;background:#111;color:#f2f2f2}
+.av-add button,.av-share button,.av-row .inv{background:#1ed760;color:#000;border:0;border-radius:12px;padding:12px 16px;font:800 15px Figtree,sans-serif;cursor:pointer}
+.av-share{margin-top:12px;background:#0d1f14;border:1px solid #1ed76055;border-radius:14px;padding:14px}
+.av-share p{white-space:pre-line;margin:0 0 10px;font-size:15px}
+.av-share div{display:flex;gap:8px}.av-share button{flex:1;padding:10px}
+.av-msg{min-height:1.2em;font-size:14px;margin:10px 0 0;color:#1ed760}.av-msg.err{color:#ff6b6b}
+.av-sum{color:#9a9a9a;font-size:14px;margin:8px 0 10px}
+.av-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #161616}
+.av-row .who{flex:1;min-width:0}
+.av-row .em{font-weight:700;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.av-row .meta{color:#9a9a9a;font-size:13px;margin-top:3px;display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center}
+.av-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#444;margin-right:4px}.av-dot.on{background:#1ed760;box-shadow:0 0 8px #1ed760}
+.av-tag{font-size:11px;font-weight:800;border-radius:999px;padding:2px 8px;background:#1f1f1f;color:#bbb}.av-tag.adm{background:#3b0f7a;color:#f6c343}
+.av-code{background:#161616;border:1px dashed #333;color:#e6e6e6;border-radius:8px;padding:2px 8px;font:700 13px ui-monospace,monospace;cursor:pointer}
+.av-more{background:none;border:0;color:#777;font-size:13px;text-decoration:underline;cursor:pointer;padding:0}
+.av-sw{position:relative;width:50px;height:30px;flex:none;border-radius:999px;background:#333;border:0;cursor:pointer;transition:background .2s}
+.av-sw:after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:transform .2s}
+.av-sw[aria-checked=true]{background:#1ed760}.av-sw[aria-checked=true]:after{transform:translateX(20px)}
+.av-row.off .em{color:#777;text-decoration:line-through}
+.av-row .inv{padding:8px 12px;font-size:13px}.av-row .inv:disabled{background:#1a1a1a;color:#777}
+</style>
+<script>
+(function(){
+  var $a = function(id){ return document.getElementById(id); }, data = null, tab = 'inv', timer = null;
+  function el(tag, cls, txt){ var e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; }
+  function ago(ts){ if (!ts) return 'Jamais connecté'; var m = Math.round((Date.now() - ts) / 60000);
+    if (m < 5) return 'En ligne'; if (m < 60) return 'Vu il y a ' + m + ' min'; var h = Math.round(m / 60);
+    if (h < 24) return 'Vu il y a ' + h + ' h'; return 'Vu il y a ' + Math.round(h / 24) + ' j'; }
+  function shareText(email, code){ return 'Salut ! Voici ton accès à ScriptBoom 🎬\n👉 ' + location.origin + '\nEmail : ' + email + '\nCode : ' + code; }
+  function msg(t, err){ var m = $a('avMsg'); m.className = 'av-msg' + (err ? ' err' : ''); m.textContent = t || ''; }
+  function showShare(email, code){ var t = shareText(email, code); $a('avShareTxt').textContent = t; $a('avShare').hidden = false; $a('avShare').dataset.t = t; $a('avSend').hidden = !navigator.share; }
+  async function api(body){
+    var r = await fetch('/api/admin', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    var d = await r.json().catch(function(){ return {}; }); if (!r.ok) throw new Error(d.error || 'Erreur');
+    data = d; render(); return d;
+  }
+  function render(){
+    if (!data) return;
+    var rows = data.rows || [], online = rows.filter(function(r){ return r.seen && Date.now() - r.seen < 300000; }).length;
+    $a('avInvN').textContent = rows.length; $a('avWlN').textContent = (data.waitlist || []).length;
+    $a('avSum').textContent = rows.length + ' accès · ' + online + ' en ligne · limite ' + data.quota + ' actions IA / jour';
+    var L = $a('avList'); L.textContent = '';
+    rows.forEach(function(r){
+      var row = el('div', 'av-row' + (r.on ? '' : ' off')), who = el('div', 'who');
+      who.appendChild(el('div', 'em', r.email));
+      var meta = el('div', 'meta'), st = el('span'), dot = el('i', 'av-dot' + (r.seen && Date.now() - r.seen < 300000 ? ' on' : ''));
+      st.appendChild(dot); st.appendChild(document.createTextNode(ago(r.seen))); meta.appendChild(st);
+      meta.appendChild(el('span', null, r.admin ? 'illimité' : r.today + '/' + data.quota + " aujourd'hui"));
+      if (r.admin) meta.appendChild(el('span', 'av-tag adm', 'ADMIN'));
+      if (r.fixed) meta.appendChild(el('span', 'av-tag', 'fixe (Vercel)'));
+      if (r.code){
+        var c = el('button', 'av-code', r.code); c.title = 'Voir le message à envoyer'; c.onclick = function(){ showShare(r.email, r.code); window.scrollTo(0,0); $a('adminView').querySelector('.av-body').scrollTop = 0; };
+        meta.appendChild(c);
+        var nc = el('button', 'av-more', 'nouveau code'); nc.onclick = function(){ if (confirm('Donner un nouveau code à ' + r.email + ' ? L\'ancien ne marchera plus.')) api({ action:'code', email:r.email }).then(function(d){ var x = d.rows.find(function(y){ return y.email === r.email; }); if (x) showShare(x.email, x.code); msg('Nouveau code créé ✓'); }).catch(function(e){ msg(e.message, 1); }); };
+        var rm = el('button', 'av-more', 'supprimer'); rm.onclick = function(){ if (confirm('Supprimer l\'accès de ' + r.email + ' ?')) api({ action:'remove', email:r.email }).then(function(){ msg('Accès supprimé'); }).catch(function(e){ msg(e.message, 1); }); };
+        meta.appendChild(nc); meta.appendChild(rm);
+      }
+      who.appendChild(meta); row.appendChild(who);
+      if (!r.fixed){
+        var sw = el('button', 'av-sw'); sw.setAttribute('role', 'switch'); sw.setAttribute('aria-checked', r.on ? 'true' : 'false');
+        sw.setAttribute('aria-label', (r.on ? 'Couper' : 'Autoriser') + " l'accès de " + r.email);
+        sw.onclick = function(){ api({ action:'toggle', email:r.email, on:!r.on }).then(function(){ msg(r.on ? 'Accès coupé pour ' + r.email : 'Accès autorisé pour ' + r.email); }).catch(function(e){ msg(e.message, 1); }); };
+        row.appendChild(sw);
+      }
+      L.appendChild(row);
+    });
+    var W = data.waitlist || [], WL = $a('avWlList'); WL.textContent = '';
+    $a('avWlSum').textContent = W.length + ' inscrit' + (W.length > 1 ? 's' : '') + ' · ' + Math.max(0, 500 - W.length) + ' places −50 % restantes';
+    W.forEach(function(w){
+      var row = el('div', 'av-row'), who = el('div', 'who');
+      who.appendChild(el('div', 'em', '#' + (w.rank || '?') + ' · ' + w.email));
+      var meta = el('div', 'meta');
+      meta.appendChild(el('span', null, [w.platform, w.niche].filter(Boolean).join(' · ') || '—'));
+      if (w.date) meta.appendChild(el('span', null, new Date(w.date).toLocaleDateString('fr-BE')));
+      if (w.early) meta.appendChild(el('span', 'av-tag adm', '−50 %'));
+      who.appendChild(meta); row.appendChild(who);
+      var b = el('button', 'inv', w.invited ? '✓ Invité' : 'Inviter'); b.disabled = !!w.invited;
+      b.onclick = function(){ invite(w.email); };
+      row.appendChild(b); WL.appendChild(row);
+    });
+  }
+  function invite(email){
+    msg('Invitation…');
+    return api({ action:'add', email: email }).then(function(d){
+      var x = d.rows.find(function(y){ return y.email === email; }); setTab('inv');
+      if (x) showShare(x.email, x.code); msg('Invité ✓ Envoie-lui le message ci-dessus.'); $a('avEmail').value = '';
+    }).catch(function(e){ msg(e.message, 1); });
+  }
+  function setTab(t){ tab = t; document.querySelectorAll('[data-avtab]').forEach(function(b){ b.setAttribute('aria-selected', b.dataset.avtab === t ? 'true' : 'false'); });
+    $a('avInv').hidden = t !== 'inv'; $a('avWl').hidden = t !== 'wl'; }
+  function open(){ $a('adminView').hidden = false; document.documentElement.style.overflow = 'hidden'; msg('Chargement…');
+    api({ action:'list' }).then(function(){ msg(''); }).catch(function(e){ msg(e.message, 1); });
+    clearInterval(timer); timer = setInterval(function(){ if (!$a('adminView').hidden) api({ action:'list' }).catch(function(){}); }, 30000); }
+  function close(){ $a('adminView').hidden = true; document.documentElement.style.overflow = ''; clearInterval(timer); }
+  document.addEventListener('click', function(e){ if (e.target.closest && e.target.closest('#adminBtn')) open(); });
+  $a('avBack').onclick = close;
+  $a('avRefresh').onclick = function(){ api({ action:'list' }).then(function(){ msg('À jour ✓'); }).catch(function(e){ msg(e.message, 1); }); };
+  document.querySelectorAll('[data-avtab]').forEach(function(b){ b.onclick = function(){ setTab(b.dataset.avtab); }; });
+  $a('avAdd').addEventListener('submit', function(e){ e.preventDefault(); var v = $a('avEmail').value.trim().toLowerCase(); if (v) invite(v); });
+  $a('avCopy').onclick = function(){ var t = $a('avShare').dataset.t; (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function(){ msg('Message copié ✓ Colle-le dans WhatsApp, Insta…'); }).catch(function(){ msg('Copie impossible : sélectionne le texte à la main.', 1); }); };
+  $a('avSend').onclick = function(){ navigator.share({ text: $a('avShare').dataset.t }).catch(function(){}); };
+})();
 </script>
 </body>
 </html>
