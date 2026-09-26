@@ -4,6 +4,7 @@ import { randomInt } from 'crypto';
 import { invited, isAdmin, invitedList, getInvite } from './_auth.js';
 import { kv, kvReady } from './_kv.js';
 import { notifyDetailed, notifyReady, topicName } from './_notify.js';
+import { sendMail, inviteMail, mailReady } from './_mail.js';
 
 const EMAIL = /^[^\s@:,;]+@[^\s@:,;]+\.[^\s@:,;]+$/;
 const newCode = () => { const a = 'abcdefghjkmnpqrstuvwxyz23456789'; let c = ''; for (let i = 0; i < 6; i++) c += a[randomInt(a.length)]; return c; };
@@ -29,7 +30,7 @@ async function snapshot() {
   const waitlist = Object.values(pairs(wl)).map(v => { try { return JSON.parse(v); } catch (e) { return null; } })
     .filter(Boolean).sort((a, b) => (a.rank || 0) - (b.rank || 0))
     .map(w => ({ ...w, invited: rows.some(r => r.email === w.email) }));
-  return { rows, waitlist, quota: Number(process.env.QUOTA_JOUR) || 60, notify: notifyReady() };
+  return { rows, waitlist, quota: Number(process.env.QUOTA_JOUR) || 60, notify: notifyReady(), mail: mailReady() };
 }
 
 export default async function handler(req, res) {
@@ -54,9 +55,19 @@ export default async function handler(req, res) {
       const cur = await getInvite(email);
       if (action === 'add') {
         if (cur) return res.status(400).json({ error: 'Déjà invité' });
-        await kv([['HSET', 'invites', email, JSON.stringify({ code: newCode(), on: true, added: Date.now() })]]);
+        const code = newCode();
+        await kv([['HSET', 'invites', email, JSON.stringify({ code, on: true, added: Date.now() })]]);
         console.log('ADMIN invite', email);
+        // Son accès part tout seul par email
+        const m = mailReady() ? await sendMail({ to: email, ...inviteMail(email, code) }) : { ok: false, detail: 'emails pas encore configurés' };
+        return res.status(200).json({ ...(await snapshot()), mailed: m.ok, mailDetail: m.detail });
       } else if (!cur) return res.status(404).json({ error: 'Invité introuvable' });
+      else if (action === 'mail') {
+        if (!mailReady()) return res.status(400).json({ error: 'Ajoute d\'abord GMAIL_USER et GMAIL_APP_PASSWORD dans Vercel (voir les étapes).' });
+        const m = await sendMail({ to: email, ...inviteMail(email, cur.code) });
+        if (!m.ok) return res.status(500).json({ error: 'Email pas envoyé : ' + m.detail });
+        return res.status(200).json({ ...(await snapshot()), mailed: true });
+      }
       else if (action === 'toggle') await kv([['HSET', 'invites', email, JSON.stringify({ ...cur, on: !!b.on })]]);
       else if (action === 'code') await kv([['HSET', 'invites', email, JSON.stringify({ ...cur, code: newCode() })]]);
       else if (action === 'remove') await kv([['HDEL', 'invites', email], ['HDEL', 'seen', email]]);
