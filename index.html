@@ -2640,7 +2640,7 @@ html:not([data-admin]) .admin-only{display:none!important}
   function msg(t, err){ var m = $a('avMsg'); m.className = 'av-msg' + (err ? ' err' : ''); m.textContent = t || ''; }
   function showShare(email, code){ var t = shareText(email, code); $a('avShareTxt').textContent = t; $a('avShare').hidden = false; $a('avShare').dataset.t = t; $a('avSend').hidden = !navigator.share; }
   document.getElementById('avNotifTest').onclick = function(){ var m = $a('avNotifMsg'); m.className = 'av-msg'; m.textContent = 'Envoi…';
-    api({ action:'notifyTest' }).then(function(){ m.textContent = 'Notification envoyée : regarde ton téléphone 📱'; }).catch(function(e){ m.className = 'av-msg err'; m.textContent = e.message; }); };
+    api({ action:'notifyTest' }).then(function(d){ m.textContent = 'Notification envoyée sur le sujet « ' + (d.topic || '') + ' » : regarde ton téléphone 📱'; }).catch(function(e){ m.className = 'av-msg err'; m.textContent = e.message; }); };
   async function api(body){
     var r = await fetch('/api/admin', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
     var d = await r.json().catch(function(){ return {}; }); if (!r.ok) throw new Error(d.error || 'Erreur');
