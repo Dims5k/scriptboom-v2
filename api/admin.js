@@ -3,7 +3,7 @@
 import { randomInt } from 'crypto';
 import { invited, isAdmin, invitedList, getInvite } from './_auth.js';
 import { kv, kvReady } from './_kv.js';
-import { notify, notifyReady } from './_notify.js';
+import { notifyDetailed, notifyReady } from './_notify.js';
 
 const EMAIL = /^[^\s@:,;]+@[^\s@:,;]+\.[^\s@:,;]+$/;
 const newCode = () => { const a = 'abcdefghjkmnpqrstuvwxyz23456789'; let c = ''; for (let i = 0; i < 6; i++) c += a[randomInt(a.length)]; return c; };
@@ -44,8 +44,8 @@ export default async function handler(req, res) {
   try {
     if (action === 'notifyTest') {
       if (!notifyReady()) return res.status(400).json({ error: 'Ajoute d\'abord NTFY_TOPIC dans Vercel (voir les étapes).' });
-      const ok = await notify('🔔 Test ScriptBoom', 'Les notifications marchent ! Tu seras prévenu à chaque nouvel inscrit.', ['bell']);
-      if (!ok) return res.status(500).json({ error: 'La notification n\'est pas partie. Réessaie dans un instant.' });
+      const r = await notifyDetailed('🔔 Test ScriptBoom', 'Les notifications marchent ! Tu seras prévenu à chaque nouvel inscrit.', ['bell']);
+      if (!r.ok) return res.status(500).json({ error: 'La notification n\'est pas partie : ' + r.detail });
       return res.status(200).json({ ...(await snapshot()), sent: true });
     }
     if (action !== 'list') {
