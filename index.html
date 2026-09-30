@@ -1640,9 +1640,13 @@ function prepareCaptions(){
   const total = weights.reduce((a,b)=>a+b, 0) || 1, d = audioBuf ? audioBuf.duration : capWords.length/2.6;
   let acc = 0; capStarts = weights.map(wt => { const s = acc/total*d; acc += wt; return s; });
   // Voix IA : chaque phrase est recalée sur les vraies pauses de l'audio (0 action IA), les mots ne sont plus en avance
-  if (audioBuf && audioRaw && !audioRaw.mic && !audioRaw.fromVideo){ try { const al = alignToPauses(capWords, weights, capStarts, audioBuf); if (al) capStarts = al; } catch(e){} }
-  // Ta propre voix : les mots se répartissent seulement sur les moments où tu parles (pas pendant tes pauses)
-  if (audioBuf && audioRaw && audioRaw.mic){ const warp = speechWarp(audioBuf); if (warp) capStarts = capStarts.map(warp); }
+  // Voix IA et ta propre voix : les sous-titres suivent la voix réelle (moments parlés + reprises après les silences)
+  if (audioBuf && audioRaw && !audioRaw.fromVideo){
+    let fv = null; try { fv = followVoice(capWords, audioBuf); } catch(e){}
+    if (fv) capStarts = fv;
+    else if (!audioRaw.mic){ try { const al = alignToPauses(capWords, weights, capStarts, audioBuf); if (al) capStarts = al; } catch(e){} }
+    else { const warp = speechWarp(audioBuf); if (warp) capStarts = capStarts.map(warp); }
+  }
   // Vidéo sous-titrée automatiquement : chaque mot garde l'horaire entendu par l'IA
   if (audioBuf && audioRaw && audioRaw.fromVideo && capTimed && capTimed.starts.length === capWords.length) capStarts = capTimed.starts.slice();
   capSpk = audioBuf && audioRaw && audioRaw.fromVideo && capTimed && capTimed.spk && capTimed.spk.length === capWords.length ? capTimed.spk : null;
@@ -2846,6 +2850,78 @@ async function micDone(){
   } catch(e){ m.className = 'msg err'; m.textContent = "L'enregistrement n'a pas pu être lu (" + (e.message || 'erreur') + '). Réessaie.'; }
 }
 // Temps « parlé » → temps réel : les mots ne tombent pas pendant les pauses
+// ---------- Sous-titres qui suivent la voix ----------
+// On écoute la voix (10 ms par 10 ms) : les mots ne sont placés QUE pendant les moments où elle parle, au prorata des syllabes,
+// et chaque début de phrase est recalé sur la vraie reprise après un silence. Aucune durée fixe, aucun appel IA.
+function sylCount(w){
+  const t = String(w).toLowerCase();
+  if (/[\u0600-\u06FF\u0590-\u05FF]/.test(t)) return Math.max(1, Math.round(t.replace(/[^\p{L}]/gu, '').length / 2.2)); // arabe, hébreu : voyelles non écrites
+  if (/[\u3040-\u30ff\u4e00-\u9fff\uac00-\ud7af\u0e00-\u0e7f]/.test(t)) return Math.max(1, t.replace(/[^\p{L}]/gu, '').length); // 1 caractère ≈ 1 syllabe
+  const v = t.match(/[aeiouyàâäéèêëîïôöùûüœæáíóúãõåøıə]+/g); let n = v ? v.length : 1;
+  if (n > 1 && /[^aeiouy]e$|[^aeiouy]es$/.test(t)) n--; // e muet final (français)
+  if (/^\d/.test(t)) n = Math.max(2, t.replace(/\D/g, '').length * 2); // les nombres se disent longs
+  return Math.max(1, n);
+}
+function followVoice(ws, buf){
+  const sr = buf.sampleRate, d = buf.getChannelData(0), hop = Math.round(sr * 0.01), rms = [];
+  for (let i = 0; i + hop <= d.length; i += hop){ let s2 = 0; for (let k = 0; k < hop; k += 2) s2 += d[i+k]*d[i+k]; rms.push(Math.sqrt(s2 / (hop/2))); }
+  const F = rms.length; if (F < 50 || !ws.length) return null;
+  const sorted = rms.slice().sort((a, b) => a - b), floor = sorted[Math.floor(F * 0.1)], peak = sorted[Math.floor(F * 0.95)];
+  const th = Math.max(0.004, floor + (peak - floor) * 0.1);
+  let on = rms.map(v => v >= th);
+  // on bouche les micro-trous (< 90 ms, dans un mot) et on ignore les petits bruits isolés (< 40 ms)
+  for (let i = 0, run = 0; i <= F; i++){ if (i < F && !on[i]) run++; else { if (run && run < 9 && i - run > 0 && i < F) for (let k = i - run; k < i; k++) on[k] = true; run = 0; } }
+  for (let i = 0, run = 0; i <= F; i++){ if (i < F && on[i]) run++; else { if (run && run < 4) for (let k = i - run; k < i; k++) on[k] = false; run = 0; } }
+  const cum = [0]; on.forEach((v, i) => cum.push(cum[i] + (v ? 1 : 0)));
+  if (cum[F] < 20) return null;
+  // position dans le temps « parlé » → vrai temps (on saute les silences)
+  const at = (a, b, frac) => { const target = cum[a] + frac * (cum[b] - cum[a]); let lo = a, hi = b; while (lo < hi){ const mid = (lo + hi) >> 1; if (cum[mid + 1] <= target) lo = mid + 1; else hi = mid; } return lo; };
+  // silences ≥ 180 ms : les phrases recommencent à leur fin
+  const pauseEnds = []; for (let i = 1, run = 0; i < F; i++){ if (!on[i-1]) run++; else run = 0; if (on[i] && !on[i-1] && run >= 18) pauseEnds.push(i); }
+  const first = on.indexOf(true), last = F - 1 - on.slice().reverse().indexOf(true);
+  const wt = ws.map(sylCount), tot = wt.reduce((a, b) => a + b, 0);
+  const sIdx = [0]; ws.forEach((w, i) => { if (i < ws.length - 1 && /[.!?…؟。！？,;:،؛]$/.test(w)) sIdx.push(i + 1); });
+  const acc = [0]; wt.forEach((x, i) => acc.push(acc[i] + x));
+  // 1) estimation globale, 2) recalage de chaque début de phrase sur la fin de silence la plus proche (± 0,7 s)
+  const strong = sIdx.map(i => i > 0 && /[.!?…؟。！？]$/.test(ws[i-1]));
+  const pl = {}; pauseEnds.forEach(p => { let q = p - 1; while (q > 0 && !on[q]) q--; pl[p] = p - 1 - q; }); // longueur du silence
+  const bF = new Array(sIdx.length).fill(-1); bF[0] = first;
+  // a) fins de phrases : on choisit, dans l'ordre, les silences qui collent le mieux à la fois à leur longueur
+  //    (un point = une vraie pause) et à la durée attendue de chaque phrase (programmation dynamique, robuste si le débit change)
+  const sk = sIdx.map((_, k) => k).filter(k => strong[k]);
+  const P = pauseEnds.filter(p => p > first + 5 && p < last && pl[p] >= 10);
+  if (sk.length && P.length >= sk.length){
+    const rate = (cum[last + 1] - cum[first]) / tot, M = sk.length, NP = P.length;
+    const wOf = (k0, k1) => (k1 < sIdx.length ? acc[sIdx[k1]] : tot) - acc[sIdx[k0]];
+    const fit = (a, b, wgt) => { const r = (cum[b] - cum[a] + 1) / Math.max(1, wgt * rate); return Math.abs(Math.log(r)) * 45; };
+    const dp = Array.from({ length: M }, () => new Array(NP).fill(-Infinity)), from = Array.from({ length: M }, () => new Array(NP).fill(-1));
+    for (let j = 0; j < NP; j++) dp[0][j] = Math.min(60, pl[P[j]]) - fit(first, P[j], wOf(0, sk[0]));
+    for (let m = 1; m < M; m++) for (let j = m; j < NP; j++){ const w = wOf(sk[m-1], sk[m]);
+      for (let i = m - 1; i < j; i++){ if (dp[m-1][i] === -Infinity) continue; const v = dp[m-1][i] + Math.min(60, pl[P[j]]) - fit(P[i], P[j], w); if (v > dp[m][j]){ dp[m][j] = v; from[m][j] = i; } } }
+    let bj = -1, bv = -Infinity;
+    for (let j = M - 1; j < NP; j++){ if (dp[M-1][j] === -Infinity) continue; const v = dp[M-1][j] - fit(P[j], last + 1, wOf(sk[M-1], sIdx.length)); if (v > bv){ bv = v; bj = j; } }
+    if (bj >= 0) for (let m = M - 1; m >= 0; m--){ bF[sk[m]] = P[bj]; bj = from[m][bj]; }
+  }
+  // b) le reste (virgules, ou fins de phrases non trouvées) : ré-estimé depuis la frontière d'avant et calé sur un silence proche
+  for (let k = 1; k < sIdx.length; k++){
+    if (bF[k] >= 0) continue;
+    let nk = k + 1; while (nk < sIdx.length && bF[nk] < 0) nk++;
+    const a0 = bF[k-1], end = nk < sIdx.length ? bF[nk] : last + 1, endAcc = nk < sIdx.length ? acc[sIdx[nk]] : tot;
+    const guess = at(a0, end, (acc[sIdx[k]] - acc[sIdx[k-1]]) / Math.max(1, endAcc - acc[sIdx[k-1]]));
+    let best = -1, bd = 60;
+    pauseEnds.forEach(p => { if (p <= a0 + 10 || p >= end - 10) return; const dd = Math.abs(p - guess); if (dd < bd){ bd = dd; best = p; } });
+    bF[k] = best >= 0 ? best : Math.max(guess, a0 + 10);
+  }
+  // 3) dans chaque phrase, les mots se répartissent sur le temps où la voix parle vraiment
+  const out = new Array(ws.length);
+  for (let k = 0; k < sIdx.length; k++){
+    const i0 = sIdx[k], i1 = k + 1 < sIdx.length ? sIdx[k + 1] : ws.length, a = bF[k], b = k + 1 < sIdx.length ? bF[k + 1] : last + 1;
+    const sw = acc[i1] - acc[i0] || 1;
+    for (let i = i0; i < i1; i++) out[i] = at(a, Math.max(a + 1, b), (acc[i] - acc[i0]) / sw) * 0.01;
+  }
+  for (let i = 1; i < out.length; i++) if (!(out[i] > out[i-1])) out[i] = out[i-1] + 0.01;
+  return out;
+}
 function speechWarp(buf){
   const d = buf.getChannelData(0), step = Math.floor(buf.sampleRate * 0.05), talk = [];
   for (let i = 0; i < d.length; i += step){ let s = 0; const n = Math.min(step, d.length - i); for (let k = 0; k < n; k += 2) s += d[i+k]*d[i+k]; talk.push(Math.sqrt(s / (n/2 || 1)) > 0.015); }
