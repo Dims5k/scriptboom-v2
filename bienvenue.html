@@ -2,7 +2,21 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<style>html{background:#000;color-scheme:dark}.join-top{margin-top:8px;padding-top:12px}
+<style>html{background:#000;color-scheme:dark}.sheet{position:fixed;left:0;right:0;bottom:0;z-index:60;padding:0 8px;margin:0;pointer-events:none}
+.sheet .join{pointer-events:auto;position:relative;max-width:620px;margin:0 auto;max-height:calc(100vh - 56px);max-height:calc(100dvh - 56px);overflow-y:auto;overscroll-behavior:contain;
+  border-radius:24px 24px 0 0;border-bottom:0;padding:0 clamp(18px,5vw,40px) calc(28px + env(safe-area-inset-bottom));
+  box-shadow:0 -14px 44px rgba(0,0,0,.65);transform:translateY(calc(100% - 88px - env(safe-area-inset-bottom)));transition:transform .5s cubic-bezier(.2,.9,.25,1)}
+.sheet.open .join{transform:none}
+.peek{display:block;width:100%;background:none;border:0;color:inherit;font:inherit;cursor:pointer;padding:10px 0 16px;position:sticky;top:0;z-index:2;background:var(--card)}
+.peek .grab{display:block;width:42px;height:5px;border-radius:3px;background:#3a3a3a;margin:0 auto 12px}
+.peek-row{display:flex;align-items:center;justify-content:space-between;gap:10px;text-align:left;font-size:15px}
+.peek-t b{color:var(--green)}
+.peek-go{flex:none;background:var(--green);color:#000;font-weight:800;border-radius:999px;padding:9px 16px;font-size:14px;animation:peekPulse 2.4s ease-in-out infinite}
+.sheet.open .peek-go{animation:none;background:#1f1f1f;color:var(--text)}
+@keyframes peekPulse{0%,100%{box-shadow:0 0 0 0 rgba(30,215,96,.45)}50%{box-shadow:0 0 0 8px rgba(30,215,96,0)}}
+.sheet-shade{position:fixed;inset:0;z-index:59;background:rgba(0,0,0,.55);opacity:0;pointer-events:none;transition:opacity .35s}
+.sheet-shade.on{opacity:1;pointer-events:auto}
+body{padding-bottom:110px}
 </style>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>ScriptBoom · Un sujet. Une vidéo. BOOM.</title>
@@ -136,47 +150,6 @@ footer{padding:40px 0 60px;color:var(--muted);font-size:14px;display:flex;gap:16
     <a class="btn ghost" href="#statut">Où en est le projet ?</a>
   </nav>
 
-  <section id="rejoindre" class="join-top">
-    <div class="join">
-      <span class="tag" style="margin-bottom:14px">🎟️ Le Club des 500</span>
-      <h2>Rejoins les 500 premiers</h2>
-      <p class="sub"><b>ScriptBoom</b> écrit le script, prête sa voix, trouve les images et pose les sous-titres : ta vidéo TikTok, Reels ou Shorts est prête à poster. Inscris-toi pour la tester avant tout le monde et faire partie des 500 premiers membres.</p>
-      <div class="perks">
-        <div class="perk"><span>📅</span><b>La date en avant-première</b><p>Tu connais la date de lancement avant tout le monde.</p></div>
-        <div class="perk"><span>🚀</span><b>L'accès en avant-première</b><p>Tu testes l'appli avant son ouverture au public.</p></div>
-        <div class="perk gold"><span>🎟️</span><b>Invité des 500</b><p>Des accès inédits et exclusifs, et d'autres surprises à venir.</p></div>
-      </div>
-            <div class="seats" id="seats" hidden>
-        <div class="seats-row"><b id="seatsLeft">500</b> places restantes sur 500</div>
-        <div class="seats-bar"><i id="seatsBar"></i></div>
-      </div>
-      <form id="wl" novalidate>
-        <label for="email">Ton email</label>
-        <input id="email" type="email" inputmode="email" autocomplete="email" placeholder="ton@email.com" required>
-        <div class="row2">
-          <div><label for="platform">Tu postes surtout sur</label>
-            <select id="platform"><option value="">Choisis…</option><option>TikTok</option><option>Instagram</option><option>YouTube Shorts</option><option>Plusieurs</option><option>Je débute</option></select></div>
-          <div><label for="niche">Ta niche (facultatif)</label>
-            <input id="niche" type="text" placeholder="Ex. : muscu, histoire…"></div>
-        </div>
-        <input class="hp" id="website" type="text" tabindex="-1" autocomplete="off" aria-hidden="true">
-        <button class="btn" type="submit" id="go">Je rejoins les 500</button>
-        <p class="small" style="margin:6px 0 0;text-align:center">Tu recevras la date de lancement et les nouvelles du Club des 500. Lien de désinscription dans chaque email. <a href="/confidentialite">Confidentialité</a></p>
-      </form>
-      <p id="msg" role="status"></p>
-      <div class="welcome" id="welcome" hidden>
-        <div class="wl-badge">🎟️</div>
-        <h3 id="wlTitle">Bienvenue dans le Club des 500 🎉</h3>
-        <ul>
-          <li><i>✓</i>Aucun paiement avant le lancement.</li>
-          <li><i>✓</i>Lancement : la date n'est pas encore fixée.</li>
-          <li><i>✓</i>Tu recevras la date en avant-première, par email.</li>
-          <li><i>✓</i>Ton accès à l'appli, en avant-première.</li>
-          <li id="wlClub"><i>✓</i>Membre des 500 : accès exclusifs et d'autres surprises à venir.</li>
-        </ul>
-      </div>
-    </div>
-  </section>
 
   <header class="hero">
     <div class="hero-txt">
@@ -184,7 +157,7 @@ footer{padding:40px 0 60px;color:var(--muted);font-size:14px;display:flex;gap:16
       <h1>Un sujet.<br>Une vidéo.<br><em>BOOM.</em></h1>
       <p class="lead">ScriptBoom écrit le script, prête sa voix, trouve les images et pose les sous-titres. Ta vidéo TikTok, Reels ou Shorts est prête à poster.</p>
       <div class="cta-row">
-        <a class="btn" href="#rejoindre">↑ Rejoindre les 500</a>
+        <a class="btn" href="#rejoindre" data-open-join>Rejoindre les 500</a>
         <a class="small" href="#statut" style="color:var(--muted)">Où en est le projet ?</a>
       </div>
       <div class="free-row"><span><i>✓</i>Essai en avant-première</span><span><i>✓</i>Date de lancement en premier</span><span><i>✓</i>Club des 500</span></div>
@@ -230,6 +203,53 @@ footer{padding:40px 0 60px;color:var(--muted);font-size:14px;display:flex;gap:16
       <div class="st done"><span class="lbl">✓ Fait</span><h3>L'appli est construite</h3><p>Script, voix, images, sous-titres, musique, export : tout fonctionne déjà.</p></div>
       <div class="st now"><span class="lbl"><i class="dot"></i>En cours</span><h3>Tests privés</h3><p>Un petit groupe de créateurs l'utilise sur invitation pour nous aider à l'améliorer.</p></div>
       <div class="st next"><span class="lbl">📅 Bientôt</span><h3>Lancement public</h3><p>La date n'est pas encore fixée. Tu la recevras par email dès qu'elle l'est, et on l'annoncera sur TikTok.</p></div>
+    </div>
+  </section>
+  <section id="rejoindre" class="sheet" aria-label="Rejoindre le Club des 500">
+    <div class="join" id="joinBox">
+      <button type="button" class="peek" id="peek" aria-expanded="false" aria-controls="joinBody">
+        <i class="grab"></i>
+        <span class="peek-row"><span class="peek-t">🎟️ <b>Rejoins les 500</b> · essai en avant-première</span><span class="peek-go" id="peekGo">S'inscrire ↑</span></span>
+      </button>
+      <div id="joinBody" inert>
+      <span class="tag" style="margin-bottom:14px">🎟️ Le Club des 500</span>
+      <h2>Rejoins les 500 premiers</h2>
+      <p class="sub">Inscris-toi pour tester ScriptBoom avant tout le monde et faire partie des 500 premiers membres.</p>
+      <div class="perks">
+        <div class="perk"><span>📅</span><b>La date en avant-première</b><p>Tu connais la date de lancement avant tout le monde.</p></div>
+        <div class="perk"><span>🚀</span><b>L'accès en avant-première</b><p>Tu testes l'appli avant son ouverture au public.</p></div>
+        <div class="perk gold"><span>🎟️</span><b>Invité des 500</b><p>Des accès inédits et exclusifs, et d'autres surprises à venir.</p></div>
+      </div>
+            <div class="seats" id="seats" hidden>
+        <div class="seats-row"><b id="seatsLeft">500</b> places restantes sur 500</div>
+        <div class="seats-bar"><i id="seatsBar"></i></div>
+      </div>
+      <form id="wl" novalidate>
+        <label for="email">Ton email</label>
+        <input id="email" type="email" inputmode="email" autocomplete="email" placeholder="ton@email.com" required>
+        <div class="row2">
+          <div><label for="platform">Tu postes surtout sur</label>
+            <select id="platform"><option value="">Choisis…</option><option>TikTok</option><option>Instagram</option><option>YouTube Shorts</option><option>Plusieurs</option><option>Je débute</option></select></div>
+          <div><label for="niche">Ta niche (facultatif)</label>
+            <input id="niche" type="text" placeholder="Ex. : muscu, histoire…"></div>
+        </div>
+        <input class="hp" id="website" type="text" tabindex="-1" autocomplete="off" aria-hidden="true">
+        <button class="btn" type="submit" id="go">Je rejoins les 500</button>
+        <p class="small" style="margin:6px 0 0;text-align:center">Tu recevras la date de lancement et les nouvelles du Club des 500. Lien de désinscription dans chaque email. <a href="/confidentialite">Confidentialité</a></p>
+      </form>
+      <p id="msg" role="status"></p>
+      <div class="welcome" id="welcome" hidden>
+        <div class="wl-badge">🎟️</div>
+        <h3 id="wlTitle">Bienvenue dans le Club des 500 🎉</h3>
+        <ul>
+          <li><i>✓</i>Aucun paiement avant le lancement.</li>
+          <li><i>✓</i>Lancement : la date n'est pas encore fixée.</li>
+          <li><i>✓</i>Tu recevras la date en avant-première, par email.</li>
+          <li><i>✓</i>Ton accès à l'appli, en avant-première.</li>
+          <li id="wlClub"><i>✓</i>Membre des 500 : accès exclusifs et d'autres surprises à venir.</li>
+        </ul>
+      </div>
+      </div>
     </div>
   </section>
 
@@ -279,8 +299,34 @@ document.getElementById('wl').addEventListener('submit', async e => {
   finally { b.disabled = false; b.textContent = "Je rejoins les 500"; }
 });
 </script>
+<div class="sheet-shade" id="shade"></div>
 <script>
-// On arrive toujours en haut : le Club des 500 et l'inscription d'abord, les explications ensuite
+// ---------- Inscription en volet : visible en miniature en bas, s'ouvre au toucher ou en arrivant en bas de la page ----------
+(function(){
+  const sheet = document.getElementById('rejoindre'), body = document.getElementById('joinBody'), peek = document.getElementById('peek'), shade = document.getElementById('shade');
+  let open = false, openedByScroll = false;
+  function set(v, byScroll){
+    if (v === open) return; open = v; openedByScroll = v && !!byScroll;
+    sheet.classList.toggle('open', v); peek.setAttribute('aria-expanded', String(v));
+    document.getElementById('peekGo').textContent = v ? 'Fermer ↓' : "S'inscrire ↑";
+    if (v) body.removeAttribute('inert'); else body.setAttribute('inert', '');
+    shade.classList.toggle('on', v && !byScroll);
+    if (!v) document.getElementById('joinBox').scrollTop = 0;
+  }
+  peek.addEventListener('click', () => set(!open));
+  shade.addEventListener('click', () => set(false));
+  document.querySelectorAll('[data-open-join], a[href="#rejoindre"]').forEach(a => a.addEventListener('click', e => { e.preventDefault(); set(true); }));
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') set(false); });
+  // en bas de la page : le volet s'ouvre tout seul ; si on remonte, il redevient miniature (sauf si on est en train d'écrire)
+  const atBottom = () => window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 60;
+  const typing = () => sheet.contains(document.activeElement) && /INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName);
+  window.addEventListener('scroll', () => {
+    if (atBottom()) set(true, true);
+    else if (open && openedByScroll && !typing()) set(false);
+  }, { passive: true });
+  window.sbOpenJoin = () => set(true);
+})();
+// On arrive toujours en haut : la présentation d'abord, l'inscription reste accessible en bas
 if (location.hash === '#rejoindre'){ history.replaceState(null, '', location.pathname + location.search); }
 if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
 window.addEventListener('load', function(){ if (!location.hash) window.scrollTo(0, 0); });
