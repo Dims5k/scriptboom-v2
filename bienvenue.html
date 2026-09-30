@@ -7,7 +7,7 @@
   border-radius:24px 24px 0 0;border-bottom:0;padding:0 clamp(18px,5vw,40px) calc(28px + env(safe-area-inset-bottom));
   box-shadow:0 -14px 44px rgba(0,0,0,.65);transform:translateY(calc(100% - 88px - env(safe-area-inset-bottom)));transition:transform .5s cubic-bezier(.2,.9,.25,1)}
 .sheet.open .join{transform:none}
-.peek{display:block;width:100%;background:none;border:0;color:inherit;font:inherit;cursor:pointer;padding:10px 0 16px;position:sticky;top:0;z-index:2;background:var(--card)}
+.peek{touch-action:none;display:block;width:100%;background:none;border:0;color:inherit;font:inherit;cursor:pointer;padding:10px 0 16px;position:sticky;top:0;z-index:2;background:var(--card)}
 .peek .grab{display:block;width:42px;height:5px;border-radius:3px;background:#3a3a3a;margin:0 auto 12px}
 .peek-row{display:flex;align-items:center;justify-content:space-between;gap:10px;text-align:left;font-size:15px}
 .peek-t b{color:var(--green)}
@@ -325,6 +325,36 @@ document.getElementById('wl').addEventListener('submit', async e => {
     else if (open && openedByScroll && !typing()) set(false);
   }, { passive: true });
   window.sbOpenJoin = () => set(true);
+  // Glisser au doigt : vers le haut pour ouvrir, vers le bas pour fermer (depuis la poignée, ou depuis le haut du volet ouvert)
+  const box = document.getElementById('joinBox');
+  let d = null, moved = false;
+  const curY = () => { const m = new DOMMatrixReadOnly(getComputedStyle(box).transform); return m.m42 || 0; };
+  box.addEventListener('pointerdown', e => {
+    const onPeek = peek.contains(e.target);
+    if (!onPeek && !(open && box.scrollTop <= 0)) return;
+    if (!onPeek && /INPUT|SELECT|TEXTAREA|BUTTON|A|LABEL/.test(e.target.tagName)) return;
+    d = { y: e.clientY, t: Date.now(), start: curY(), closed: box.offsetHeight - 88, id: e.pointerId, onPeek, active: false }; moved = false;
+  });
+  window.addEventListener('pointermove', e => {
+    if (!d || e.pointerId !== d.id) return;
+    const dy = e.clientY - d.y;
+    if (!d.active){ if (Math.abs(dy) < 8) return; if (!d.onPeek && dy < 0) { d = null; return; } d.active = true; moved = true; box.style.transition = 'none'; try { box.setPointerCapture(e.pointerId); } catch(_){} }
+    e.preventDefault();
+    const y = Math.max(0, Math.min(d.closed, d.start + dy));
+    box.style.transform = `translateY(${y}px)`;
+    shade.classList.add('on'); shade.style.opacity = String(1 - y / Math.max(1, d.closed));
+  }, { passive: false });
+  const release = e => {
+    if (!d || (e && e.pointerId !== d.id)) return;
+    const was = d; d = null; if (!was.active) return;
+    const y = curY(), v = (y - was.start) / Math.max(1, Date.now() - was.t); // px/ms, positif = vers le bas
+    box.style.transition = ''; box.style.transform = ''; shade.style.opacity = '';
+    const wantOpen = v < -0.4 ? true : v > 0.4 ? false : y < was.closed / 2;
+    const prev = open; open = !wantOpen; set(wantOpen); if (prev === wantOpen) shade.classList.toggle('on', wantOpen);
+  };
+  window.addEventListener('pointerup', release); window.addEventListener('pointercancel', release);
+  // un glissement ne doit pas compter comme un toucher sur la poignée
+  peek.addEventListener('click', e => { if (moved){ e.stopImmediatePropagation(); e.preventDefault(); moved = false; } }, true);
 })();
 // On arrive toujours en haut : la présentation d'abord, l'inscription reste accessible en bas
 if (location.hash === '#rejoindre'){ history.replaceState(null, '', location.pathname + location.search); }
