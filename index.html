@@ -1956,7 +1956,12 @@ function drawFrame(t){
   }
   if (isSeries() && !hookOn) drawPartBadge();
   if (audioBuf && $('endOn').checked && t >= audioBuf.duration - END_DUR) drawEndCard(t - (audioBuf.duration - END_DUR));
-  if (audioBuf && $('progOn').checked){ g.fillStyle = 'rgba(255,255,255,.18)'; g.fillRect(0, 0, W, 10); g.fillStyle = '#1ed760'; g.fillRect(0, 0, W*Math.min(1, t/audioBuf.duration), 10); }
+  if (audioBuf && $('progOn').checked){ // barre fine blanche, arrondie et décollée des bords (style galerie Apple)
+    const m = Math.round(W * 0.08), bw = W - 2*m, bh = 7, by = Math.round(H * 0.035), p = Math.min(1, t/audioBuf.duration);
+    g.save(); g.shadowColor = 'rgba(0,0,0,.35)'; g.shadowBlur = 6;
+    g.fillStyle = 'rgba(255,255,255,.28)'; rrect(m, by, bw, bh, bh/2); g.fill(); g.shadowColor = 'transparent';
+    if (p > 0){ g.fillStyle = '#fff'; rrect(m, by, Math.max(bh, bw*p), bh, bh/2); g.fill(); }
+    g.restore(); }
   if (wmImg.complete && wmImg.naturalWidth){ // logo ScriptBoom toujours présent : plus petit, mais bien net
     const ww = W*0.1, wh = ww * wmImg.naturalHeight / wmImg.naturalWidth;
     g.save(); g.shadowColor = 'rgba(0,0,0,.7)'; g.shadowBlur = 10; g.shadowOffsetY = 2;
