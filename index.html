@@ -664,6 +664,12 @@ body{overflow-x:hidden}
           <button class="pill" data-dur="35" aria-pressed="true">⏱ 35 s</button>
           <button class="pill" data-dur="60" aria-pressed="false">⏱ 60 s</button>
         </div>
+        <div class="pills mode-sw" role="group" aria-label="Qui écrit le script" style="margin-top:0">
+          <button class="pill" data-smode="ia" aria-pressed="true">✨ Script écrit par l'IA</button>
+          <button class="pill" data-smode="moi" aria-pressed="false">✍️ Mon propre script</button>
+        </div>
+        <p class="sub" id="smodeHint">Donne un sujet : l'IA écrit le script, que tu peux ensuite modifier.</p>
+        <div id="iaBox">
         <label>Format</label>
         <div class="pills" role="group" aria-label="Format" style="margin-top:0">
           <button class="pill" data-format="libre" aria-pressed="true">Libre</button>
@@ -684,6 +690,7 @@ body{overflow-x:hidden}
         <label class="check"><input type="checkbox" id="seriesOn"> Série en 2 parties (la 1re finit par « Abonne-toi pour la partie 2 »)</label>
         <label class="check"><input type="checkbox" id="checkOn" checked> Relecture des faits par l'IA (un peu plus lent, peut se tromper)</label>
         <div style="margin-top:14px"><button class="btn big" id="gen">Générer le script</button></div>
+        </div>
         <div id="partBox" hidden>
           <div class="pills" role="group" aria-label="Partie de la série">
             <button class="pill" data-part="0" aria-pressed="true">Partie 1</button>
@@ -694,6 +701,7 @@ body{overflow-x:hidden}
         <label for="script">Script</label>
         <textarea id="script" dir="auto" placeholder="Ton script apparaîtra ici. Tu peux le modifier librement."></textarea>
         <p class="meta"><span id="count">0 mot · environ 0 s</span> <span id="savedTag" class="saved-tag" aria-live="polite"></span></p>
+        <button class="btn big" id="useMine" type="button" style="width:100%;margin-top:6px" hidden>Utiliser mon script →</button>
         <label for="hook">Accroche à l'écran (2 premières secondes)</label>
         <input id="hook" dir="auto" type="text" maxlength="80" placeholder="Ex. : Personne ne t'a raconté ça…">
         <label for="kw">Mots en couleur dans les sous-titres (les chiffres le sont toujours)</label>
@@ -1077,7 +1085,7 @@ async function generate(reply){
     if (reply && !topic) $('topic').value = 'Réponse : ' + reply.text.slice(0, 80);
     parts = [{ script: data.script, hook: data.hook || '', keywords: data.keywords || [] }];
     if (data.part2 && data.part2.script) parts.push({ script: data.part2.script, hook: data.part2.hook || '', keywords: data.part2.keywords || [] });
-    resetParts(); part = 0; loadPart(0);
+    resetParts(); part = 0; loadPart(0); lastAiScript = $('script').value.trim();
     $('partBox').hidden = parts.length < 2;
     showFixes(data.fixes || [], check && data.checked !== false);
     if (parts[0]) parts[0].fixes = data.fixes || [];
@@ -1093,7 +1101,33 @@ async function generate(reply){
     msg.className='msg err'; msg.textContent='La génération a échoué : ' + (e.message || 'erreur inconnue');
   } finally { btn.disabled = false; btn.textContent = label; }
 }
-$('gen').onclick = () => generate(null);
+$('gen').onclick = () => {
+  // un script écrit à la main n'est jamais écrasé sans demander
+  const cur = $('script').value.trim();
+  if (cur && cur !== lastAiScript && !confirm('Tu as déjà un script écrit ou modifié par toi. L\'IA va le remplacer. Continuer ?')) return;
+  generate(null);
+};
+// ---------- Qui écrit le script : l'IA (à partir d'un sujet) ou toi (texte libre, aucun sujet demandé) ----------
+let lastAiScript = '';
+function setScriptMode(m){
+  const mine = m === 'moi';
+  document.querySelectorAll('[data-smode]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.smode === m)));
+  $('iaBox').hidden = mine; $('useMine').hidden = !mine;
+  $('smodeHint').textContent = mine ? 'Écris ou colle ton texte, mot pour mot : c\'est exactement ce que dira la voix. Pas besoin de sujet.' : 'Donne un sujet : l\'IA écrit le script, que tu peux ensuite modifier.';
+  $('script').placeholder = mine ? 'Écris ou colle ton script ici…' : 'Ton script apparaîtra ici. Tu peux le modifier librement.';
+  try { localStorage.setItem('sb_smode', m); } catch(e){}
+  if (mine && !$('script').value.trim()) setTimeout(() => $('script').focus(), 50);
+}
+document.querySelectorAll('[data-smode]').forEach(b => b.onclick = () => setScriptMode(b.dataset.smode));
+try { if (localStorage.getItem('sb_smode') === 'moi') setScriptMode('moi'); } catch(e){}
+$('useMine').onclick = () => {
+  const m = $('genMsg'), t = $('script').value.trim();
+  if (!t){ m.className = 'msg err'; m.textContent = 'Écris d\'abord ton script.'; $('script').focus(); return; }
+  if (!parts.length) parts = [{ script: $('script').value, hook: $('hook').value, keywords: kwList() }];
+  keepEdits(); capWords = []; if (!histId) histId = Date.now().toString(36); saveHistory(); updateRecipe();
+  if (!running) drawFrame(previewT());
+  m.className = 'msg ok'; m.textContent = 'Ton script est prêt ✓ Ajoute une accroche si tu veux, puis passe à la voix.';
+};
 $('replyBtn').onclick = () => {
   const text = $('replyText').value.trim(), m = $('replyMsg');
   if (!text){ m.className = 'msg err'; m.textContent = 'Colle d\'abord le commentaire.'; $('replyText').focus(); return; }
