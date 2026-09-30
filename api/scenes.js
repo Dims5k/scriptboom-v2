@@ -25,7 +25,7 @@ function fallbackScenes(script) {
 }
 
 async function searchPexels(query, page = 1, orient = 'portrait', locale = '') {
-  const qs = new URLSearchParams({ query, orientation: orient, size: 'medium', per_page: '8', page: String(page) });
+  const qs = new URLSearchParams({ query, orientation: orient, size: 'medium', per_page: '15', page: String(page) });
   if (locale) qs.set('locale', locale);
   let lastError = 'Erreur Pexels';
   for (const base of PEXELS) {
@@ -89,11 +89,23 @@ async function searchCommons(title) {
 function fromPexels(v, orient) {
   const f = pickFile(v, orient); if (!f) return null;
   return { id: v.id, src: '/pexels/' + f.link.replace(/^https:\/\/videos\.pexels\.com\//, ''), width: f.width, height: f.height,
-           author: v.user?.name || 'Pexels', page: v.url || 'https://www.pexels.com', source: 'Pexels' };
+           author: v.user?.name || 'Pexels', page: v.url || 'https://www.pexels.com', source: 'Pexels',
+           // description de la vidéo, tirée de son adresse Pexels (ex. « man-lifting-barbell-in-gym »)
+           desc: String(v.url || '').toLowerCase().replace(/^.*\/video\//, '').replace(/-?\d+\/?$/, '').replace(/-/g, ' ') };
+}
+// Pertinence : combien de mots de la recherche se retrouvent dans la description du média
+function relevance(m, query) {
+  if (!m || !m.desc) return 0;
+  const d = ' ' + m.desc + ' ';
+  return String(query || '').toLowerCase().split(/\s+/).filter(w => w.length > 2).reduce((n, w) => n + (d.includes(' ' + w) ? 1 : 0), 0);
 }
 // Cherche un média : photo libre du vrai sujet d'abord (si la scène en nomme un), puis vidéos Pexels, puis Pixabay
 async function findMedia({ query, alt, wiki, locale }, page, used, orient = 'portrait') {
-  const px = async q => (await searchPexels(q, page, orient, locale).catch(() => [])).map(v => fromPexels(v, orient));
+  const px = async q => {
+    const list = (await searchPexels(q, page, orient, locale).catch(() => [])).map(v => fromPexels(v, orient)).filter(Boolean);
+    // les vidéos qui correspondent le mieux à la recherche passent en premier (à pertinence égale, l'ordre de Pexels est gardé)
+    return list.map((m, i) => ({ m, s: relevance(m, q) * 10 - i * 0.1 })).sort((a, b) => b.s - a.s).map(x => x.m);
+  };
   const pick = list => list.find(m => m && !used.has(String(m.id)));
   const tries = [];
   if (wiki) tries.push(() => searchCommons(wiki));
@@ -140,11 +152,11 @@ export default async function handler(req, res) {
 
 """${script}"""
 
-Découpe le script en 4 à 8 scènes consécutives qui couvrent TOUT le texte, dans l'ordre, sans rien ajouter ni enlever.
+Découpe le script PHRASE PAR PHRASE : une scène = une phrase (deux seulement si elles sont très courtes), de 4 à 10 scènes consécutives qui couvrent TOUT le texte, dans l'ordre, sans rien ajouter ni enlever.
 Pour chaque scène, donne :
-- "query" : une recherche de vidéo d'archive (stock footage) en ANGLAIS, 2 à 4 mots, très visuelle et précise : sujet + lieu ou action + ambiance (ex. « old tv living room », « heart monitor hospital », « athlete lifting barbell gym »). Choisis ce qui évoque le mieux le sujet réel de la scène, jamais un mot abstrait ni un nom de personne ou de marque ;
-- "alt" : une 2e recherche plus simple et plus large, en anglais, 1 à 2 mots ;
-- "wiki" : SEULEMENT si la scène parle d'une vraie personne célèbre, d'un lieu, d'un monument ou d'un événement historique précis, son nom exact en anglais tel qu'on le trouve sur Wikipédia (ex. « Malcolm X », « Eiffel Tower », « Apollo 11 ») ; sinon "". Jamais pour un personnage de fiction, un dessin animé, un film, une série ou une marque.
+- "query" : une recherche de vidéo d'archive (stock footage) en ANGLAIS, 2 à 4 mots, qui montre LITTÉRALEMENT ce que dit la phrase : l'objet, l'animal, la partie du corps, l'action ou le lieu cité, tel qu'on le verrait à l'écran (ex. « creatine powder scoop », « heart monitor hospital », « athlete lifting barbell gym », « lion hunting savanna »). Reprends en priorité les mots concrets de la phrase. Jamais un mot abstrait (success, idea, concept, motivation), ni un nom de personne ou de marque ;
+- "alt" : une 2e recherche plus simple et plus large, en anglais, 1 à 2 mots, sur le même sujet concret ;
+- "wiki" : dès que la phrase nomme une vraie personne célèbre, un lieu, une ville, un pays, un monument ou un événement historique précis, son nom exact en anglais tel qu'on le trouve sur Wikipédia (ex. « Malcolm X », « Eiffel Tower », « Apollo 11 ») : une vraie photo vaut mieux qu'une vidéo générique. Sinon "". Jamais pour un personnage de fiction, un dessin animé, un film, une série ou une marque.
 Réponds en JSON : {"scenes":[{"text":"texte exact de la scène","query":"english search","alt":"simple","wiki":""}]}`;
 
   try {
