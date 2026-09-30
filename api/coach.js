@@ -14,7 +14,7 @@ export const SETTINGS = {
   capStyle: ['classique', 'jaune', 'neon', 'karaoke', 'minimal'],
   capFont: ['bricolage', 'anton', 'poppins'],
   capPos: ['.3', '.52', '.72'],
-  capWords: ['1', '2', '3', '4'],
+  capWords: ['auto1', 'auto2', '1', '2', '3', '4'],
   capUpper: 'bool', kwOn: 'bool', progOn: 'bool', endOn: 'bool',
   fx: ['aucun', 'doux', 'dynamique'],
   dur: ['20', '35', '60'],

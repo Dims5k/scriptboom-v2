@@ -815,8 +815,8 @@ body{overflow-x:hidden}
         <div class="row2">
           <div><label for="capPos">Position</label>
             <select id="capPos"><option value=".3">Haut</option><option value=".52">Milieu</option><option value=".72" selected>Bas</option></select></div>
-          <div><label for="capWords">Mots à la fois</label>
-            <select id="capWords"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4" selected>4</option></select></div>
+          <div><label for="capWords">Mots à l'écran</label>
+            <select id="capWords"><option value="auto1">Auto · 1 ligne</option><option value="auto2" selected>Auto · 2 lignes</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option></select></div>
         </div>
         <label class="check"><input type="checkbox" id="capUpper"> Tout en majuscules</label>
         <label for="capLang">Langue des sous-titres</label>
@@ -1768,9 +1768,32 @@ function norm(w){ return String(w).toLocaleLowerCase().normalize('NFD').replace(
 $('kw').addEventListener('input', () => { if (!running) drawFrame(previewT()); });
 // Blocs de sous-titres : jamais à cheval sur deux phrases
 let capChunkStart = [];
+let chunkKey = '';
+const capAuto = () => /^auto/.test($('capWords').value), capLines = () => $('capWords').value === 'auto2' ? 2 : 1;
+const capBaseSize = () => capStyle === 'minimal' ? 50 : capAuto() ? 60 : +$('capWords').value <= 2 ? 84 : 66;
+function curChunkKey(){ return [$('capWords').value, capStyle, capFont, $('capUpper').checked, capWords.length, capWords[0], W].join('|'); }
 function buildChunks(){
-  const n = Math.max(1, +$('capWords').value || 3); capChunkStart = []; let st = 0, cnt = 0;
-  capWords.forEach((w, i) => { if (cnt >= n){ st = i; cnt = 0; } capChunkStart[i] = st; cnt++; if (/[.!?…؟。！？]$/.test(w)){ cnt = n; } });
+  capChunkStart = []; chunkKey = curChunkKey();
+  if (capAuto()){
+    // Auto : on remplit la largeur de l'écran (1 ou 2 lignes) au lieu d'un nombre fixe de mots, sans jamais couper une phrase
+    const L = capLines(), maxW = W * 0.76, up = $('capUpper').checked, capL = trNow() ? capLangNow() : lang();
+    g.save(); g.font = capFontCss(capBaseSize()); const space = noSpace(capL) ? 0 : g.measureText(' ').width;
+    const wOf = w => g.measureText(up ? w.toLocaleUpperCase() : w).width;
+    let st = 0, line = 1, lw = 0, cnt = 0, full = false;
+    capWords.forEach((w, i) => {
+      const ww = Math.min(maxW, wOf(w));
+      if (cnt && !full){ if (lw + space + ww > maxW){ if (line < L){ line++; lw = ww; } else full = true; } else lw += space + ww; }
+      const punct = !/[\p{L}\p{N}]/u.test(w); // « ? », « ! » seuls : restent collés au mot d'avant
+      if ((full && !punct) || cnt >= 10){ st = i; line = 1; lw = ww; cnt = 0; full = false; }
+      else if (!cnt) lw = ww;
+      capChunkStart[i] = st; cnt++;
+      // fin de phrase : on coupe ; virgule : on coupe si le bloc est déjà bien rempli
+      if (/[.!?…؟。！？]$/.test(w) || (/[,;:،؛]$/.test(w) && (line > 1 || lw > maxW * 0.55))) full = true;
+    });
+    g.restore(); return;
+  }
+  const n = Math.max(1, +$('capWords').value || 3); let st = 0, cnt = 0;
+  capWords.forEach((w, i) => { if (cnt >= n && /[\p{L}\p{N}]/u.test(w)){ st = i; cnt = 0; } capChunkStart[i] = st; cnt++; if (/[.!?…؟。！？]$/.test(w)){ cnt = n; } });
 }
 $('capWords').addEventListener('change', () => { buildChunks(); });
 // Écriture de droite à gauche (arabe, darija, hébreu…) : l'ordre des mots latins et la ponctuation restent justes
@@ -1795,12 +1818,12 @@ function drawWord(o, x, y, fill){ // un mot arabe est dessiné en mode droite-à
 }
 function drawCaption(idx){
   if (!capWords.length) return;
-  if (capChunkStart.length !== capWords.length) buildChunks();
+  if (capChunkStart.length !== capWords.length || chunkKey !== curChunkKey()) buildChunks();
   const capL = trNow() ? capLangNow() : lang(); // langue réellement affichée (si la traduction a échoué, c'est celle de la voix)
-  const n = +$('capWords').value, start = capChunkStart[idx] ?? Math.floor(idx/n)*n, up = $('capUpper').checked;
-  let end = start; while (end < capWords.length && (capChunkStart[end] ?? start) === start && end - start < 8) end++;
+  const n = capAuto() ? 4 : +$('capWords').value, start = capChunkStart[idx] ?? Math.floor(idx/n)*n, up = $('capUpper').checked;
+  let end = start; while (end < capWords.length && (capChunkStart[end] ?? start) === start && end - start < 10) end++;
   const chunk = capWords.slice(start, Math.max(start + 1, end)).map(w => up ? w.toLocaleUpperCase() : w);
-  let size = capStyle === 'minimal' ? 50 : n <= 2 ? 84 : 66;
+  let size = capBaseSize();
   const maxW = W * 0.76; // hors de la colonne d'icônes TikTok
   g.font = capFontCss(size);
   const widest = Math.max(...chunk.map(w => g.measureText(w).width));
@@ -3047,7 +3070,7 @@ const APPLY_ORDER = ['vfmt','format','tone','dur','voice','speed','capFont','cap
 function valLabel(k, v){
   if (v == null || v === '') return '—';
   if (v === true || v === 'true') return 'Oui'; if (v === false || v === 'false') return 'Non';
-  const M = { capPos:{'.3':'Haut','.52':'Milieu','.72':'Bas'}, capFont:{bricolage:'Bricolage',anton:'Anton',poppins:'Poppins'},
+  const M = { capPos:{'.3':'Haut','.52':'Milieu','.72':'Bas'}, capWords:{auto1:'Auto · 1 ligne',auto2:'Auto · 2 lignes'}, capFont:{bricolage:'Bricolage',anton:'Anton',poppins:'Poppins'},
     capStyle:{classique:'Classique',jaune:'Jaune',neon:'Néon',karaoke:'Karaoké',minimal:'Minimal'}, fx:{aucun:'Aucun',doux:'Zoom doux',dynamique:'Dynamique'},
     vfmt:{'916':'9:16 vertical','11':'1:1 carré','169':'16:9 YouTube'}, mood:{none:'Aucune',triste:'Triste',calme:'Calme',suspense:'Suspense',motivation:'Motivation',joyeux:'Joyeux',epique:'Épique',lofi:'Lo-fi',trap:'Trap',electro:'Électro',romantique:'Romantique',horreur:'Horreur'} };
   if (M[k] && M[k][v]) return M[k][v];
