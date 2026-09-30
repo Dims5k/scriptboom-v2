@@ -23,6 +23,7 @@ export default async function handler(req, res) {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Méthode non autorisée' });
     const b = req.body || {};
 
+    if (b.action === 'deleteAll') { await kv([['DEL', key]]); return res.status(200).json({ ok: true }); }
     if (b.action === 'delete') {
       const id = String(b.id || '').slice(0, 40);
       if (id) await kv([['HDEL', key, id]]);

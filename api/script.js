@@ -1,10 +1,9 @@
 // Textes générés par l'IA (Gemini, formule gratuite) :
 // mode "script" (par défaut) : accroche + script ; mode "ideas" : 10 idées ; mode "caption" : titre, légende, hashtags.
 import { invited } from './_auth.js';
-import { useQuota, QUOTA_MSG, friendly } from './_kv.js';
+import { useQuota, refundQuota, sendLeft, QUOTA_MSG } from './_kv.js';
 import { LANGS } from './_langs.js';
-
-const MODELS = ['gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-3.1-flash-lite', 'gemini-3.5-flash-lite'];
+import { askGemini as ask, sendAiError, LIGHT_MODELS, today } from './_ai.js';
 
 
 const FORMATS = {
@@ -16,30 +15,9 @@ const FORMATS = {
   saviezvous: "Format « Le saviez-vous ? » : commence par l'équivalent de « Le saviez-vous ? » dans la langue demandée, puis donne 1 ou 2 faits surprenants liés au sujet, chacun suivi de son explication (pourquoi ou comment ça marche)."
 };
 
-async function askGemini(prompt, json, images = []) {
-  let lastError = 'Erreur API';
-  for (const model of MODELS) {
-    try {
-      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': process.env.GEMINI_API_KEY },
-        body: JSON.stringify({
-          contents: [{ parts: [...images.map(im => ({ inline_data: { mime_type: im.mime, data: im.data } })), { text: prompt }] }],
-          ...(json ? { generationConfig: { responseMimeType: 'application/json' } } : {})
-        })
-      });
-      const data = await r.json();
-      if (!r.ok) { lastError = data?.error?.message || 'Erreur API'; continue; }
-      const text = (data.candidates?.[0]?.content?.parts || []).map(p => p.text || '').join('').trim();
-      if (!text) { lastError = 'Réponse vide'; continue; }
-      if (!json) return text;
-      return JSON.parse(text.replace(/^```(json)?|```$/g, '').trim());
-    } catch (e) {
-      lastError = e.message || 'Serveur injoignable';
-    }
-  }
-  throw new Error(lastError);
-}
+// Garde la même signature qu'avant : (prompt, json, images, options)
+const askGemini = (prompt, json, images = [], opts = {}) => ask(prompt, { json, images, ...opts });
+const LIGHT = { models: LIGHT_MODELS };
 
 const clean = (s, n) => String(s || '').slice(0, n);
 
@@ -48,24 +26,29 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Méthode non autorisée' });
   const who = await invited(req);
   if (!who) return res.status(401).json({ error: 'Accès sur invitation' });
-  if (!(await useQuota(who)).ok) return res.status(429).json({ error: QUOTA_MSG, quota: true });
   const b = req.body || {};
   const mode = b.mode || 'script';
+  const cost = mode === 'coach' ? 2 : 1;
+  const q = await useQuota(who, cost);
+  if (!q.ok) return res.status(429).json({ error: QUOTA_MSG, quota: true, code: 'QUOTA' });
+  sendLeft(res, q);
+  const bad = async msg => { await refundQuota(who, cost); return res.status(400).json({ error: msg }); };
   const lang = LANGS[b.lang] || LANGS.fr;
   const format = FORMATS[b.format] ?? '';
-  const facts = "N'invente jamais de faits, de dates ou de chiffres : si tu n'es pas sûr d'un détail, reste général.";
+  const facts = `Nous sommes le ${today()}. N'invente jamais de faits, de dates, de scores, de statistiques ni de chiffres : si tu n'es pas sûr d'un détail, reste général. Ne présente jamais comme réel un événement récent, un résultat de match ou une actualité que tu ne peux pas vérifier : si le sujet en parle, formule-le au conditionnel ou comme une question, sans chiffres inventés. Aucune moquerie, humiliation ou généralisation envers un pays, une nationalité, une religion ou un groupe de personnes.`;
 
   try {
     if (mode === 'ideas') {
       const niche = clean(b.niche, 120).trim();
-      if (!niche) return res.status(400).json({ error: 'Niche manquante' });
+      if (!niche) return bad('Niche manquante');
       const sec = [20, 35, 60].includes(+b.dur) ? +b.dur : 35;
       const fit = sec <= 20 ? 'un seul fait fort et simple, qui se raconte en 20 secondes' : sec >= 60 ? 'un sujet assez riche pour tenir 60 secondes (histoire, explication, plusieurs éléments)' : 'un sujet clair et ciblé, qui se raconte en 35 secondes';
       const out = await askGemini(`Tu aides un créateur de vidéos courtes (TikTok, Reels, Shorts) sans visage.
 Niche : "${niche}". ${format}
 Propose 10 sujets de vidéos précis et accrocheurs, qui donnent envie de regarder jusqu'au bout. Chaque sujet tient en une ligne courte. Durée des vidéos : ${sec} secondes, donc chaque sujet doit être ${fit}.
 Écris en ${lang}.
-Réponds en JSON : {"ideas":["...", "..."]}`, true);
+Chaque sujet doit reposer sur des faits connus et vérifiables (pas d'actualité inventée).
+Réponds en JSON : {"ideas":["...", "..."]}`, true, [], LIGHT);
       const ideas = (Array.isArray(out) ? out : out.ideas || []).filter(x => typeof x === 'string').slice(0, 10);
       return res.status(200).json({ ideas });
     }
@@ -74,11 +57,11 @@ Réponds en JSON : {"ideas":["...", "..."]}`, true);
       // Sous-titres dans une autre langue : traduction phrase par phrase (même nombre de phrases)
       const to = LANGS[b.to]; const from = LANGS[b.from] || lang;
       const src = (Array.isArray(b.sentences) ? b.sentences : []).filter(x => typeof x === 'string').slice(0, 80).map(x => clean(x, 500));
-      if (!to || !src.length) return res.status(400).json({ error: 'Rien à traduire' });
+      if (!to || !src.length) return bad('Rien à traduire');
       const out = await askGemini(`Traduis ces ${src.length} éléments du ${from} vers le ${to}, pour des sous-titres de vidéo TikTok : naturel, court, oral, fidèle au sens, chiffres conservés.
 Garde exactement le même nombre d'éléments, dans le même ordre, un élément traduit par élément source (ne fusionne pas, ne découpe pas).
 Éléments : ${JSON.stringify(src)}
-Réponds en JSON : {"sentences":["..."]}`, true);
+Réponds en JSON : {"sentences":["..."]}`, true, [], LIGHT);
       const dst = Array.isArray(out.sentences) ? out.sentences : Array.isArray(out) ? out : [];
       return res.status(200).json({ sentences: src.map((x, i) => typeof dst[i] === 'string' && dst[i].trim() ? clean(dst[i].trim(), 600) : x) });
     }
@@ -87,7 +70,7 @@ Réponds en JSON : {"sentences":["..."]}`, true);
       // Analyse des captures de statistiques TikTok / Instagram du créateur
       const images = (Array.isArray(b.images) ? b.images : []).slice(0, 4)
         .filter(im => im && typeof im.data === 'string' && /^image\/(jpeg|png|webp)$/.test(im.mime) && im.data.length < 1500000);
-      if (!images.length) return res.status(400).json({ error: 'Ajoute au moins une capture de tes statistiques' });
+      if (!images.length) return bad('Ajoute au moins une capture de tes statistiques');
       const out = await askGemini(`Tu es un coach expert de la croissance sur TikTok, Instagram Reels et YouTube Shorts, pour les vidéos courtes sans visage. Repère d'abord de quelle plateforme viennent les captures, et adapte ton analyse à ses indicateurs (ex. : « Vidéo regardée en entier » sur TikTok, « Taux de rétention » ou « Vues vs swipes » sur YouTube Shorts, « Durée de visionnage moyenne » et « Taux de saut » sur Instagram).
 Voici ${images.length} capture(s) des statistiques d'une ou plusieurs vidéos courtes du créateur (vues, temps de visionnage moyen, pourcentage de vidéo regardée en entier, courbe de fidélisation, sources de trafic, abonnés gagnés…).${b.note ? ` Précisions du créateur : "${clean(b.note, 400)}".` : ''}
 1. Lis précisément les chiffres visibles. N'invente aucun chiffre : si une donnée n'est pas lisible, ne la cite pas.
@@ -103,7 +86,7 @@ Réponds en JSON : {"summary":"2 phrases maximum sur ce que disent les chiffres"
 
     if (mode === 'week') {
       const niche = clean(b.niche, 120).trim();
-      if (!niche) return res.status(400).json({ error: 'Niche manquante' });
+      if (!niche) return bad('Niche manquante');
       const out = await askGemini(`Tu es le stratège d'un créateur TikTok sans visage. Niche : "${niche}".
 Prépare son planning de 7 vidéos pour la semaine (1 par jour), en ${lang}. Varie les formats et les angles, et commence par les sujets les plus accrocheurs.
 Pour chaque vidéo :
@@ -126,14 +109,14 @@ Réponds en JSON : {"week":[{"topic":"...","format":"...","dur":20,"tone":"...",
 
     if (mode === 'caption') {
       const script = clean(b.script, 2500).trim();
-      if (!script) return res.status(400).json({ error: 'Script manquant' });
+      if (!script) return bad('Script manquant');
       const out = await askGemini(`Voici le script d'une vidéo courte :
 """${script}"""
 Écris, en ${lang}, de quoi la publier sur TikTok et Instagram :
 - "title" : un titre court et accrocheur (max 60 caractères) ;
 - "caption" : une légende de 1 à 3 phrases qui donne envie de regarder, avec 1 ou 2 emojis, et une question pour faire commenter ;
 - "hashtags" : 8 à 12 hashtags pertinents (mélange de populaires et de précis), sans espace, commençant par #.
-Réponds en JSON : {"title":"...","caption":"...","hashtags":["#..."]}`, true);
+Réponds en JSON : {"title":"...","caption":"...","hashtags":["#..."]}`, true, [], LIGHT);
       return res.status(200).json({
         title: clean(out.title, 120), caption: clean(out.caption, 800),
         hashtags: (out.hashtags || []).filter(h => typeof h === 'string').map(h => h.startsWith('#') ? h : '#' + h).slice(0, 15)
@@ -142,12 +125,12 @@ Réponds en JSON : {"title":"...","caption":"...","hashtags":["#..."]}`, true);
 
     // mode "script"
     const reply = b.reply && typeof b.reply.text === 'string' && b.reply.text.trim()
-      ? { user: clean(b.reply.user, 40).replace(/^@/, '').trim(), text: clean(b.reply.text, 400).trim() } : null;
+      ? { text: clean(b.reply.text, 400).trim() } : null; // le pseudo reste sur l'appareil : il n'est jamais envoyé à l'IA
     const topic = reply ? reply.text : clean(b.topic, 300).trim();
-    if (!topic) return res.status(400).json({ error: 'Sujet manquant' });
+    if (!topic) return bad('Sujet manquant');
     const coach = (Array.isArray(b.coach) ? b.coach : []).filter(x => typeof x === 'string').map(x => clean(x, 220)).slice(0, 5);
     const coachTxt = coach.length ? `\nConseils tirés des vraies statistiques du créateur (à respecter en priorité) :\n- ${coach.join('\n- ')}` : '';
-    const replyTxt = reply ? `\nC'est une VIDÉO DE RÉPONSE à ce commentaire laissé par ${reply.user ? '@' + reply.user : 'un abonné'} : "${reply.text}".
+    const replyTxt = reply ? `\nC'est une VIDÉO DE RÉPONSE à ce commentaire laissé par un abonné : "${reply.text}". Si le commentaire affirme quelque chose de faux, corrige-le poliment.
 La bulle du commentaire sera affichée à l'écran. La première phrase réagit directement au commentaire (sans le relire en entier), puis tu réponds vraiment à la question ou à la remarque avec des explications, et tu finis en invitant les gens à poser leurs questions en commentaire.` : '';
     const d = [20, 35, 60].includes(Number(b.dur)) ? Number(b.dur) : 35;
     const nWords = Math.round(d * 2.6);
@@ -163,7 +146,7 @@ Rétention : juste après l'accroche, annonce ce que le spectateur va gagner s'i
     const style = `Règles : phrases courtes et orales ; tutoiement (ou l'équivalent naturel dans la langue). ${facts}
 Chaque script ne contient QUE le texte à lire : pas de titre, pas de guillemets, pas d'indications de mise en scène, pas d'emojis, pas de numérotation du type « 1. ».
 "keywords" : 3 à 6 mots importants du script (chiffres, noms, mots forts), écrits exactement comme dans le script, un seul mot par élément ; ils seront colorés dans les sous-titres.
-"hook" : une accroche visuelle choc et très courte (3 à 6 mots, pas une simple reformulation du sujet ; elle crée un manque ou une surprise) à afficher en gros à l'écran pendant les 2 premières secondes, dans la même langue.`;
+"hook" : une accroche visuelle choc et très courte (3 à 6 mots, pas une simple reformulation du sujet ; elle crée un manque ou une surprise) à afficher en gros à l'écran pendant les 2 premières secondes, dans la même langue. Elle ne doit JAMAIS contredire le script ni exagérer au-delà de ce qu'il dit.`;
 
     let parts;
     if (series) {
@@ -193,24 +176,27 @@ Réponds en JSON : {"hook":"...","script":"...","keywords":["..."]}`, true);
     if (!parts[0].script || (series && !parts[1].script)) throw new Error('Script vide');
 
     // Vérification des faits : une 2e lecture corrige les chiffres, dates et affirmations douteuses
-    let fixes = [];
+    let fixes = [], checked = false;
     if (b.check !== false) {
       try {
-        const chk = await askGemini(`Tu es vérificateur de faits pour des vidéos de vulgarisation. Voici ${parts.length > 1 ? 'les scripts' : 'le script'} (en ${lang}) :
-${parts.map((p, k) => `--- SCRIPT ${k + 1} ---\n${p.script}`).join('\n')}
-Relis chaque affirmation. Si un chiffre, une date, un nom ou une affirmation est faux, exagéré ou incertain, corrige-le ou reformule-le de façon plus générale et prudente. Ne touche à rien d'autre : garde le style, l'accroche, le ton, la longueur et la fin. Si tout est correct, renvoie les scripts à l'identique.
-Réponds en JSON : {"scripts":["script 1 corrigé"${parts.length > 1 ? ', "script 2 corrigé"' : ''}],"fixes":["courte description de chaque correction, en français (vide si aucune)"]}`, true);
-        const fixed = Array.isArray(chk.scripts) ? chk.scripts : [];
+        const chk = await askGemini(`Tu es vérificateur de faits pour des vidéos de vulgarisation. Nous sommes le ${today()}. Voici ${parts.length > 1 ? 'les scripts' : 'le script'} (en ${lang}), chacun avec son accroche à l'écran :
+${parts.map((p, k) => `--- SCRIPT ${k + 1} ---\nAccroche : ${p.hook}\n${p.script}`).join('\n')}
+Relis chaque affirmation. Si un chiffre, une date, un âge, un nom ou une affirmation est faux, périmé, exagéré ou incertain, corrige-le ou reformule-le de façon plus générale et prudente. Un résultat de match, une actualité ou un événement récent que tu ne peux pas vérifier doit être retiré ou mis au conditionnel. Vérifie aussi que l'accroche ne contredit pas le script et ne l'exagère pas ; sinon corrige-la (3 à 6 mots). Ne touche à rien d'autre : garde le style, le ton, la longueur et la fin. Si tout est correct, renvoie les textes à l'identique.
+Réponds en JSON : {"scripts":["script 1 corrigé"${parts.length > 1 ? ', "script 2 corrigé"' : ''}],"hooks":["accroche 1"${parts.length > 1 ? ', "accroche 2"' : ''}],"fixes":["une phrase courte et complète par correction, en français (liste vide si aucune)"]}`, true);
+        const fixed = Array.isArray(chk.scripts) ? chk.scripts : [], hooks = Array.isArray(chk.hooks) ? chk.hooks : [];
         parts.forEach((p, k) => {
           const f = clean(fixed[k], 3000).trim();
           // On n'accepte la correction que si elle garde à peu près la même longueur
           if (f && f.length > p.script.length * 0.7 && f.length < p.script.length * 1.3) p.script = f;
+          const h = clean(hooks[k], 80).trim(); if (h && h.split(/\s+/).length <= 8) p.hook = h;
         });
-        fixes = (chk.fixes || []).filter(x => typeof x === 'string' && x.trim()).map(x => clean(x, 200)).slice(0, 6);
+        fixes = (chk.fixes || []).filter(x => typeof x === 'string' && x.trim()).map(x => clean(x.trim(), 400)).slice(0, 8);
+        checked = true;
       } catch (e) { /* si la vérification échoue, on garde le script tel quel */ }
     }
-    return res.status(200).json({ ...parts[0], part2: series ? parts[1] : null, fixes });
+    return res.status(200).json({ ...parts[0], part2: series ? parts[1] : null, fixes, checked });
   } catch (e) {
-    return res.status(500).json({ error: friendly(e.message || 'Erreur') });
+    await refundQuota(who, cost); // échec : l'action n'est pas décomptée
+    return sendAiError(res, e);
   }
 }

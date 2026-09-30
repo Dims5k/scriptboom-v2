@@ -9,6 +9,14 @@
       "destination": "/confidentialite.html"
     },
     {
+      "source": "/mentions-legales",
+      "destination": "/mentions-legales.html"
+    },
+    {
+      "source": "/cgu",
+      "destination": "/cgu.html"
+    },
+    {
       "source": "/pexels/:path*",
       "destination": "https://videos.pexels.com/:path*"
     },
@@ -64,5 +72,8 @@
         }
       ]
     }
+  ],
+  "regions": [
+    "fra1"
   ]
 }

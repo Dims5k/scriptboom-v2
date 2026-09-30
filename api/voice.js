@@ -1,11 +1,11 @@
 // Génère la voix off avec l'IA de Google (Gemini TTS, formule gratuite).
 // Renvoie un fichier audio WAV.
 import { invited } from './_auth.js';
-import { useQuota, QUOTA_MSG, friendly } from './_kv.js';
+import { useQuota, refundQuota, sendLeft, QUOTA_MSG } from './_kv.js';
+import { googleFetch, withRetry, sendAiError, AiError, MSG } from './_ai.js';
 import { LANGS, ACCENTS } from './_langs.js';
 
 const VOICES = ['Kore', 'Aoede', 'Leda', 'Sulafat', 'Puck', 'Charon', 'Fenrir', 'Orus'];
-const BASE = 'https://generativelanguage.googleapis.com/v1beta';
 
 // Cherche l'audio (base64) n'importe où dans la réponse de Google.
 function findAudio(obj, depth = 0) {
@@ -34,16 +34,10 @@ function toWav(buf, mime) {
   return Buffer.concat([h, buf]);
 }
 
-async function callGoogle(url, body) {
-  const r = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': process.env.GEMINI_API_KEY },
-    body: JSON.stringify(body)
-  });
-  const data = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(data?.error?.message || `Erreur ${r.status}`);
+async function callGoogle(path, body) {
+  const data = await googleFetch(path, body, 40000);
   const audio = findAudio(data);
-  if (!audio) throw new Error('Pas d\'audio dans la réponse');
+  if (!audio) throw new AiError('AI_BAD', MSG.AI_BAD, 502);
   return audio;
 }
 
@@ -52,40 +46,39 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Méthode non autorisée' });
   const who = await invited(req);
   if (!who) return res.status(401).json({ error: 'Accès sur invitation' });
-  if (!(await useQuota(who)).ok) return res.status(429).json({ error: QUOTA_MSG, quota: true });
+  const q = await useQuota(who);
+  if (!q.ok) return res.status(429).json({ error: QUOTA_MSG, quota: true, code: 'QUOTA' });
+  sendLeft(res, q);
   const { text, voice = 'Kore', tone = 'dynamique', lang = 'fr' } = req.body || {};
   const langue = LANGS[lang] || LANGS.fr;
-  if (!text || typeof text !== 'string' || text.length > 2500) return res.status(400).json({ error: 'Script manquant ou trop long' });
+  if (!text || typeof text !== 'string' || text.length > 2500) { await refundQuota(who); return res.status(400).json({ error: 'Script manquant ou trop long' }); }
   const v = VOICES.includes(voice) ? voice : 'Kore';
   const accent = ACCENTS[lang] || 'accent natif';
   const style = `voix off en ${langue} de vidéo TikTok, ${accent}, ton ${String(tone).slice(0, 60)}, rythme vivant et naturel`;
 
   const attempts = [
     // Nouvelle API Google (Interactions)
-    ...['gemini-3.8-flash-tts', 'gemini-3.8-flash-lite-tts'].map(model => () => callGoogle(`${BASE}/interactions`, {
+    ...['gemini-3.8-flash-tts', 'gemini-3.8-flash-lite-tts'].map(model => () => callGoogle('/interactions', {
       model,
       input: [{ type: 'user_input', content: [{ type: 'text', text, annotations: [{ type: 'speech_metadata', style }] }] }],
       response_format: { type: 'audio' },
       generation_config: { speech_config: [{ voice: v }] }
     })),
     // Ancienne API Google (generateContent), en secours
-    ...['gemini-3.8-flash-tts', 'gemini-3.1-flash-tts-preview'].map(model => () => callGoogle(`${BASE}/models/${model}:generateContent`, {
+    ...['gemini-3.8-flash-tts', 'gemini-3.1-flash-tts-preview'].map(model => () => callGoogle(`/models/${model}:generateContent`, {
       contents: [{ parts: [{ text: `Lis ce texte en ${langue}, ${style} :\n\n${text}` }] }],
       generationConfig: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: v } } } }
     }))
   ];
 
-  let lastError = 'Erreur voix';
-  for (const attempt of attempts) {
-    try {
-      const { data, mime } = await attempt();
-      const wav = toWav(Buffer.from(data, 'base64'), mime);
-      res.setHeader('Content-Type', 'audio/wav');
-      res.setHeader('Cache-Control', 'no-store');
-      return res.status(200).send(wav);
-    } catch (e) {
-      lastError = e.message || lastError;
-    }
+  try {
+    const { data, mime } = await withRetry(attempts, { budgetMs: 55000, retries: 1 });
+    const wav = toWav(Buffer.from(data, 'base64'), mime);
+    res.setHeader('Content-Type', 'audio/wav');
+    res.setHeader('Cache-Control', 'no-store');
+    return res.status(200).send(wav);
+  } catch (e) {
+    await refundQuota(who);
+    return sendAiError(res, e);
   }
-  return res.status(500).json({ error: friendly(lastError) });
 }

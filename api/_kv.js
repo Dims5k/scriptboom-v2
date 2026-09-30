@@ -30,10 +30,29 @@ export async function useQuota(email, cost = 1) {
   const key = `quota:${day}:${String(email).toLowerCase()}`;
   try {
     const [n] = await kv([['INCRBY', key, cost], ['EXPIRE', key, 172800]]);
-    if (n > max) return { ok: false, left: 0 };
-    return { ok: true, left: max - n };
+    if (n > max){ await kv([['DECRBY', key, cost]]).catch(() => {}); return { ok: false, left: 0, max }; }
+    return { ok: true, left: max - n, max };
   } catch (e) { return { ok: true, left: null }; } // stockage en panne : on ne bloque pas l'utilisateur
 }
+
+// Rend une action IA qui a échoué : l'utilisateur ne perd rien quand Google est en panne
+export async function refundQuota(email, cost = 1) {
+  if (!kvReady() || !email) return;
+  const key = `quota:${new Date().toISOString().slice(0, 10)}:${String(email).toLowerCase()}`;
+  try { const [n] = await kv([['DECRBY', key, cost]]); if (n < 0) await kv([['SET', key, 0, 'EX', 172800]]); } catch (e) {}
+}
+
+// Solde du jour (sans rien décompter), pour l'afficher dans l'appli
+export async function quotaLeft(email) {
+  const max = Number(process.env.QUOTA_JOUR) || 60;
+  if (!kvReady() || !email) return { left: null, max };
+  const admins = String(process.env.ADMIN_EMAILS || '').toLowerCase().split(/[\s,;]+/).filter(Boolean);
+  if (admins.includes(String(email).toLowerCase())) return { left: null, max };
+  try { const [n] = await kv([['GET', `quota:${new Date().toISOString().slice(0, 10)}:${String(email).toLowerCase()}`]]); return { left: Math.max(0, max - (Number(n) || 0)), max }; }
+  catch (e) { return { left: null, max }; }
+}
+// Ajoute le solde à la réponse (en-tête lu par l'appli)
+export function sendLeft(res, q) { if (q && q.left != null) res.setHeader('X-SB-Left', String(q.left) + '/' + String(q.max || '')); }
 
 export const QUOTA_MSG = "Tu as atteint ta limite de créations pour aujourd'hui. Elle se remet à zéro chaque nuit : à demain !";
 
@@ -54,5 +73,16 @@ export async function rateLimit(name, id, max, windowSec) {
     return n <= max;
   } catch (e) { return true; }
 }
-export const clientIp = req => String(req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || '').split(',')[0].trim() || 'inconnu';
+// Limiteur qui ne compte que les échecs (connexion) : on regarde sans compter, puis on compte seulement si c'est raté
+export async function failCount(name, id) {
+  if (!kvReady() || !id) return { n: 0, ttl: 0 };
+  try { const [n, ttl] = await kv([['GET', `rf:${name}:${String(id).toLowerCase().slice(0, 120)}`], ['TTL', `rf:${name}:${String(id).toLowerCase().slice(0, 120)}`]]); return { n: Number(n) || 0, ttl: Number(ttl) || 0 }; }
+  catch (e) { return { n: 0, ttl: 0 }; }
+}
+export async function failHit(name, id, windowSec) {
+  if (!kvReady() || !id) return;
+  const key = `rf:${name}:${String(id).toLowerCase().slice(0, 120)}`;
+  try { await kv([['SET', key, 0, 'EX', windowSec, 'NX'], ['INCR', key]]); } catch (e) {}
+}
+export const clientIp =req => String(req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || '').split(',')[0].trim() || 'inconnu';
 export const TOO_MANY = 'Trop de tentatives. Patiente quelques minutes avant de réessayer.';

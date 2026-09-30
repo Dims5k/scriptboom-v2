@@ -1,41 +1,37 @@
 // Découpe le script en scènes, trouve pour chacune une vidéo libre de droits sur Pexels.
 // Gratuit : Gemini (formule gratuite) + API Pexels (gratuite).
 import { invited } from './_auth.js';
-import { useQuota, QUOTA_MSG, friendly } from './_kv.js';
+import { useQuota, refundQuota, sendLeft, QUOTA_MSG } from './_kv.js';
+import { askGemini as ask, LIGHT_MODELS } from './_ai.js';
 
-const MODELS = ['gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-3.1-flash-lite', 'gemini-3.5-flash-lite'];
 const PEXELS = ['https://api.pexels.com/v1/videos/search', 'https://api.pexels.com/videos/search'];
 
 async function askGemini(prompt) {
-  let lastError = 'Erreur IA';
-  for (const model of MODELS) {
-    try {
-      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': process.env.GEMINI_API_KEY },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { responseMimeType: 'application/json' }
-        })
-      });
-      const data = await r.json();
-      if (!r.ok) { lastError = data?.error?.message || 'Erreur IA'; continue; }
-      const txt = (data.candidates?.[0]?.content?.parts || []).map(p => p.text || '').join('').trim();
-      const json = JSON.parse(txt.replace(/^```(json)?|```$/g, '').trim());
-      const scenes = Array.isArray(json) ? json : json.scenes;
-      if (Array.isArray(scenes) && scenes.length) return scenes;
-      lastError = 'Découpage vide';
-    } catch (e) { lastError = e.message || lastError; }
-  }
-  throw new Error(lastError);
+  const json = await ask(prompt, { json: true, models: LIGHT_MODELS, budgetMs: 22000, validate: j => Array.isArray(Array.isArray(j) ? j : j && j.scenes) && (Array.isArray(j) ? j : j.scenes).length > 0 });
+  return Array.isArray(json) ? json : json.scenes;
 }
 
-async function searchPexels(query, page = 1, orient = 'portrait') {
+// Secours sans IA : on découpe le script par phrases et on cherche avec les mots les plus parlants
+const STOP = new Set('chaque voici jusqu ceci celui celle entre depuis encore toujours jamais alors aussi avec avoir cette cela comme dans des elle elles est être fait faire mais même pour plus quand que qui sans ses son sont sur tes ton tous tout très une vous nous leur leurs parce pourquoi comment votre notre the and with that this from have what your'.split(' '));
+function fallbackScenes(script) {
+  const sent = String(script).replace(/\s+/g, ' ').trim().split(/(?<=[.!?…؟])\s+/).filter(Boolean);
+  const n = Math.min(6, Math.max(1, sent.length)), per = Math.ceil(sent.length / n), out = [];
+  for (let i = 0; i < sent.length; i += per) {
+    const text = sent.slice(i, i + per).join(' ');
+    const words = (text.toLowerCase().match(/[\p{L}]{4,}/gu) || []).filter(w => !STOP.has(w)).sort((x, y) => y.length - x.length);
+    out.push({ text, query: words.slice(0, 2).join(' ') || 'abstract background', alt: words[0] || 'nature', wiki: '', locale: 'fr-FR' });
+  }
+  return out;
+}
+
+async function searchPexels(query, page = 1, orient = 'portrait', locale = '') {
   const qs = new URLSearchParams({ query, orientation: orient, size: 'medium', per_page: '8', page: String(page) });
+  if (locale) qs.set('locale', locale);
   let lastError = 'Erreur Pexels';
   for (const base of PEXELS) {
     try {
-      const r = await fetch(`${base}?${qs}`, { headers: { Authorization: process.env.PEXELS_API_KEY } });
+      const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 12000);
+      const r = await fetch(`${base}?${qs}`, { headers: { Authorization: process.env.PEXELS_API_KEY }, signal: ctl.signal }).finally(() => clearTimeout(timer));
       if (!r.ok) { lastError = `Pexels ${r.status}`; continue; }
       const data = await r.json();
       return data.videos || [];
@@ -96,8 +92,8 @@ function fromPexels(v, orient) {
            author: v.user?.name || 'Pexels', page: v.url || 'https://www.pexels.com', source: 'Pexels' };
 }
 // Cherche un média : photo libre du vrai sujet d'abord (si la scène en nomme un), puis vidéos Pexels, puis Pixabay
-async function findMedia({ query, alt, wiki }, page, used, orient = 'portrait') {
-  const px = async q => (await searchPexels(q, page, orient).catch(() => [])).map(v => fromPexels(v, orient));
+async function findMedia({ query, alt, wiki, locale }, page, used, orient = 'portrait') {
+  const px = async q => (await searchPexels(q, page, orient, locale).catch(() => [])).map(v => fromPexels(v, orient));
   const pick = list => list.find(m => m && !used.has(String(m.id)));
   const tries = [];
   if (wiki) tries.push(() => searchCommons(wiki));
@@ -115,9 +111,12 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Méthode non autorisée' });
   const who = await invited(req);
   if (!who) return res.status(401).json({ error: 'Accès sur invitation' });
-  if (!(await useQuota(who)).ok) return res.status(429).json({ error: QUOTA_MSG, quota: true });
   if (!process.env.PEXELS_API_KEY) return res.status(500).json({ error: 'Clé PEXELS_API_KEY manquante dans Vercel' });
   const { script, page = 1, query, exclude = [] } = req.body || {};
+  // Remplacer une scène ne demande pas l'IA : gratuit. Seul le découpage complet compte pour 1 action.
+  const q0 = query ? { ok: true } : await useQuota(who);
+  if (!q0.ok) return res.status(429).json({ error: QUOTA_MSG, quota: true, code: 'QUOTA' });
+  sendLeft(res, q0);
   const orient = ['portrait', 'square', 'landscape'].includes(req.body?.orient) ? req.body.orient : 'portrait';
 
   // Remplacer UNE scène : nouvelle recherche sur des mots-clés, en évitant les médias déjà utilisés
@@ -131,11 +130,11 @@ export default async function handler(req, res) {
       }
       return res.status(404).json({ error: 'Aucun autre média trouvé pour « ' + q + ' »' });
     } catch (e) {
-      return res.status(500).json({ error: friendly(e.message || 'Erreur de recherche') });
+      return res.status(503).json({ error: 'La recherche de vidéos a échoué. Réessaie dans un instant.' });
     }
   }
 
-  if (!script || typeof script !== 'string' || script.length > 2500) return res.status(400).json({ error: 'Script manquant ou trop long' });
+  if (!script || typeof script !== 'string' || script.length > 2500) { await refundQuota(who); return res.status(400).json({ error: 'Script manquant ou trop long' }); }
 
   const prompt = `Tu prépares le montage d'une vidéo verticale (TikTok) à partir de ce script de voix off :
 
@@ -149,18 +148,22 @@ Pour chaque scène, donne :
 Réponds en JSON : {"scenes":[{"text":"texte exact de la scène","query":"english search","alt":"simple","wiki":""}]}`;
 
   try {
-    const raw = await askGemini(prompt);
+    let raw, noAi = false;
+    try { raw = await askGemini(prompt); }
+    catch (e) { raw = fallbackScenes(script); noAi = true; console.log('SCENES secours sans IA', e.code || e.message); }
     const scenes = raw.map(s => ({ text: String(s.text || '').trim(), query: String(s.query || '').trim().slice(0, 60),
-      alt: String(s.alt || '').trim().slice(0, 40), wiki: String(s.wiki || '').trim().slice(0, 80) })).filter(s => s.text && s.query);
+      alt: String(s.alt || '').trim().slice(0, 40), wiki: String(s.wiki || '').trim().slice(0, 80), locale: s.locale || '' })).filter(s => s.text && s.query);
     if (!scenes.length) throw new Error('Découpage vide');
 
     const used = new Set();
     const out = [];
     // Une scène après l'autre pour ne jamais réutiliser le même média
     for (const sc of scenes) out.push({ text: sc.text, query: sc.query, wiki: sc.wiki, video: await findMedia(sc, page, used, orient) });
-    if (!out.some(s => s.video)) return res.status(500).json({ error: 'Aucune vidéo trouvée' });
-    return res.status(200).json({ scenes: out });
+    if (noAi) await refundQuota(who); // le secours n'a pas utilisé l'IA : gratuit
+    if (!out.some(s => s.video)) { if (!noAi) await refundQuota(who); return res.status(404).json({ error: 'Aucune vidéo trouvée pour ce script. Essaie « Ma vidéo » ou modifie les mots-clés.' }); }
+    return res.status(200).json({ scenes: out, noAi });
   } catch (e) {
-    return res.status(500).json({ error: friendly(e.message || 'Erreur') });
+    await refundQuota(who);
+    return res.status(503).json({ error: 'La recherche de vidéos a échoué. Réessaie dans un instant.' });
   }
 }

@@ -2,11 +2,11 @@
 // pour TikTok, YouTube Shorts, Instagram Reels, Threads, X… et historique des analyses sauvegardé en ligne.
 // Gratuit : Gemini (formule gratuite) + Upstash.
 import { invited, isAdmin } from './_auth.js';
-import { kv, kvReady, useQuota, QUOTA_MSG, friendly } from './_kv.js';
+import { kv, kvReady, useQuota, refundQuota, sendLeft, QUOTA_MSG } from './_kv.js';
+import { askGemini as ask, sendAiError, AiError } from './_ai.js';
 import { LANGS } from './_langs.js';
 const UI_BASE = { ma: 'ar', dz: 'ar', tn: 'ar', eg: 'ar', lb: 'ar' };
 
-const MODELS = ['gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-3.1-flash-lite', 'gemini-3.5-flash-lite'];
 const MAX_ITEMS = 80;
 
 // Réglages que le coach a le droit de changer, avec leurs valeurs possibles
@@ -40,28 +40,13 @@ function cleanValue(key, v) {
 const txt = (v, n = 300) => String(v == null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, n);
 const num = v => { const n = Number(String(v ?? '').replace(/[^\d.,-]/g, '').replace(',', '.')); return Number.isFinite(n) ? n : null; };
 
-async function askGemini(parts) {
-  let lastError = 'Erreur IA';
-  for (const model of MODELS) {
-    try {
-      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': process.env.GEMINI_API_KEY },
-        body: JSON.stringify({ contents: [{ parts }], generationConfig: { responseMimeType: 'application/json', temperature: 0.4 } })
-      });
-      const data = await r.json();
-      if (!r.ok) { lastError = data?.error?.message || 'Erreur IA'; continue; }
-      const t = (data.candidates?.[0]?.content?.parts || []).map(p => p.text || '').join('').trim();
-      return JSON.parse(t.replace(/^```(json)?|```$/g, '').trim());
-    } catch (e) { lastError = e.message || lastError; }
-  }
-  throw new Error(lastError);
-}
+const askGemini = parts => ask('', { json: true, parts, temperature: 0.4, timeoutMs: 40000, budgetMs: 55000 });
 
 async function analyze(b) {
   const platform = PLATFORMS.includes(b.platform) ? b.platform : 'autre';
   const shots = (Array.isArray(b.images) ? b.images : []).slice(0, 4).filter(im => im && /^image\/(jpeg|png|webp)$/.test(im.mime) && typeof im.data === 'string');
   const frames = (Array.isArray(b.frames) ? b.frames : []).slice(0, 14).filter(f => f && typeof f.data === 'string');
-  if (!shots.length && !frames.length) throw new Error('Ajoute au moins une capture de tes stats ou ta vidéo.');
+  if (!shots.length && !frames.length) throw new AiError('BAD_INPUT', 'Ajoute au moins une capture de tes stats ou ta vidéo.', 400);
   const p = b.project || {};
   const cur = {}; for (const k of Object.keys(SETTINGS)) { const v = cleanValue(k, p.settings?.[k]); if (v != null) cur[k] = v; }
   const parts = [];
@@ -131,8 +116,12 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true });
     }
     // Analyse : compte pour 2 actions IA (images + vidéo)
-    if (!isAdmin(who) && !(await useQuota(who, 2)).ok) return res.status(429).json({ error: QUOTA_MSG, quota: true });
-    const item = await analyze(b);
+    const q = isAdmin(who) ? { ok: true } : await useQuota(who, 2);
+    if (!q.ok) return res.status(429).json({ error: QUOTA_MSG, quota: true, code: 'QUOTA' });
+    sendLeft(res, q);
+    let item;
+    try { item = await analyze(b); }
+    catch (e) { if (!isAdmin(who)) await refundQuota(who, 2); return sendAiError(res, e); }
     if (kvReady()) {
       const [, n] = await kv([['HSET', key, item.id, JSON.stringify(item)], ['HLEN', key]]);
       if (n > MAX_ITEMS) {
@@ -144,6 +133,6 @@ export default async function handler(req, res) {
     }
     return res.status(200).json({ item });
   } catch (e) {
-    return res.status(500).json({ error: friendly(e.message || 'Erreur') });
+    return res.status(500).json({ error: 'Le coach a rencontré un problème. Réessaie dans un instant.' });
   }
 }

@@ -5,6 +5,7 @@
 //   SITE_URL           = https://scriptboom.io (facultatif)
 // Aucun module à installer : petit client SMTP intégré (connexion chiffrée TLS, port 465).
 import tls from 'tls';
+import { unsubToken } from './_auth.js';
 
 const USER = () => String(process.env.GMAIL_USER || '').trim();
 const PASS = () => String(process.env.GMAIL_APP_PASSWORD || '').replace(/\s+/g, '');
@@ -100,7 +101,7 @@ Une question ? Réponds simplement à cet email.<br>
 const li = t => `<tr><td style="padding:5px 10px 5px 0;color:#1ed760;font-weight:800;vertical-align:top;">✓</td><td style="padding:5px 0;color:#e8e8e8;">${t}</td></tr>`;
 
 // Email 1 : confirmation d'inscription à la liste d'attente
-export function waitlistMail(rank) {
+export function waitlistMail(rank, email) {
   const club = rank <= 500;
   const subject = club ? `Bienvenue dans le Club des 500 🎟️ Place n° ${rank}` : 'Tu es sur la liste d\'attente de ScriptBoom';
   const items = [
@@ -124,8 +125,18 @@ Merci de ton inscription. ScriptBoom est encore en construction : on le peaufine
 ${items.map(t => '✓ ' + t).join('\n')}
 
 Suis-nous sur TikTok : @scriptboom
-Se désinscrire : ${siteUrl()}/confidentialite`;
-  return { subject, text, html };
+Se désinscrire en un clic : ${email ? unsubLink(email) : siteUrl() + '/confidentialite'}`;
+  return { subject, text, html: email ? html.replace('</body>', `<p style="text-align:center;font-size:12px;color:#8a8a8a;margin:14px 0;"><a href="${esc(unsubLink(email))}" style="color:#8a8a8a;">Se désinscrire en un clic</a></p></body>`) : html };
+}
+export const unsubLink = email => `${siteUrl()}/api/waitlist?unsub=${unsubToken(email)}`;
+// Email de confirmation de désinscription
+export function unsubMail(email) {
+  const subject = 'Confirme ta désinscription de ScriptBoom';
+  const link = unsubLink(email);
+  const html = layout(subject, `<div style="font-size:20px;font-weight:800;color:#ffffff;margin:0 0 10px;">Tu veux quitter la liste d'attente ?</div>
+<p style="margin:0 0 16px;">Touche le bouton ci-dessous pour effacer ton email et tes informations de la liste d'attente de ScriptBoom. Si ce n'est pas toi qui l'as demandé, ignore simplement cet email.</p>
+<p><a href="${esc(link)}" style="display:inline-block;background:#1ed760;color:#000;font-weight:800;border-radius:999px;padding:12px 20px;text-decoration:none;">Me désinscrire</a></p>`);
+  return { subject, html, text: `Pour effacer ton email de la liste d'attente de ScriptBoom, ouvre ce lien : ${link}\nSi ce n'est pas toi qui l'as demandé, ignore cet email.` };
 }
 
 // Email 2 : ton accès (email + code), envoyé quand tu invites quelqu'un depuis l'Admin

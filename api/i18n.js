@@ -1,10 +1,10 @@
 // Interface de ScriptBoom dans toutes les langues : chaque texte (écrit en français) est traduit UNE fois par l'IA,
 // puis gardé dans Upstash et partagé par tous les utilisateurs (instantané ensuite, et gratuit).
 import { invited } from './_auth.js';
-import { kv, kvReady, rateLimit, friendly } from './_kv.js';
+import { kv, kvReady, rateLimit } from './_kv.js';
+import { askGemini, LIGHT_MODELS } from './_ai.js';
 import { LANGS } from './_langs.js';
 
-const MODELS = ['gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-3.1-flash-lite', 'gemini-3.5-flash-lite'];
 // Les dialectes utilisent l'interface en arabe standard
 const UI_BASE = { ma: 'ar', dz: 'ar', tn: 'ar', eg: 'ar', lb: 'ar' };
 const NAMES = { ...LANGS, br: 'portugais du Brésil' };
@@ -16,29 +16,17 @@ Règles :
 - Garde EXACTEMENT les marqueurs {0}, {1}, {2}… (ce sont des nombres), les emojis, les symboles (→ ← ✓ ✕ • ▶ ■ ⚡ %), la ponctuation de début et de fin.
 - Ne traduis jamais : ScriptBoom, BOOM, TikTok, Instagram, Reels, YouTube, Shorts, Threads, X, Pexels, Wikimedia, Gemini, Kore, Aoede, Leda, Sulafat, Puck, Charon, Fenrir, Orus, Bricolage, Anton, Poppins.
 - Un texte qui est déjà dans la langue cible, ou un nom propre, reste tel quel.
+- Glossaire (garde des mots DIFFÉRENTS pour chaque notion) : « Voix » = la voix off qui lit le script ; « Son » = le mixage audio (musique, bruitages, volumes) ; « Fonds » = les vidéos d'arrière-plan ; « Accroche » = le texte choc affiché au début ; « Sous-titres » = les mots affichés pendant la voix ; « Script » = le texte lu par la voix.
 Réponds UNIQUEMENT avec un tableau JSON de ${list.length} chaînes, dans le même ordre :
 ${JSON.stringify(list)}`;
-  let last = 'Erreur IA';
-  for (const model of MODELS) {
-    try {
-      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': process.env.GEMINI_API_KEY },
-        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: 'application/json', temperature: 0.2 } })
-      });
-      const data = await r.json();
-      if (!r.ok) { last = data?.error?.message || last; continue; }
-      const t = (data.candidates?.[0]?.content?.parts || []).map(p => p.text || '').join('').trim();
-      const arr = JSON.parse(t.replace(/^```(json)?|```$/g, '').trim());
-      if (Array.isArray(arr) && arr.length === list.length) return arr.map((x, i) => {
-        const s = String(x ?? '').trim();
-        // sécurité : même nombre de marqueurs {n}, sinon on garde le français
-        const want = (list[i].match(/\{\d+\}/g) || []).length, got = (s.match(/\{\d+\}/g) || []).length;
-        return s && want === got ? s.slice(0, 600) : list[i];
-      });
-      last = 'Réponse incomplète';
-    } catch (e) { last = e.message || last; }
-  }
-  throw new Error(last);
+  const arr = await askGemini(prompt, { json: true, models: LIGHT_MODELS, temperature: 0.2, timeoutMs: 20000, budgetMs: 40000,
+    validate: a => Array.isArray(a) && a.length === list.length });
+  return arr.map((x, i) => {
+    const s = String(x ?? '').trim();
+    // sécurité : même nombre de marqueurs {n}, sinon on garde le français
+    const want = (list[i].match(/\{\d+\}/g) || []).length, got = (s.match(/\{\d+\}/g) || []).length;
+    return s && want === got ? s.slice(0, 600) : list[i];
+  });
 }
 
 export default async function handler(req, res) {
@@ -68,6 +56,6 @@ export default async function handler(req, res) {
     }
     return res.status(200).json({ lang, map });
   } catch (e) {
-    return res.status(500).json({ error: friendly(e.message || 'Erreur'), lang, map });
+    return res.status(e.status || 503).json({ error: e.message || 'Traduction indisponible', code: e.code || 'AI_BAD', lang, map });
   }
 }
