@@ -20,7 +20,7 @@ export const SETTINGS = {
   dur: ['20', '35', '60'],
   tone: ['mystérieux et captivant', 'énergique et fun', 'pédagogique et clair', 'motivant et intense'],
   format: ['libre', 'histoire', 'fait', 'top5', 'citation', 'saviezvous'],
-  mood: ['none', 'triste', 'calme', 'suspense', 'motivation', 'joyeux'],
+  mood: ['none', 'triste', 'calme', 'suspense', 'motivation', 'joyeux', 'epique', 'lofi', 'trap', 'electro', 'romantique', 'horreur'],
   speed: ['0.9', '1', '1.1', '1.2'],
   voice: ['Kore', 'Aoede', 'Leda', 'Sulafat', 'Puck', 'Charon', 'Fenrir', 'Orus'],
   volMusic: 'pct', volSfx: 'pct',

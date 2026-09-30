@@ -813,7 +813,7 @@ body{overflow-x:hidden}
         <label class="check"><input type="checkbox" id="capUpper"> Tout en majuscules</label>
         <label for="capLang">Langue des sous-titres</label>
         <select id="capLang">
-          <option value="">Comme la voix</option><option value="fr">Français</option><option value="en">English</option><option value="es">Español</option><option value="pt">Português (Portugal)</option><option value="br">Português (Brasil)</option><option value="de">Deutsch</option><option value="it">Italiano</option><option value="nl">Nederlands</option><option value="ar">العربية</option><option value="ma">الدارجة المغربية 🇲🇦</option><option value="dz">الدارجة الجزائرية 🇩🇿</option><option value="tn">التونسي 🇹🇳</option><option value="eg">المصري 🇪🇬</option><option value="lb">الشامي 🇱🇧🇸🇾</option><optgroup label="Plus de langues"><option value="af">Afrikaans</option><option value="sq">Shqip</option><option value="am">አማርኛ</option><option value="hy">Հայերեն</option><option value="az">Azərbaycanca</option><option value="eu">Euskara</option><option value="bn">বাংলা</option><option value="bs">Bosanski</option><option value="bg">Български</option><option value="ca">Català</option><option value="zh">中文</option><option value="ko">한국어</option><option value="hr">Hrvatski</option><option value="da">Dansk</option><option value="et">Eesti</option><option value="tl">Filipino</option><option value="fi">Suomi</option><option value="gl">Galego</option><option value="gu">ગુજરાતી</option><option value="el">Ελληνικά</option><option value="ka">ქართული</option><option value="hi">हिन्दी</option><option value="hu">Magyar</option><option value="he">עברית</option><option value="id">Bahasa Indonesia</option><option value="is">Íslenska</option><option value="ja">日本語</option><option value="kk">Қазақша</option><option value="lv">Latviešu</option><option value="lt">Lietuvių</option><option value="mk">Македонски</option><option value="ms">Bahasa Melayu</option><option value="mr">मराठी</option><option value="no">Norsk</option><option value="ne">नेपाली</option><option value="ur">اردو</option><option value="uz">Oʻzbekcha</option><option value="pa">ਪੰਜਾਬੀ</option><option value="fa">فارسی</option><option value="pl">Polski</option><option value="ro">Română</option><option value="ru">Русский</option><option value="sr">Srpski</option><option value="sk">Slovenčina</option><option value="sl">Slovenščina</option><option value="sv">Svenska</option><option value="sw">Kiswahili</option><option value="ta">தமிழ்</option><option value="cs">Čeština</option><option value="th">ไทย</option><option value="tr">Türkçe</option><option value="te">తెలుగు</option><option value="uk">Українська</option><option value="vi">Tiếng Việt</option></optgroup></select>
+          <option value="">Détection auto (langue de la voix)</option><option value="fr">Français</option><option value="en">English</option><option value="es">Español</option><option value="pt">Português (Portugal)</option><option value="br">Português (Brasil)</option><option value="de">Deutsch</option><option value="it">Italiano</option><option value="nl">Nederlands</option><option value="ar">العربية</option><option value="ma">الدارجة المغربية 🇲🇦</option><option value="dz">الدارجة الجزائرية 🇩🇿</option><option value="tn">التونسي 🇹🇳</option><option value="eg">المصري 🇪🇬</option><option value="lb">الشامي 🇱🇧🇸🇾</option><optgroup label="Plus de langues"><option value="af">Afrikaans</option><option value="sq">Shqip</option><option value="am">አማርኛ</option><option value="hy">Հայերեն</option><option value="az">Azərbaycanca</option><option value="eu">Euskara</option><option value="bn">বাংলা</option><option value="bs">Bosanski</option><option value="bg">Български</option><option value="ca">Català</option><option value="zh">中文</option><option value="ko">한국어</option><option value="hr">Hrvatski</option><option value="da">Dansk</option><option value="et">Eesti</option><option value="tl">Filipino</option><option value="fi">Suomi</option><option value="gl">Galego</option><option value="gu">ગુજરાતી</option><option value="el">Ελληνικά</option><option value="ka">ქართული</option><option value="hi">हिन्दी</option><option value="hu">Magyar</option><option value="he">עברית</option><option value="id">Bahasa Indonesia</option><option value="is">Íslenska</option><option value="ja">日本語</option><option value="kk">Қазақша</option><option value="lv">Latviešu</option><option value="lt">Lietuvių</option><option value="mk">Македонски</option><option value="ms">Bahasa Melayu</option><option value="mr">मराठी</option><option value="no">Norsk</option><option value="ne">नेपाली</option><option value="ur">اردو</option><option value="uz">Oʻzbekcha</option><option value="pa">ਪੰਜਾਬੀ</option><option value="fa">فارسی</option><option value="pl">Polski</option><option value="ro">Română</option><option value="ru">Русский</option><option value="sr">Srpski</option><option value="sk">Slovenčina</option><option value="sl">Slovenščina</option><option value="sv">Svenska</option><option value="sw">Kiswahili</option><option value="ta">தமிழ்</option><option value="cs">Čeština</option><option value="th">ไทย</option><option value="tr">Türkçe</option><option value="te">తెలుగు</option><option value="uk">Українська</option><option value="vi">Tiếng Việt</option></optgroup></select>
         <p class="sub">Ex. : voix en anglais, sous-titres en français. L'accroche à l'écran est traduite aussi.</p>
         <p class="msg" id="capLangMsg" role="status"></p>
         <label class="check"><input type="checkbox" id="kwOn" checked> Mots importants et chiffres en couleur</label>
@@ -881,6 +881,12 @@ body{overflow-x:hidden}
             <button class="pill" data-mood="suspense" aria-pressed="false">Suspense</button>
             <button class="pill" data-mood="motivation" aria-pressed="false">Motivation</button>
             <button class="pill" data-mood="joyeux" aria-pressed="false">Joyeux</button>
+            <button class="pill" data-mood="epique" aria-pressed="false">Épique</button>
+            <button class="pill" data-mood="lofi" aria-pressed="false">Lo-fi</button>
+            <button class="pill" data-mood="trap" aria-pressed="false">Trap</button>
+            <button class="pill" data-mood="electro" aria-pressed="false">Électro</button>
+            <button class="pill" data-mood="romantique" aria-pressed="false">Romantique</button>
+            <button class="pill" data-mood="horreur" aria-pressed="false">Horreur</button>
           </div>
           <button class="btn ghost" id="listenMusic" style="width:100%;margin-top:10px" disabled>Écouter la musique</button>
           <p class="or">ou</p>
@@ -895,7 +901,10 @@ body{overflow-x:hidden}
           <div class="trow"><label for="volSfx">Bruitages</label><output id="oSfx">70 %</output></div>
           <input type="range" id="volSfx" min="0" max="100" value="70">
           <div class="meter"><i id="mSfx"></i></div>
-          <p class="sub">Automatiques : « boom » sur l'accroche, « whoosh » à chaque changement de scène, « ding » sur la carte de fin. Mets à 0 % pour les couper.</p>
+          <label for="sfxPack">Style des bruitages</label>
+          <select id="sfxPack"><option value="classique">Classique : boom, whoosh, ding</option><option value="punchy">Punchy : boom, glitch, cha-ching</option><option value="doux">Doux : pop, souffle, ding</option><option value="photo">Photo : déclics</option><option value="argent">Argent : cha-ching, souffle</option></select>
+          <label class="check"><input type="checkbox" id="kwPop"> Petit « pop » sur les mots en couleur</label>
+          <p class="sub">Automatiques : un son sur l'accroche, à chaque changement de scène et sur la carte de fin. Mets à 0 % pour les couper.</p>
         </div>
         <label class="check"><input type="checkbox" id="duck" checked> Baisser la musique quand la voix parle</label>
         <label class="check"><input type="checkbox" id="fades" checked> Fondu au début et à la fin</label>
@@ -2040,7 +2049,7 @@ async function mixSample(only){
   if (me) try { await makeSfx(); } catch(e){}
   if (me && aud.sfx === me && sfxBufs){
     // un bruitage à chaque « changement de scène » de l'extrait, comme dans la vraie vidéo
-    const seq = ['whoosh', 'boom', 'whoosh', 'ding']; let k = 0;
+    const P = sfxPack(), seq = [P[1], P[0], P[1], P[2]]; let k = 0;
     const hit = () => { const s2 = c.createBufferSource(), g2 = c.createGain(); s2.buffer = sfxBufs[seq[k++ % seq.length]]; g2.gain.value = 0.6; s2.connect(g2); g2.connect(m.sfx); s2.start(); };
     hit(); me.iv = setInterval(hit, 750);
   }
@@ -2105,7 +2114,18 @@ const MOODS = {
   motivation: { label:'Motivation', bpm:96, chords:[[48,52,55],[55,59,62],[57,60,64],[53,57,60]], pad:{vol:.09,cut:2200}, arp:{vol:.07,oct:12,steps:16,pat:[0,1,2,1],decay:.35,wave:'pluck'}, bass:{vol:.22,steps:[0,2,4,6,8,10,12,14],len:.45},
                 kick:[1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0], snare:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0], hat:[0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0], drums:.8, reverb:.3 },
   joyeux:     { label:'Joyeux', bpm:112, chords:[[60,64,67],[57,60,64],[53,57,60],[55,59,62]], pad:{vol:.06,cut:2500}, arp:{vol:.09,oct:12,steps:8,pat:[0,2,1,2,0,2,1,2],decay:.3,wave:'pluck'}, bass:{vol:.22,steps:[0,3,6,8,11,14],len:.3},
-                kick:[1,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0], snare:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0], hat:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1], drums:.7, reverb:.25 }
+                kick:[1,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0], snare:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0], hat:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1], drums:.7, reverb:.25 },
+  epique:     { label:'Épique', bpm:88, chords:[[45,52,57,60],[41,48,53,57],[48,55,60,64],[43,50,55,59]], pad:{vol:.13,cut:1800}, arp:{vol:.08,oct:12,steps:16,pat:[0,1,2,3],decay:.3,wave:'pluck'}, bass:{vol:.26,steps:[0,6,8,14],len:.8,oct:-12},
+                kick:[1,0,0,0,0,0,1,0,1,0,0,0,0,0,1,0], snare:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,1], drums:.95, reverb:.5 },
+  lofi:       { label:'Lo-fi', bpm:76, chords:[[50,53,57,60],[55,59,62,65],[48,52,55,59],[45,48,52,55]], pad:{vol:.07,cut:900}, arp:{vol:.11,oct:12,steps:8,pat:[0,-1,2,1,-1,3,-1,2],decay:1.1,wave:'piano'}, bass:{vol:.22,steps:[0,7,10],len:.9},
+                kick:[1,0,0,0,0,0,0,1,0,0,1,0,0,0,0,0], snare:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0], hat:[1,0,1,1,1,0,1,0,1,0,1,1,1,0,1,0], drums:.45, reverb:.4 },
+  trap:       { label:'Trap', bpm:140, chords:[[45,48,52],[45,48,52],[41,45,48],[43,47,50]], pad:{vol:.05,cut:1200}, arp:{vol:.08,oct:24,steps:8,pat:[0,-1,-1,2,-1,1,-1,-1],decay:1.2,wave:'bell'}, bass:{vol:.34,steps:[0,6,10],len:1.6,oct:-12},
+                kick:[1,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0], snare:[0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0], hat:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1], drums:.85, reverb:.2 },
+  horreur:    { label:'Horreur', bpm:58, chords:[[45,46,52],[44,45,51],[45,48,51],[42,45,46]], pad:{vol:.14,cut:500}, arp:{vol:.08,oct:36,steps:8,pat:[0,-1,-1,-1,2,-1,-1,1],decay:3.2,wave:'bell'}, bass:{vol:.22,steps:[0],len:4,oct:-12},
+                kick:[1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0], drums:.5, reverb:.7 },
+  romantique: { label:'Romantique', bpm:70, chords:[[53,57,60,64],[50,53,57,60],[46,50,53,57],[48,52,55,58]], pad:{vol:.08,cut:1400}, arp:{vol:.15,oct:12,steps:8,pat:[0,1,2,3,2,1,0,1],decay:2,wave:'piano'}, bass:{vol:.2,steps:[0,8],len:2}, reverb:.5 },
+  electro:    { label:'Électro', bpm:124, chords:[[57,60,64],[53,57,60],[48,52,55],[55,59,62]], pad:{vol:.07,cut:2600}, arp:{vol:.08,oct:12,steps:16,pat:[0,2,1,2,0,2,1,3],decay:.18,wave:'pluck'}, bass:{vol:.26,steps:[2,6,10,14],len:.35},
+                kick:[1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0], snare:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0], hat:[0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,1], drums:.85, reverb:.25 }
 };
 const hz = n => 440 * Math.pow(2, (n - 69) / 12);
 async function synthMusic(P){
@@ -2208,18 +2228,53 @@ async function makeSfx(){
       o.type = 'sine'; o.frequency.value = fq; g.gain.setValueAtTime(0.0001, 0); g.gain.exponentialRampToValueAtTime(v, 0.005); g.gain.exponentialRampToValueAtTime(0.0001, 1.4);
       o.connect(g); g.connect(oc.destination); o.start(0); o.stop(1.5); });
   });
-  sfxBufs = { whoosh, boom, ding }; return sfxBufs;
+  // Pop : petite bulle
+  const pop = await render(0.25, oc => { const o = oc.createOscillator(), g = oc.createGain(); o.type = 'sine';
+    o.frequency.setValueAtTime(950, 0); o.frequency.exponentialRampToValueAtTime(260, 0.08);
+    g.gain.setValueAtTime(0.0001, 0); g.gain.exponentialRampToValueAtTime(0.9, 0.004); g.gain.exponentialRampToValueAtTime(0.0001, 0.2);
+    o.connect(g); g.connect(oc.destination); o.start(0); o.stop(0.25); });
+  // Swish : souffle court et doux
+  const swish = await render(0.4, oc => { const n = noise(oc, 0.4), f = oc.createBiquadFilter(), g = oc.createGain();
+    f.type = 'bandpass'; f.Q.value = 0.8; f.frequency.setValueAtTime(900, 0); f.frequency.exponentialRampToValueAtTime(4500, 0.35);
+    g.gain.setValueAtTime(0.0001, 0); g.gain.exponentialRampToValueAtTime(0.5, 0.15); g.gain.exponentialRampToValueAtTime(0.0001, 0.38);
+    n.connect(f); f.connect(g); g.connect(oc.destination); n.start(0); });
+  // Glitch : craquements numériques rapides
+  const glitch = await render(0.35, oc => { for (let k = 0; k < 6; k++){ const o = oc.createOscillator(), g = oc.createGain(), t = k * 0.05;
+    o.type = 'square'; o.frequency.value = 180 + Math.random() * 1400; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.35, t + 0.003);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.04); o.connect(g); g.connect(oc.destination); o.start(t); o.stop(t + 0.05); } });
+  // Déclic d'appareil photo
+  const click = await render(0.2, oc => { [0, 0.07].forEach((t, k) => { const n = noise(oc, 0.05), f = oc.createBiquadFilter(), g = oc.createGain();
+    f.type = 'highpass'; f.frequency.value = k ? 2500 : 1200; g.gain.setValueAtTime(0.8, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.04);
+    n.connect(f); f.connect(g); g.connect(oc.destination); n.start(t); }); });
+  // Caisse enregistreuse : cha-ching
+  const cash = await render(1.2, oc => { [[1568, 0], [2093, 0.12]].forEach(([fq, t]) => [[1, .45], [2.4, .15]].forEach(([m, v]) => {
+      const o = oc.createOscillator(), g = oc.createGain(); o.type = 'sine'; o.frequency.value = fq * m;
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.9);
+      o.connect(g); g.connect(oc.destination); o.start(t); o.stop(t + 1); }));
+    const n = noise(oc, 0.15), f = oc.createBiquadFilter(), g = oc.createGain(); f.type = 'highpass'; f.frequency.value = 5000;
+    g.gain.setValueAtTime(0.3, 0); g.gain.exponentialRampToValueAtTime(0.0001, 0.14); n.connect(f); f.connect(g); g.connect(oc.destination); n.start(0); });
+  sfxBufs = { whoosh, boom, ding, pop, swish, glitch, click, cash }; return sfxBufs;
 }
 function playSfx(buf, at, gain){
   const c = ctx(), s = c.createBufferSource(), g = c.createGain(); s.buffer = buf; g.gain.value = gain;
   s.connect(g); g.connect(mix.sfx); s.start(Math.max(c.currentTime, at)); sfxSrcs.push(s);
 }
+// Packs de bruitages : [accroche, changement de scène, carte de fin, mots en couleur]
+const SFX_PACKS = { classique:['boom','whoosh','ding'], punchy:['boom','glitch','cash'], doux:['pop','swish','ding'], photo:['click','click','ding'], argent:['cash','swish','cash'] };
+const sfxPack = () => SFX_PACKS[$('sfxPack').value] || SFX_PACKS.classique;
 function scheduleSfx(t0, D){
   sfxSrcs = [];
   if (!sfxBufs || vol('volSfx') <= 0) return;
-  if ($('hook').value.trim()) playSfx(sfxBufs.boom, t0 + 0.02, 0.7);
-  if (bgMode === 'auto') sceneStarts.forEach((st, i) => { if (i > 0 && st > 0.5 && st < D - 0.5) playSfx(sfxBufs.whoosh, t0 + st - 0.3, 0.55); });
-  if ($('endOn').checked && D > END_DUR + 1) playSfx(sfxBufs.ding, t0 + D - END_DUR, 0.6);
+  const [hk, tr, en] = sfxPack(), tg = tr === 'whoosh' ? 0.3 : 0.12;
+  if ($('hook').value.trim()) playSfx(sfxBufs[hk], t0 + 0.02, 0.7);
+  if (bgMode === 'auto') sceneStarts.forEach((st, i) => { if (i > 0 && st > 0.5 && st < D - 0.5) playSfx(sfxBufs[tr], t0 + st - tg, 0.55); });
+  if ($('endOn').checked && D > END_DUR + 1) playSfx(sfxBufs[en], t0 + D - END_DUR, 0.6);
+  // petit « pop » quand un mot en couleur apparaît
+  if ($('kwPop').checked && $('kwOn').checked && capWords.length){
+    const kws = new Set(kwList().map(norm)); let last = -1;
+    capWords.forEach((w, i) => { const t = capStarts[i]; if (t == null || t < 0.3 || t > D - 0.3 || t - last < 0.6) return;
+      if (/\d/.test(w) || kws.has(norm(w))){ playSfx(sfxBufs.pop, t0 + t, 0.35); last = t; } });
+  }
 }
 const moodCache = {};
 document.querySelectorAll('[data-mood]').forEach(b => b.onclick = async () => {
@@ -2590,15 +2645,15 @@ const pressed = sel => { const b = document.querySelector(sel + '[aria-pressed="
 $('saveDefaults').onclick = () => {
   const d = { voice: $('voice').value, lang: lang(), speed, cap: capStyle, fx, mood: pressed('[data-mood]'),
     capPos: $('capPos').value, capWords: $('capWords').value, capUpper: $('capUpper').checked, kwOn: $('kwOn').checked, endOn: $('endOn').checked, progOn: $('progOn').checked, vfmt, capFont,
-    duck: $('duck').checked, fades: $('fades').checked, checkOn: $('checkOn').checked, capLang: $('capLang').value,
-    volVoice: $('volVoice').value, volVideo: $('volVideo').value, volMusic: $('volMusic').value, volSfx: $('volSfx').value, look: JSON.parse(JSON.stringify(LOOK)) };
+    duck: $('duck').checked, fades: $('fades').checked, checkOn: $('checkOn').checked,
+    volVoice: $('volVoice').value, volVideo: $('volVideo').value, volMusic: $('volMusic').value, volSfx: $('volSfx').value, sfxPack: $('sfxPack').value, kwPop: $('kwPop').checked, look: JSON.parse(JSON.stringify(LOOK)) };
   try { localStorage.setItem(uk(DEF_KEY), JSON.stringify(d)); $('defMsg').className = 'msg ok'; $('defMsg').textContent = 'Réglages gardés ✓ Ils seront appliqués à chaque ouverture.'; }
   catch(e){ $('defMsg').className = 'msg err'; $('defMsg').textContent = 'Impossible d\'enregistrer sur cet appareil.'; }
 };
 (function loadDefaults(){
   let d = null; try { d = JSON.parse(localStorage.getItem(uk(DEF_KEY)) || 'null'); } catch(e){}
   if (!d) return;
-  if (d.voice) $('voice').value = d.voice; if (d.lang) $('lang').value = d.lang; if (d.capLang != null) $('capLang').value = d.capLang;
+  if (d.voice) $('voice').value = d.voice; if (d.lang) $('lang').value = d.lang; $('capLang').value = '';
   ['capPos','capWords'].forEach(k => { if (d[k]) $(k).value = d[k]; });
   if (d.vfmt) window.sbPendingFmt = d.vfmt;
   if (d.capFont) window.sbPendingFont = d.capFont;
@@ -2609,6 +2664,7 @@ $('saveDefaults').onclick = () => {
   if (d.fx) clickPill(`[data-fx="${d.fx}"]`);
   if (d.mood && d.mood !== 'none') clickPill(`[data-mood="${d.mood}"]`);
   if (d.look) setLook(d.look);
+  if (d.sfxPack) $('sfxPack').value = d.sfxPack; if (typeof d.kwPop === 'boolean') $('kwPop').checked = d.kwPop;
 })();
 
 // ---------- Format de la vidéo : 9:16, 1:1, 16:9 ----------
@@ -2883,7 +2939,7 @@ function valLabel(k, v){
   if (v === true || v === 'true') return 'Oui'; if (v === false || v === 'false') return 'Non';
   const M = { capPos:{'.3':'Haut','.52':'Milieu','.72':'Bas'}, capFont:{bricolage:'Bricolage',anton:'Anton',poppins:'Poppins'},
     capStyle:{classique:'Classique',jaune:'Jaune',neon:'Néon',karaoke:'Karaoké',minimal:'Minimal'}, fx:{aucun:'Aucun',doux:'Zoom doux',dynamique:'Dynamique'},
-    vfmt:{'916':'9:16 vertical','11':'1:1 carré','169':'16:9 YouTube'}, mood:{none:'Aucune',triste:'Triste',calme:'Calme',suspense:'Suspense',motivation:'Motivation',joyeux:'Joyeux'} };
+    vfmt:{'916':'9:16 vertical','11':'1:1 carré','169':'16:9 YouTube'}, mood:{none:'Aucune',triste:'Triste',calme:'Calme',suspense:'Suspense',motivation:'Motivation',joyeux:'Joyeux',epique:'Épique',lofi:'Lo-fi',trap:'Trap',electro:'Électro',romantique:'Romantique',horreur:'Horreur'} };
   if (M[k] && M[k][v]) return M[k][v];
   if (k === 'tone') return TONE_NAME[v] || v; if (k === 'format') return FORMAT_NAME[v] || v;
   if (k === 'dur') return v + ' s'; if (k === 'speed') return String(v).replace('.', ',') + 'x';
@@ -3369,6 +3425,10 @@ $('autoSubBtn').onclick = async () => {
     buf.fromVideo = true; audioRaw = buf; audioBuf = buf; voiceBlob = null;
     $('script').value = text; updateCount(); keepEdits();
     capTimed = words(text).length === allWords.length ? { key: text, starts, spk: new Set(spk).size > 1 ? spk : null } : null;
+    { const iso = String(language || '').toLowerCase().split(/[-_]/)[0], cur = lang(), AR = ['ar','ma','dz','tn','eg','lb'];
+      const want = iso === 'ar' && AR.includes(cur) ? cur : iso === 'pt' && cur === 'br' ? 'br' : iso;
+      if (want && want !== cur && [...$('lang').options].some(o => o.value === want)) $('lang').value = want;
+      $('capLang').value = ''; capTr = null; }
     $('spkRow').hidden = !(capTimed && capTimed.spk);
     voiceKey = text + '|' + $('voice').value;
     if (voiceURL){ URL.revokeObjectURL(voiceURL); voiceURL = null; } $('voicePlayer').hidden = true;
