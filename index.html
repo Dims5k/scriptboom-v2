@@ -1933,7 +1933,8 @@ function drawCaption(idx){
   const cx = W * (LOOK.capX ?? 0.47); // centre légèrement à gauche
   let bx0 = Infinity, bx1 = -Infinity;
   lines.forEach(line => {
-    const tw = line.reduce((a,o)=>a+o.ww,0) + space*(line.length-1); let x = cx - tw/2;
+    // le texte reste toujours entier dans le cadre, même si les sous-titres ont été glissés trop près d'un bord
+    const tw = line.reduce((a,o)=>a+o.ww,0) + space*(line.length-1); let x = Math.max(W * 0.04, Math.min(W * 0.96 - tw, cx - tw/2));
     line.forEach(o => {
       g.save();
       bx0 = Math.min(bx0, x); bx1 = Math.max(bx1, x + o.ww);
@@ -2101,6 +2102,8 @@ function capYNow(){ return LOOK.capY ?? +$('capPos').value; }
   cv.addEventListener('pointermove', e => {
     if (!drag || e.pointerId !== drag.id) return; e.preventDefault();
     const p = pt(e), nx = drag.x0 + (p.x - drag.px) / W, ny = drag.y0 + (p.y - drag.py) / H;
+    // un simple appui (doigt qui bouge un peu) ne déplace plus rien : il faut vraiment glisser
+    if (!drag.moved){ if (Math.hypot(p.x - drag.px, p.y - drag.py) < W * 0.04) return; drag.moved = true; }
     const lim = drag.what === 'wm' ? [0, 0.9, 0.02, 0.93] : [0.2, 0.8, 0.12, 0.9];
     LOOK[drag.K[0]] = clamp(nx, lim[0], lim[1]); LOOK[drag.K[1]] = clamp(ny, lim[2], lim[3]);
     drawFrame(drag.t);
