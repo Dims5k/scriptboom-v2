@@ -500,8 +500,12 @@ body{overflow-x:hidden}
     });
   };
   // Erreurs JavaScript : remontées dans les logs Vercel (APPLI ERREUR)
-  window.addEventListener('error',function(e){ window.sbLog('js',e.message,{where:(e.filename||'').split('/').pop()+':'+e.lineno}); });
-  window.addEventListener('unhandledrejection',function(e){ var r=e.reason; window.sbLog('promise',r&&r.message||String(r)); });
+  // Admin : le bug s'affiche aussi en bas de l'écran (capture d'écran → on sait tout de suite où ça casse)
+  function showBug(msg){ try { if(document.documentElement.getAttribute('data-admin')!=='1') return; var d=document.getElementById('sbBug');
+    if(!d){ d=document.createElement('div'); d.id='sbBug'; d.style.cssText='position:fixed;left:8px;right:8px;bottom:8px;z-index:99999;background:#3a0d0d;color:#ffd6d6;border:1px solid #a33;border-radius:10px;padding:8px 10px;font:12px/1.35 monospace;white-space:pre-wrap;max-height:30vh;overflow:auto'; d.onclick=function(){ d.remove(); }; document.body.appendChild(d); }
+    d.textContent='🐞 Bug (touche pour fermer) :\n'+String(msg).slice(0,400); } catch(_){} }
+  window.addEventListener('error',function(e){ window.sbLog('js',e.message,{where:(e.filename||'').split('/').pop()+':'+e.lineno}); showBug(e.message+' @ '+(e.filename||'').split('/').pop()+':'+e.lineno); });
+  window.addEventListener('unhandledrejection',function(e){ var r=e.reason; window.sbLog('promise',r&&r.message||String(r)); showBug((r&&r.stack)||(r&&r.message)||String(r)); });
 
   // ---------- CGU / 18 ans ----------
   function askTerms(){ var t=document.getElementById('sbTerms'); t.hidden=false; document.getElementById('sbTermsOk').focus(); }
@@ -857,7 +861,7 @@ body{overflow-x:hidden}
             <textarea id="capFixText" dir="auto" style="min-height:120px"></textarea>
             <button class="btn ghost" id="capFixReset" type="button" style="width:100%;margin-top:6px">↺ Revenir aux mots entendus par l'IA</button>
             <button class="btn" id="whisperBtn" type="button" style="width:100%;margin-top:10px">🎧 Recaler le rythme avec Whisper</button>
-            <p class="sub">Plus précis sur les sons et le rap : une IA écoute ta vidéo directement dans ton téléphone et note le moment exact de chaque mot. Gratuit. La 1re fois, elle se télécharge (≈ 80 Mo, une seule fois), puis ça prend 1 à 3 minutes. Ton texte corrigé est ensuite posé sur ce rythme.</p>
+            <p class="sub">Plus précis sur les sons et le rap : une IA écoute ta vidéo directement dans ton téléphone et note le moment exact de chaque mot. Gratuit. La 1re fois, elle se télécharge (≈ 40 Mo sur iPhone, une seule fois), puis ça prend 1 à 3 minutes : garde l'appli ouverte et l'écran allumé. Ton texte corrigé est ensuite posé sur ce rythme.</p>
             <p class="msg" id="whisperMsg" role="status"></p>
             <p class="sub">Ou touche une case : laisse vide pour la supprimer, écris plusieurs mots pour en faire plusieurs cases.</p>
           </div>
@@ -3091,17 +3095,15 @@ $('capFixReset').onclick = () => {
 const WHISPER_WORKER = `
 let asr = null;
 self.onmessage = async e => {
-  const { audio, language } = e.data;
+  const { audio, language, model } = e.data;
   try {
     const T = await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3');
     T.env.allowLocalModels = false;
     if (!asr){
-      let gpu = false; try { gpu = !!(self.navigator && navigator.gpu && await navigator.gpu.requestAdapter()); } catch(_){}
       const files = {};
       const prog = p => { if (p.status === 'progress' && p.total){ files[p.file] = [p.loaded, p.total]; let a = 0, b = 0; for (const k in files){ a += files[k][0]; b += files[k][1]; } self.postMessage({ type: 'dl', loaded: a, total: b }); } };
-      const mk = dev => T.pipeline('automatic-speech-recognition', 'onnx-community/whisper-base_timestamped',
-        { device: dev, dtype: dev === 'webgpu' ? { encoder_model: 'fp32', decoder_model_merged: 'q4' } : 'q8', progress_callback: prog });
-      try { asr = await mk(gpu ? 'webgpu' : 'wasm'); } catch(err){ if (!gpu) throw err; asr = await mk('wasm'); }
+      // processeur (wasm) seulement : la carte graphique fait planter Safari sur iPhone (mémoire)
+      asr = await T.pipeline('automatic-speech-recognition', model, { device: 'wasm', dtype: 'q8', progress_callback: prog });
     }
     self.postMessage({ type: 'run' });
     const out = await asr(audio, { return_timestamps: 'word', language, task: 'transcribe', chunk_length_s: 30, stride_length_s: 5 });
@@ -3114,7 +3116,9 @@ function whisperWords(pcm, language, onMsg){
     if (!whisperW) whisperW = new Worker(URL.createObjectURL(new Blob([WHISPER_WORKER], { type: 'text/javascript' })), { type: 'module' });
     whisperW.onmessage = e => { const d = e.data; if (d.type === 'done') res(d.chunks); else if (d.type === 'err') rej(new Error(d.msg)); else onMsg(d); };
     whisperW.onerror = e => rej(new Error(e.message || 'le module Whisper n\'a pas pu démarrer'));
-    whisperW.postMessage({ audio: pcm, language });
+    // iPhone / iPad : petit modèle (≈ 40 Mo) pour ne pas dépasser la mémoire de Safari
+    const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    whisperW.postMessage({ audio: pcm, language, model: ios ? 'onnx-community/whisper-tiny_timestamped' : 'onnx-community/whisper-base_timestamped' });
   });
 }
 $('whisperBtn').onclick = async () => {
