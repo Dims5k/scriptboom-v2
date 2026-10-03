@@ -784,6 +784,10 @@ body{overflow-x:hidden}
         <div class="mic-box" id="autoSubBox" hidden style="margin-top:12px">
           <b>💬 Sous-titrer automatiquement ma vidéo</b>
           <p class="sub">ScriptBoom écoute ta vidéo et écrit les sous-titres mot à mot, calés sur sa voix d'origine. Tu gardes ensuite tous les styles, la police, les couleurs et la traduction des sous-titres.</p>
+          <label class="check"><input type="checkbox" id="autoSubMusic"> 🎵 C'est une chanson ou un clip (rap, chant, musique forte)</label>
+          <div id="autoSubLyricsBox" hidden>
+            <textarea id="autoSubLyrics" dir="auto" style="min-height:80px" placeholder="Conseillé : colle ici les paroles du morceau. ScriptBoom les cale sur la musique au lieu de deviner ce qui est dit (beaucoup plus juste)."></textarea>
+          </div>
           <button class="btn" id="autoSubBtn" style="width:100%">💬 Créer les sous-titres</button>
           <p class="msg" id="autoSubMsg" role="status"></p>
         </div>
@@ -3519,6 +3523,7 @@ async function to16k(buf){
   const oc = new OAC(1, Math.ceil(buf.duration * rate), rate), src = oc.createBufferSource(); src.buffer = buf; src.connect(oc.destination); src.start();
   return (await oc.startRendering()).getChannelData(0);
 }
+$('autoSubMusic').onchange = () => { $('autoSubLyricsBox').hidden = !$('autoSubMusic').checked; };
 $('autoSubBtn').onclick = async () => {
   const m = $('autoSubMsg'), btn = $('autoSubBtn'), file = $('file').files[0];
   if (!file || bgMode !== 'own'){ m.className = 'msg err'; m.textContent = 'Importe d\'abord ta vidéo juste au-dessus.'; return; }
@@ -3535,16 +3540,21 @@ $('autoSubBtn').onclick = async () => {
     const pcm = await to16k(buf), rate = 16000, cuts = silentCuts(pcm, rate), parts = cuts.length - 1, segs = [];
     let language = '', speakers = [];
     const lexicon = readPron().map(([f]) => f).filter(Boolean);
+    // Chanson : les paroles chantées/rappées sont le contenu, pas un bruit ; si l'utilisateur colle les paroles, l'IA les cale au lieu de deviner
+    const music = $('autoSubMusic').checked, lyrics = music ? $('autoSubLyrics').value.trim().slice(0, 8000) : '';
     for (let k = 0; k < parts; k++){
       m.textContent = parts > 1 ? `L'IA écoute ta vidéo… (${k + 1}/${parts})` : 'L\'IA écoute ta vidéo et écrit les sous-titres…';
       // morceaux courts (~20 s), coupés sur un silence : l'horaire ne dérive plus, même avec de la musique
       const t0 = cuts[k], slice = pcm.subarray(Math.round(t0 * rate), Math.round(cuts[k + 1] * rate)), len = slice.length / rate;
+      // fin du morceau précédent : évite les mots répétés ou perdus à la jonction de deux morceaux
+      const prevText = segs.slice(-4).map(x => x.text).join(' ').split(' ').slice(-15).join(' ');
       const r = await fetch('/api/transcribe', { method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ audio: wavB64(slice, rate), duration: len, lang: lang(), part: k, lexicon, speakers }) });
+        body: JSON.stringify({ audio: wavB64(slice, rate), duration: len, lang: lang(), part: k, lexicon, speakers, music, lyrics, prevText }) });
       const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || 'Erreur ' + r.status);
       language = language || d.language;
       (d.speakers || []).forEach(x => { if (!speakers.some(y => y.id === x.id)) speakers.push(x); });
-      (d.segments || []).forEach(x => segs.push({ start: snapOnset(pcm, rate, x.start + t0, t0, t0 + len), end: Math.min(t0 + len, x.end + t0), speaker: x.speaker || 1, text: x.text }));
+      // en musique, les « reprises » de volume sont les coups de batterie, pas la voix : on ne recale pas dessus
+      (d.segments || []).forEach(x => segs.push({ start: music ? Math.max(t0, x.start + t0) : snapOnset(pcm, rate, x.start + t0, t0, t0 + len), end: Math.min(t0 + len, x.end + t0), speaker: x.speaker || 1, text: x.text }));
     }
     if (!segs.length) throw new Error('aucune parole entendue dans cette vidéo');
     for (let i = 1; i < segs.length; i++) if (segs[i].start < segs[i-1].start) segs[i].start = segs[i-1].start + 0.05;
