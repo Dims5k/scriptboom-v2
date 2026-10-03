@@ -784,10 +784,6 @@ body{overflow-x:hidden}
         <div class="mic-box" id="autoSubBox" hidden style="margin-top:12px">
           <b>💬 Sous-titrer automatiquement ma vidéo</b>
           <p class="sub">ScriptBoom écoute ta vidéo et écrit les sous-titres mot à mot, calés sur sa voix d'origine. Tu gardes ensuite tous les styles, la police, les couleurs et la traduction des sous-titres.</p>
-          <label class="check"><input type="checkbox" id="autoSubMusic"> 🎵 C'est une chanson ou un clip (rap, chant, musique forte)</label>
-          <div id="autoSubLyricsBox" hidden>
-            <textarea id="autoSubLyrics" dir="auto" style="min-height:80px" placeholder="Conseillé : colle ici les paroles du morceau. ScriptBoom les cale sur la musique au lieu de deviner ce qui est dit (beaucoup plus juste)."></textarea>
-          </div>
           <button class="btn" id="autoSubBtn" style="width:100%">💬 Créer les sous-titres</button>
           <p class="msg" id="autoSubMsg" role="status"></p>
         </div>
@@ -856,7 +852,11 @@ body{overflow-x:hidden}
         <details class="ideas" id="capFixBox">
           <summary>✏️ Corriger un mot des sous-titres</summary>
           <p class="sub" style="margin-top:6px">Touche un mot pour le corriger. Seul le texte affiché change, pas la voix. Les mots corrigés sont en vert.</p>
-          <p class="sub">Vidéo sous-titrée automatiquement : tu peux aussi supprimer une case (laisse vide), en ajouter, ou tout corriger d'un coup dans <b>Le script</b> comme un texte normal. Les mots gardent leur moment.</p>
+          <div id="capFixTextBox" hidden>
+            <p class="sub"><b>Tout corriger d'un coup :</b> modifie le texte ci-dessous comme un texte normal (supprime, ajoute, fusionne des mots). Les mots inchangés gardent leur moment.</p>
+            <textarea id="capFixText" dir="auto" style="min-height:120px"></textarea>
+            <p class="sub">Ou touche une case : laisse vide pour la supprimer, écris plusieurs mots pour en faire plusieurs cases.</p>
+          </div>
           <div class="wchips" id="capChips" data-nt></div>
         </details>
         <label style="margin-top:16px">Mouvement</label>
@@ -3005,6 +3005,8 @@ var capFixes = {};
 const fixKey = () => $('script').value.trim() + '|' + capLangNow() + '|' + (trNow() ? 't' : '');
 function renderCapChips(){
   const box = $('capChips'); box.innerHTML = '';
+  const vt = !!(audioRaw && audioRaw.fromVideo && !trNow()); $('capFixTextBox').hidden = !vt;
+  if (vt && document.activeElement !== $('capFixText')) $('capFixText').value = $('script').value;
   if (!$('script').value.trim()){ box.textContent = 'Écris ou génère d\'abord un script.'; return; }
   if (!capWords.length){ prepareCaptions(); return; }
   const fx = capFixes[fixKey()] || {};
@@ -3032,6 +3034,11 @@ function renderCapChips(){
   });
 }
 $('capFixBox').addEventListener('toggle', () => { if ($('capFixBox').open) renderCapChips(); });
+// Le bloc de texte modifie directement le texte des sous-titres (même effet que de modifier « Le script »)
+$('capFixText').addEventListener('input', () => {
+  $('script').value = $('capFixText').value; syncVideoScript(); updateCount(); keepEdits();
+  capWords = []; if (!running) drawFrame(previewT());
+});
 
 // ---------- Coupes calées sur le rythme (musique importée) ----------
 var beatTimes = null, beatBuf = null;
@@ -3550,12 +3557,11 @@ async function movAudioADTS(file){
   throw new Error('no aac track');
 }
 // Découpe le son en morceaux d'environ 20 s, chacun coupé au moment le plus calme (jamais au milieu d'un mot)
-// Chanson : morceaux plus courts (~10 s) → l'IA cale beaucoup mieux les passages rapides
-function silentCuts(pcm, rate, short){
-  const D = pcm.length / rate, cuts = [0], win = Math.round(rate * 0.05), lo = short ? 8 : 16, hi = short ? 12 : 24, max = short ? 14 : 26;
+function silentCuts(pcm, rate){
+  const D = pcm.length / rate, cuts = [0], win = Math.round(rate * 0.05);
   const energy = t => { const a = Math.max(0, Math.round(t * rate) - win), b = Math.min(pcm.length, a + 2 * win); let e = 0; for (let i = a; i < b; i += 4) e += pcm[i] * pcm[i]; return e; };
-  while (D - cuts[cuts.length - 1] > max){
-    const from = cuts[cuts.length - 1] + lo, to = cuts[cuts.length - 1] + hi; let best = (from + to) / 2, be = Infinity;
+  while (D - cuts[cuts.length - 1] > 26){
+    const from = cuts[cuts.length - 1] + 16, to = cuts[cuts.length - 1] + 24; let best = from + 4, be = Infinity;
     for (let t = from; t <= to; t += 0.05){ const e = energy(t); if (e < be){ be = e; best = t; } }
     cuts.push(best);
   }
@@ -3573,7 +3579,6 @@ async function to16k(buf){
   const oc = new OAC(1, Math.ceil(buf.duration * rate), rate), src = oc.createBufferSource(); src.buffer = buf; src.connect(oc.destination); src.start();
   return (await oc.startRendering()).getChannelData(0);
 }
-$('autoSubMusic').onchange = () => { $('autoSubLyricsBox').hidden = !$('autoSubMusic').checked; };
 $('autoSubBtn').onclick = async () => {
   const m = $('autoSubMsg'), btn = $('autoSubBtn'), file = $('file').files[0];
   if (!file || bgMode !== 'own'){ m.className = 'msg err'; m.textContent = 'Importe d\'abord ta vidéo juste au-dessus.'; return; }
@@ -3587,19 +3592,15 @@ $('autoSubBtn').onclick = async () => {
     try { const x = await movAudioADTS(file); if (x.duration > 185) throw new Error('long'); buf = await decode(x.adts); } catch(e){ if (e.message === 'long') throw new Error('vidéo trop longue : 3 minutes maximum'); }
     if (!buf){ try { buf = await decode(await file.arrayBuffer()); } catch(e){ throw new Error('aucun son trouvé dans cette vidéo (vérifie qu\'elle a bien du son)'); } }
     if (buf.duration > 185) throw new Error('vidéo trop longue : 3 minutes maximum');
-    // Chanson : les paroles chantées/rappées sont le contenu, pas un bruit ; si l'utilisateur colle les paroles, l'IA les cale au lieu de deviner
-    const music = $('autoSubMusic').checked, lyrics = music ? $('autoSubLyrics').value.trim().slice(0, 8000) : '';
-    const pcm = await to16k(buf), rate = 16000, cuts = silentCuts(pcm, rate, music), parts = cuts.length - 1, segs = [];
+    const pcm = await to16k(buf), rate = 16000, cuts = silentCuts(pcm, rate), parts = cuts.length - 1, segs = [];
     let language = '', speakers = [];
     const lexicon = readPron().map(([f]) => f).filter(Boolean);
     for (let k = 0; k < parts; k++){
       m.textContent = parts > 1 ? `L'IA écoute ta vidéo… (${k + 1}/${parts})` : 'L\'IA écoute ta vidéo et écrit les sous-titres…';
       // morceaux courts (~20 s), coupés sur un silence : l'horaire ne dérive plus, même avec de la musique
       const t0 = cuts[k], slice = pcm.subarray(Math.round(t0 * rate), Math.round(cuts[k + 1] * rate)), len = slice.length / rate;
-      // fin du morceau précédent : évite les mots répétés ou perdus à la jonction de deux morceaux
-      const prevText = segs.slice(-4).map(x => x.text).join(' ').split(' ').slice(-15).join(' ');
       const r = await fetch('/api/transcribe', { method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ audio: wavB64(slice, rate), duration: len, lang: lang(), part: k, lexicon, speakers, music, lyrics, prevText }) });
+        body: JSON.stringify({ audio: wavB64(slice, rate), duration: len, lang: lang(), part: k, lexicon, speakers }) });
       const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || 'Erreur ' + r.status);
       language = language || d.language;
       (d.speakers || []).forEach(x => { if (!speakers.some(y => y.id === x.id)) speakers.push(x); });
