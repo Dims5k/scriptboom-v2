@@ -1118,9 +1118,11 @@ function remapTimed(text){
     const cnt = k - j;
     for (let x = j; x < k; x++){
       const r = x - j + 1;
+      // fin de la vidéo : les mots que l'IA n'a pas entendus (ex. dernier refrain) se répartissent jusqu'à la fin du son
+      const dur = audioBuf ? audioBuf.duration : 0, tail = j && dur ? Math.min(0.45, Math.max(0.12, (dur - 0.2 - st[j-1]) / (cnt + 1))) : 0.3;
       st[x] = j && k < m ? st[j-1] + (st[k] - st[j-1]) * r / (cnt + 1)   // entre deux mots gardés
             : k < m ? Math.max(0, st[k] - 0.3 * (cnt - r + 1))           // avant le premier mot gardé
-            : j ? st[j-1] + 0.3 * r : 0.3 * (r - 1);                     // après le dernier (ou aucun mot gardé)
+            : j ? st[j-1] + tail * r : 0.3 * (r - 1);                    // après le dernier (ou aucun mot gardé)
       sp[x] = sp[x] ?? (j ? sp[j-1] : (k < m ? sp[k] : 1));
     }
     j = k;
@@ -3076,8 +3078,13 @@ $('capFixText').addEventListener('input', e => {
   if (pasted && audioRaw && audioRaw.fromVideo && capTimed){
     remapTimed($('script').value);
     const ws = words($('script').value), sp = capTimed && capTimed.span;
-    if (sp && sp[0] >= 0 && (sp[0] > 2 || ws.length - 1 - sp[1] > 2)){
-      const keep = ws.slice(Math.max(0, sp[0] > 2 ? sp[0] : 0), ws.length - 1 - sp[1] > 2 ? sp[1] + 1 : ws.length).join(' ');
+    // on ne coupe que ce qui ne tient pas dans le son : un refrain chanté mais pas entendu par l'IA est gardé
+    const dur = audioBuf ? audioBuf.duration : 0;
+    const roomEnd = sp && sp[1] >= 0 && dur ? Math.floor(Math.max(0, dur - 0.2 - capTimed.starts[sp[1]]) / 0.15) : 0;
+    const roomStart = sp && sp[0] >= 0 ? Math.floor(Math.max(0, capTimed.starts[sp[0]]) / 0.15) : 0;
+    const cutStart = sp ? Math.max(0, sp[0] - roomStart) : 0, cutEnd = sp ? Math.min(ws.length, sp[1] + 1 + roomEnd) : ws.length;
+    if (sp && sp[0] >= 0 && (cutStart > 0 || cutEnd < ws.length)){
+      const keep = ws.slice(cutStart, cutEnd).join(' ');
       $('script').value = keep; $('capFixText').value = keep; capFixPrev = keep;
     }
   } syncVideoScript(); updateCount(); keepEdits();
