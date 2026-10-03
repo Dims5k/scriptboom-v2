@@ -177,6 +177,20 @@ body{overflow-x:hidden}
 .cap.done .ball{border:2px solid var(--green);color:var(--green);background:#101810;box-shadow:0 0 24px rgba(30,215,96,.18)}
 .cap.done .tick{display:grid}.cap.done .cap-l{color:var(--green)}
 .cap.active .ball{box-shadow:0 0 0 4px rgba(30,215,96,.25)}
+.cap{touch-action:none}
+.cap.drag{animation:none;position:relative;z-index:88;transition:none;cursor:grabbing}
+.cap.drag .ball{transform:scale(1.12);box-shadow:0 10px 30px rgba(0,0,0,.6)}
+.cap.drag.hot .ball{transform:scale(.8);border-color:#ff4d4f;color:#ff4d4f;background:#2a1212}
+.cap.back{animation:none;transition:transform .25s cubic-bezier(.2,.9,.3,1.2)}
+.cap.gone .ball{animation:capGone .4s ease-in}
+@keyframes capGone{0%{transform:scale(.6);opacity:.3}100%{transform:scale(1);opacity:1}}
+#capTrash{position:fixed;left:50%;bottom:calc(28px + env(safe-area-inset-bottom));z-index:87;display:flex;flex-direction:column;align-items:center;gap:8px;transform:translate(-50%,140%);opacity:0;pointer-events:none;transition:transform .25s cubic-bezier(.2,.9,.3,1.2),opacity .2s}
+#capTrash.on{transform:translate(-50%,0);opacity:1}
+#capTrash i{width:64px;height:64px;border-radius:50%;display:grid;place-items:center;background:rgba(20,20,20,.92);border:2px solid rgba(255,255,255,.35);color:#fff;transition:transform .15s,background .15s,border-color .15s;backdrop-filter:blur(6px)}
+#capTrash.hot i{transform:scale(1.25);background:#ff4d4f;border-color:#ff4d4f}
+#capTrash span{font:700 13px Figtree,sans-serif;color:#e6e6e6;background:rgba(0,0,0,.6);padding:4px 10px;border-radius:999px}
+body.cap-dragging{user-select:none;-webkit-user-select:none}
+#sbToast.info{background:#121a14;border-color:var(--green,#1ed760);color:#e6ffe9}#sbToast.info .t-x{color:#9adfae}
 @keyframes sbFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
 .ring{--p:0deg;padding:4px;border-radius:34px;background:conic-gradient(var(--green) 0deg var(--p),#1f1f1f var(--p) 360deg);box-shadow:0 0 30px rgba(30,215,96,.12);transition:--p .4s;width:min(300px,52vw);flex:none}
 .ring .phone{max-width:none;border:0;border-radius:30px}
@@ -3878,6 +3892,130 @@ $('rcYes').onclick = () => {
   $('topic').focus({ preventScroll: true });
 };
 
+// ---------- Glisser une bulle vers la croix : effacer seulement cet élément ----------
+const WIPE_MSG = { script:'Script effacé.', voix:'Voix effacée.', fonds:'Fonds effacés.', style:'Style remis par défaut.', son:'Son remis par défaut.', pub:'Légende effacée.' };
+const STYLE_DEF = { vfmt:'916', font:'bricolage', cap:'classique', fx:'doux', capPos:'.72', capWords:'auto2', capUpper:false, capLang:'', kwOn:true, endOn:true, progOn:true, look:null };
+const SON_DEF = { volVoice:'100', volVideo:'0', volMusic:'30', volSfx:'70', mood:'none', sfxPack:'classique', kwPop:false, duck:true, fades:true };
+function savedDefs(){ try { return JSON.parse(localStorage.getItem(uk(DEF_KEY)) || 'null') || {}; } catch(e){ return {}; } }
+function redraw(){ capWords = []; if (!running) drawFrame(previewT()); updateRecipe(); }
+function styleNow(){ return { vfmt, font: capFont, cap: capStyle, fx, capPos: $('capPos').value, capWords: $('capWords').value, capUpper: $('capUpper').checked,
+  capLang: $('capLang').value, kwOn: $('kwOn').checked, endOn: $('endOn').checked, progOn: $('progOn').checked, look: JSON.parse(JSON.stringify(LOOK)) }; }
+function applyStyle(s){
+  if (s.vfmt !== vfmt) setVfmt(s.vfmt, true);
+  if (s.font !== capFont) setCapFont(s.font);
+  clickPill(`[data-cap="${s.cap}"]`); clickPill(`[data-fx="${s.fx}"]`);
+  $('capPos').value = s.capPos; $('capWords').value = s.capWords;
+  ['capUpper','kwOn','endOn','progOn'].forEach(k => $(k).checked = s[k]);
+  setLook(s.look || JSON.parse(LOOK_DEF));
+  if ($('capLang').value !== s.capLang){ $('capLang').value = s.capLang; $('capLang').dispatchEvent(new Event('change')); }
+  redraw();
+}
+function sonNow(){ return { volVoice: $('volVoice').value, volVideo: $('volVideo').value, volMusic: $('volMusic').value, volSfx: $('volSfx').value,
+  mood: pressed('[data-mood]') || '', sfxPack: $('sfxPack').value, kwPop: $('kwPop').checked, duck: $('duck').checked, fades: $('fades').checked,
+  musicBuf, musicTxt: $('musicTxt').textContent, listenOff: $('listenMusic').disabled, beatTimes, beatBuf, beatRow: $('beatRow').hidden, beatInfo: $('beatInfo').hidden }; }
+function applySonBase(s){
+  [['volVoice','oVoice'],['volVideo','oVideo'],['volMusic','oMusic'],['volSfx','oSfx']].forEach(([k,o]) => { $(k).value = s[k]; $(o).textContent = s[k] + ' %'; });
+  $('sfxPack').value = s.sfxPack; ['kwPop','duck','fades'].forEach(k => $(k).checked = s[k]); applyVolumes();
+}
+// Efface un seul élément et renvoie de quoi l'annuler
+function wipeCap(k){
+  if (k === 'script'){
+    const snap = { script: $('script').value, hook: $('hook').value, kw: $('kw').value, parts, part, partMedia, partDone, box: $('partBox').hidden, capTr, gen: msgState('genMsg') };
+    ['script','hook','kw'].forEach(id => $(id).value = ''); parts = []; part = 0; resetParts(); $('partBox').hidden = true; capTr = null; setMsgState('genMsg');
+    updateCount(); showEmpty(!audioBuf && bgMode === 'none'); redraw();
+    return () => { $('script').value = snap.script; $('hook').value = snap.hook; $('kw').value = snap.kw; parts = snap.parts; part = snap.part; partMedia = snap.partMedia; partDone = snap.partDone;
+      $('partBox').hidden = snap.box; capTr = snap.capTr; setMsgState('genMsg', snap.gen); updateCount(); showEmpty(false); redraw(); };
+  }
+  if (k === 'voix'){
+    const snap = { audioRaw, audioBuf, voiceBlob, voiceURL, voiceKey, capTimed, msg: msgState('voiceMsg') }, vp = $('voicePlayer');
+    audioRaw = null; audioBuf = null; voiceBlob = null; voiceURL = null; voiceKey = ''; capTimed = null;
+    vp.pause(); vp.removeAttribute('src'); vp.hidden = true; setMsgState('voiceMsg'); hideResult(); resultBlob = null; updateVideoTrack(); redraw();
+    return { undo: () => { ({ audioRaw, audioBuf, voiceBlob, voiceURL, voiceKey, capTimed } = snap); if (voiceURL){ vp.src = voiceURL; vp.hidden = false; }
+        setMsgState('voiceMsg', snap.msg); updateVideoTrack(); redraw(); },
+      drop: () => { if (snap.voiceURL && snap.voiceURL !== voiceURL) URL.revokeObjectURL(snap.voiceURL); } };
+  }
+  if (k === 'fonds'){
+    const snap = { scenes, sceneStarts, bgPage, bgKey, bgMode, videoURL, drop: $('dropTxt').textContent, msg: msgState('bgMsg'), box: $('scenesBox').hidden };
+    if (current) current.pause(); scenes.forEach(s => { if (s.el) s.el.pause(); }); current = null; lastBgEl = null;
+    scenes = []; sceneStarts = []; bgPage = 1; bgKey = ''; bgMode = 'none'; videoURL = null; vid.pause(); vid.removeAttribute('src');
+    $('scenesBox').hidden = true; $('scenesList').innerHTML = ''; $('dropTxt').textContent = 'Choisir ma propre vidéo'; $('file').value = ''; setMsgState('bgMsg');
+    hideResult(); resultBlob = null; showEmpty(!audioBuf); updateVideoTrack(); redraw();
+    return { undo: () => { ({ scenes, sceneStarts, bgPage, bgKey, bgMode, videoURL } = snap);
+        if (videoURL){ vid.src = videoURL; vid.load(); } if (scenes.length) renderScenes(); $('scenesBox').hidden = snap.box;
+        $('dropTxt').textContent = snap.drop; setMsgState('bgMsg', snap.msg); showEmpty(false); updateVideoTrack(); redraw(); },
+      drop: () => { if (scenes !== snap.scenes) snap.scenes.forEach(s => { if (s.el){ s.el.pause(); if (s.el.remove) s.el.remove(); URL.revokeObjectURL(s.url); } });
+        if (snap.videoURL && snap.videoURL !== videoURL) URL.revokeObjectURL(snap.videoURL); } };
+  }
+  if (k === 'style'){
+    const snap = styleNow(), d = savedDefs(), was = visited.style;
+    applyStyle({ ...STYLE_DEF, ...(d.vfmt && { vfmt: d.vfmt }), ...(d.capFont && { font: d.capFont }), ...(d.cap && { cap: d.cap }), ...(d.fx && { fx: d.fx }),
+      ...(d.capPos && { capPos: d.capPos }), ...(d.capWords && { capWords: d.capWords }),
+      ...Object.fromEntries(['capUpper','kwOn','endOn','progOn'].filter(x => typeof d[x] === 'boolean').map(x => [x, d[x]])), look: d.look || null });
+    delete visited.style; updateRecipe();
+    return () => { applyStyle(snap); if (was) visited.style = true; else delete visited.style; updateRecipe(); };
+  }
+  if (k === 'son'){
+    const snap = sonNow(), d = savedDefs(), def = { ...SON_DEF }, was = visited.son;
+    Object.keys(def).forEach(x => { if (d[x] != null && d[x] !== '') def[x] = typeof def[x] === 'boolean' ? !!d[x] : String(d[x]); });
+    stopListen(); applySonBase(def); clickPill(`[data-mood="${def.mood || 'none'}"]`);
+    delete visited.son; updateRecipe();
+    return () => { stopListen(); applySonBase(snap); musicBuf = snap.musicBuf; setMoodPill(snap.mood); $('musicTxt').textContent = snap.musicTxt; $('listenMusic').disabled = snap.listenOff;
+      beatTimes = snap.beatTimes; beatBuf = snap.beatBuf; $('beatRow').hidden = snap.beatRow; $('beatInfo').hidden = snap.beatInfo; setMsgState('mixMsg'); if (was) visited.son = true; else delete visited.son; redraw(); };
+  }
+  if (k === 'pub'){
+    const snap = { t: $('pubTitle').value, x: $('pubText').value, box: $('capBox').hidden, msg: msgState('capMsg') };
+    $('pubTitle').value = ''; $('pubText').value = ''; $('capBox').hidden = true; setMsgState('capMsg'); updateRecipe();
+    return () => { $('pubTitle').value = snap.t; $('pubText').value = snap.x; $('capBox').hidden = snap.box; setMsgState('capMsg', snap.msg); updateRecipe(); };
+  }
+}
+let pendingDrop = null;
+function wipeAndOffer(k){
+  if (pendingDrop) pendingDrop(); // l'effacement précédent ne peut plus être annulé
+  const r = wipeCap(k); if (!r) return;
+  const undo = typeof r === 'function' ? r : r.undo, drop = typeof r === 'function' ? null : r.drop;
+  let settled = false;
+  const finish = () => { if (settled) return; settled = true; if (pendingDrop === finish) pendingDrop = null; if (drop) drop(); };
+  pendingDrop = finish; setTimeout(finish, 13000);
+  track('bulle-effacee-' + k);
+  showToast(WIPE_MSG[k] + ' Le reste du projet ne bouge pas.', () => {
+    if (settled) return; settled = true; if (pendingDrop === finish) pendingDrop = null;
+    undo(); showToast('C\'est revenu comme avant.', null, null, 'info');
+  }, 'Annuler', 'info');
+}
+(function capDrag(){
+  const trash = document.createElement('div'); trash.id = 'capTrash'; trash.setAttribute('aria-hidden', 'true');
+  trash.innerHTML = '<i><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></i><span>Lâche ici pour effacer</span>';
+  document.body.appendChild(trash);
+  let cap = null, x0 = 0, y0 = 0, drag = false, hot = false, pid = null;
+  const overTrash = (x, y) => { const r = trash.querySelector('i').getBoundingClientRect(); return Math.hypot(x - (r.left + r.width / 2), y - (r.top + r.height / 2)) < 70; };
+  const end = () => { if (cap){ cap.classList.remove('drag', 'hot'); cap.style.transform = ''; } trash.classList.remove('on', 'hot'); document.body.classList.remove('cap-dragging'); cap = null; drag = false; hot = false; pid = null; };
+  document.querySelectorAll('.cap').forEach(c => {
+    c.addEventListener('pointerdown', e => {
+      if (e.button || running || exporting || !c.classList.contains('done')) return;
+      cap = c; pid = e.pointerId; x0 = e.clientX; y0 = e.clientY; drag = false; hot = false;
+    });
+    c.addEventListener('pointermove', e => {
+      if (cap !== c || e.pointerId !== pid) return;
+      const dx = e.clientX - x0, dy = e.clientY - y0;
+      if (!drag){ if (Math.hypot(dx, dy) < 12) return; drag = true; try { c.setPointerCapture(pid); } catch(_){} c.classList.add('drag'); trash.classList.add('on'); document.body.classList.add('cap-dragging'); }
+      e.preventDefault();
+      const h = overTrash(e.clientX, e.clientY);
+      if (h !== hot){ hot = h; trash.classList.toggle('hot', h); c.classList.toggle('hot', h); if (h && navigator.vibrate) navigator.vibrate(15); }
+      c.style.transform = `translate(${dx}px, ${dy}px)`;
+    });
+    const up = e => {
+      if (cap !== c || e.pointerId !== pid) return;
+      if (!drag){ cap = null; return; }
+      c._dragged = true; setTimeout(() => { c._dragged = false; }, 50);
+      const k = c.dataset.open, wipe = hot && e.type === 'pointerup';
+      if (wipe){ c.classList.add('gone'); setTimeout(() => c.classList.remove('gone'), 450); end(); wipeAndOffer(k); }
+      else { c.classList.add('back'); end(); setTimeout(() => c.classList.remove('back'), 300); }
+    };
+    c.addEventListener('pointerup', up); c.addEventListener('pointercancel', up);
+    c.addEventListener('click', e => { if (c._dragged){ e.preventDefault(); e.stopImmediatePropagation(); } }, true);
+  });
+})();
+
 // ---------- Refaire la vidéo dans une autre langue ----------
 const LANG_NAME = {"fr": "français", "en": "anglais", "es": "espagnol", "pt": "portugais du Portugal", "br": "portugais du Brésil", "de": "allemand", "it": "italien", "nl": "néerlandais", "ar": "arabe standard", "ma": "الدارجة المغربية 🇲🇦", "dz": "الدارجة الجزائرية 🇩🇿", "tn": "التونسي 🇹🇳", "eg": "المصري 🇪🇬", "lb": "الشامي 🇱🇧🇸🇾", "tr": "turc", "ru": "russe", "uk": "ukrainien", "pl": "polonais", "ro": "roumain", "cs": "tchèque", "sk": "slovaque", "hu": "hongrois", "el": "grec", "bg": "bulgare", "sr": "serbe", "hr": "croate", "bs": "bosnien", "sl": "slovène", "mk": "macédonien", "sq": "albanais", "sv": "suédois", "no": "norvégien", "da": "danois", "fi": "finnois", "is": "islandais", "et": "estonien", "lv": "letton", "lt": "lituanien", "ca": "catalan", "eu": "basque", "gl": "galicien", "he": "hébreu", "fa": "persan", "ur": "ourdou", "hi": "hindi", "bn": "bengali", "pa": "pendjabi", "ta": "tamoul", "te": "télougou", "mr": "marathi", "gu": "goudjarati", "ne": "népalais", "id": "indonésien", "ms": "malais", "tl": "filipino", "vi": "vietnamien", "th": "thaï", "zh": "chinois mandarin", "ja": "japonais", "ko": "coréen", "sw": "swahili", "am": "amharique", "af": "afrikaans", "az": "azerbaïdjanais", "kk": "kazakh", "uz": "ouzbek", "ka": "géorgien", "hy": "arménien"};
 $('trBtn').onclick = async () => {
@@ -3909,7 +4047,7 @@ $('trBtn').onclick = async () => {
 
 // ---------- Visite guidée (première ouverture, puis bouton ?) ----------
 const TOUR = [
-  { el: () => document.querySelector('.orbit'), text: "Voici ton Labo. Ta vidéo est au centre : touche un élément autour d'elle pour le préparer (script, voix, images, style, son)." },
+  { el: () => document.querySelector('.orbit'), text: "Voici ton Labo. Ta vidéo est au centre : touche un élément autour d'elle pour le préparer (script, voix, images, style, son). Un élément ne te plaît pas ? Glisse sa bulle vers la croix en bas pour effacer seulement celui-là." },
   { el: () => isMobile() ? $('ideaStrip') : $('ideaCard'), text: "À court d'idées ? Ici, ScriptBoom te propose des sujets, ta semaine entière de vidéos, ou une réponse en vidéo à un commentaire." },
   { el: () => document.querySelector('.recipe'), text: "La recette te montre ce qui est prêt. Chaque élément terminé passe au vert, et le contour de la vidéo se remplit." },
   { el: () => $('export'), text: "Quand tout est vert, appuie sur BOOM : ta vidéo est assemblée et prête à poster. Bonne création !" }
@@ -3995,12 +4133,12 @@ async function restoreMedia(id, k){
 // ---------- Messages d'erreur toujours visibles, avec « Réessayer » ----------
 let lastAction = null;
 document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('button'); if (b && b.id && !b.closest('#sbToast') && /^(gen|replyBtn|findIdeas|makeWeek|makeVoice|voiceTry|autoBg|moreBg|makeCaption|coachBtn|cvGo|trBtn|autoSubBtn|export|play)$/.test(b.id)) lastAction = b; }, true);
-function showToast(text, action, label){
+function showToast(text, action, label, kind){
   let t = $('sbToast');
   if (!t){ t = document.createElement('div'); t.id = 'sbToast'; t.setAttribute('role', 'alert');
     t.innerHTML = '<p></p><div><button type="button" class="t-act"></button><button type="button" class="t-x" aria-label="Fermer">✕</button></div>'; document.body.appendChild(t);
     t.querySelector('.t-x').onclick = () => { t.classList.remove('on'); }; }
-  t.querySelector('p').textContent = text;
+  t.querySelector('p').textContent = text; t.classList.toggle('info', kind === 'info');
   const a = t.querySelector('.t-act');
   if (action){ a.hidden = false; a.textContent = label || 'Réessayer'; a.onclick = () => { t.classList.remove('on'); action(); }; } else a.hidden = true;
   t.classList.add('on'); clearTimeout(t._tm); t._tm = setTimeout(() => t.classList.remove('on'), action ? 12000 : 7000);
