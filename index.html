@@ -3550,11 +3550,12 @@ async function movAudioADTS(file){
   throw new Error('no aac track');
 }
 // Découpe le son en morceaux d'environ 20 s, chacun coupé au moment le plus calme (jamais au milieu d'un mot)
-function silentCuts(pcm, rate){
-  const D = pcm.length / rate, cuts = [0], win = Math.round(rate * 0.05);
+// Chanson : morceaux plus courts (~10 s) → l'IA cale beaucoup mieux les passages rapides
+function silentCuts(pcm, rate, short){
+  const D = pcm.length / rate, cuts = [0], win = Math.round(rate * 0.05), lo = short ? 8 : 16, hi = short ? 12 : 24, max = short ? 14 : 26;
   const energy = t => { const a = Math.max(0, Math.round(t * rate) - win), b = Math.min(pcm.length, a + 2 * win); let e = 0; for (let i = a; i < b; i += 4) e += pcm[i] * pcm[i]; return e; };
-  while (D - cuts[cuts.length - 1] > 26){
-    const from = cuts[cuts.length - 1] + 16, to = cuts[cuts.length - 1] + 24; let best = from + 4, be = Infinity;
+  while (D - cuts[cuts.length - 1] > max){
+    const from = cuts[cuts.length - 1] + lo, to = cuts[cuts.length - 1] + hi; let best = (from + to) / 2, be = Infinity;
     for (let t = from; t <= to; t += 0.05){ const e = energy(t); if (e < be){ be = e; best = t; } }
     cuts.push(best);
   }
@@ -3586,11 +3587,11 @@ $('autoSubBtn').onclick = async () => {
     try { const x = await movAudioADTS(file); if (x.duration > 185) throw new Error('long'); buf = await decode(x.adts); } catch(e){ if (e.message === 'long') throw new Error('vidéo trop longue : 3 minutes maximum'); }
     if (!buf){ try { buf = await decode(await file.arrayBuffer()); } catch(e){ throw new Error('aucun son trouvé dans cette vidéo (vérifie qu\'elle a bien du son)'); } }
     if (buf.duration > 185) throw new Error('vidéo trop longue : 3 minutes maximum');
-    const pcm = await to16k(buf), rate = 16000, cuts = silentCuts(pcm, rate), parts = cuts.length - 1, segs = [];
-    let language = '', speakers = [];
-    const lexicon = readPron().map(([f]) => f).filter(Boolean);
     // Chanson : les paroles chantées/rappées sont le contenu, pas un bruit ; si l'utilisateur colle les paroles, l'IA les cale au lieu de deviner
     const music = $('autoSubMusic').checked, lyrics = music ? $('autoSubLyrics').value.trim().slice(0, 8000) : '';
+    const pcm = await to16k(buf), rate = 16000, cuts = silentCuts(pcm, rate, music), parts = cuts.length - 1, segs = [];
+    let language = '', speakers = [];
+    const lexicon = readPron().map(([f]) => f).filter(Boolean);
     for (let k = 0; k < parts; k++){
       m.textContent = parts > 1 ? `L'IA écoute ta vidéo… (${k + 1}/${parts})` : 'L\'IA écoute ta vidéo et écrit les sous-titres…';
       // morceaux courts (~20 s), coupés sur un silence : l'horaire ne dérive plus, même avec de la musique
