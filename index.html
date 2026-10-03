@@ -856,6 +856,7 @@ body{overflow-x:hidden}
         <details class="ideas" id="capFixBox">
           <summary>✏️ Corriger un mot des sous-titres</summary>
           <p class="sub" style="margin-top:6px">Touche un mot pour le corriger. Seul le texte affiché change, pas la voix. Les mots corrigés sont en vert.</p>
+          <p class="sub">Vidéo sous-titrée automatiquement : tu peux aussi supprimer une case (laisse vide), en ajouter, ou tout corriger d'un coup dans <b>Le script</b> comme un texte normal. Les mots gardent leur moment.</p>
           <div class="wchips" id="capChips" data-nt></div>
         </details>
         <label style="margin-top:16px">Mouvement</label>
@@ -1069,7 +1070,43 @@ function updateCount(){
   const n = words($('script').value).length;
   $('count').textContent = `${n} mot${n>1?'s':''} · environ ${Math.round(n/2.6)} s`;
 }
-$('script').addEventListener('input', () => { updateCount(); capWords = []; if (!running) drawFrame(previewT()); });
+$('script').addEventListener('input', () => { syncVideoScript(); updateCount(); capWords = []; if (!running) drawFrame(previewT()); });
+// Vidéo sous-titrée automatiquement : la voix reste le son de la vidéo, donc modifier le texte ne demande pas de régénérer la voix
+function syncVideoScript(){ if (audioRaw && audioRaw.fromVideo) voiceKey = $('script').value.trim() + '|' + $('voice').value; }
+// Le texte des sous-titres a été modifié (mots ajoutés, retirés, fusionnés, coupés en deux) :
+// chaque mot inchangé garde son horaire entendu par l'IA, les nouveaux mots se répartissent entre leurs voisins
+function remapTimed(text){
+  if (!capTimed || !capTimed.starts) return;
+  const oldW = words(capTimed.key), newW = words(text), n = oldW.length, m = newW.length;
+  if (!m){ capTimed = null; return; }
+  if (oldW.length !== capTimed.starts.length) return;
+  const nz = w => w.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+  const a = oldW.map(nz), b = newW.map(nz);
+  // plus longue suite de mots communs (même ordre)
+  const L = Array.from({ length: n + 1 }, () => new Uint16Array(m + 1));
+  for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--) L[i][j] = a[i] && a[i] === b[j] ? L[i+1][j+1] + 1 : Math.max(L[i+1][j], L[i][j+1]);
+  const st = new Array(m).fill(null), sp = new Array(m).fill(null), old = capTimed.starts, ospk = capTimed.spk;
+  for (let i = 0, j = 0; i < n && j < m;){
+    if (a[i] && a[i] === b[j]){ st[j] = old[i]; sp[j] = ospk ? ospk[i] : null; i++; j++; }
+    else if (L[i+1][j] >= L[i][j+1]) i++; else j++;
+  }
+  // mots nouveaux : répartis entre le mot gardé d'avant et celui d'après
+  for (let j = 0; j < m;){
+    if (st[j] != null){ j++; continue; }
+    let k = j; while (k < m && st[k] == null) k++;
+    const cnt = k - j;
+    for (let x = j; x < k; x++){
+      const r = x - j + 1;
+      st[x] = j && k < m ? st[j-1] + (st[k] - st[j-1]) * r / (cnt + 1)   // entre deux mots gardés
+            : k < m ? Math.max(0, st[k] - 0.3 * (cnt - r + 1))           // avant le premier mot gardé
+            : j ? st[j-1] + 0.3 * r : 0.3 * (r - 1);                     // après le dernier (ou aucun mot gardé)
+      sp[x] = sp[x] ?? (j ? sp[j-1] : (k < m ? sp[k] : 1));
+    }
+    j = k;
+  }
+  for (let j = 1; j < m; j++) if (st[j] < st[j-1]) st[j] = st[j-1];
+  capTimed = { key: text, starts: st, spk: ospk ? sp.map(x => x || 1) : null };
+}
 
 // Génère le script (sujet normal, ou réponse à un commentaire)
 async function generate(reply){
@@ -1652,6 +1689,7 @@ function prepareCaptions(){
     else { const warp = speechWarp(audioBuf); if (warp) capStarts = capStarts.map(warp); }
   }
   // Vidéo sous-titrée automatiquement : chaque mot garde l'horaire entendu par l'IA
+  if (audioBuf && audioRaw && audioRaw.fromVideo && capTimed && capTimed.key !== $('script').value){ remapTimed($('script').value); }
   if (audioBuf && audioRaw && audioRaw.fromVideo && capTimed && capTimed.starts.length === capWords.length) capStarts = capTimed.starts.slice();
   capSpk = audioBuf && audioRaw && audioRaw.fromVideo && capTimed && capTimed.spk && capTimed.spk.length === capWords.length ? capTimed.spk : null;
   // Début de chaque scène, calé sur les mots du script
@@ -2974,6 +3012,17 @@ function renderCapChips(){
     const b = document.createElement('button'); b.type = 'button'; b.textContent = w; if (fx[i]) b.className = 'fixed';
     b.onclick = () => {
       if (!running) drawFrame((capStarts[i] || 0) + 0.02);
+      if (audioRaw && audioRaw.fromVideo && !trNow()){
+        // Vidéo sous-titrée : on modifie le texte lui-même → on peut supprimer, couper en deux ou fusionner des cases
+        const ws = words($('script').value);
+        const v = prompt('Corriger cette case :\n• vide = supprimer la case\n• plusieurs mots = plusieurs cases\n• finis par « + » pour la fusionner avec la case suivante', ws[i] ?? w); if (v == null) return;
+        let t = v.trim();
+        if (t.endsWith('+') && i + 1 < ws.length){ ws.splice(i, 2, (t.slice(0, -1).trim() + ' ' + ws[i+1]).replace(/\s+/g, '')); }
+        else if (!t) ws.splice(i, 1); else ws.splice(i, 1, t);
+        $('script').value = ws.join(' '); syncVideoScript(); updateCount(); keepEdits();
+        capWords = []; if (!running) drawFrame((capStarts[i] || 0) + 0.02); else renderCapChips();
+        return;
+      }
       const v = prompt('Corriger ce mot du sous-titre :', w); if (v == null) return;
       const k = fixKey(); capFixes[k] = capFixes[k] || {};
       if (v.trim() && v.trim() !== w) capFixes[k][i] = v.trim(); else delete capFixes[k][i];
@@ -3577,7 +3626,7 @@ $('autoSubBtn').onclick = async () => {
     $('voiceMsg').className = 'msg ok'; $('voiceMsg').textContent = 'Voix utilisée : le son d\'origine de ta vidéo.';
     capWords = []; showEmpty(false); updateVideoTrack(); applyVolumes(); drawFrame(previewT());
     if (!histId) histId = Date.now().toString(36); saveHistory(); track('sous-titres-auto');
-    m.className = 'msg ok'; m.textContent = `Sous-titres prêts ✓ (${allWords.length} mots${language ? ', langue : ' + language : ''}). Lance l'aperçu. Un mot mal écrit ? Corrige-le dans Style → « Corriger un mot des sous-titres ».`;
+    m.className = 'msg ok'; m.textContent = `Sous-titres prêts ✓ (${allWords.length} mots${language ? ', langue : ' + language : ''}). Lance l'aperçu. Un mot faux ? Corrige le texte directement dans « Le script » (ajoute, supprime, fusionne des mots) : les horaires suivent.`;
   } catch(e){ m.className = 'msg err'; m.textContent = 'Sous-titres impossibles : ' + (e.message || 'erreur'); }
   finally { btn.disabled = false; }
 };
