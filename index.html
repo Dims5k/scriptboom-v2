@@ -856,6 +856,9 @@ body{overflow-x:hidden}
             <p class="sub"><b>Tout corriger d'un coup :</b> modifie le texte ci-dessous comme un texte normal (supprime, ajoute, fusionne des mots). Les mots inchangés gardent leur moment.</p>
             <textarea id="capFixText" dir="auto" style="min-height:120px"></textarea>
             <button class="btn ghost" id="capFixReset" type="button" style="width:100%;margin-top:6px">↺ Revenir aux mots entendus par l'IA</button>
+            <button class="btn" id="whisperBtn" type="button" style="width:100%;margin-top:10px">🎧 Recaler le rythme avec Whisper</button>
+            <p class="sub">Plus précis sur les sons et le rap : une IA écoute ta vidéo directement dans ton téléphone et note le moment exact de chaque mot. Gratuit. La 1re fois, elle se télécharge (≈ 80 Mo, une seule fois), puis ça prend 1 à 3 minutes. Ton texte corrigé est ensuite posé sur ce rythme.</p>
+            <p class="msg" id="whisperMsg" role="status"></p>
             <p class="sub">Ou touche une case : laisse vide pour la supprimer, écris plusieurs mots pour en faire plusieurs cases.</p>
           </div>
           <div class="wchips" id="capChips" data-nt></div>
@@ -3083,6 +3086,62 @@ $('capFixReset').onclick = () => {
   const hd = capTimed.heard; capTimed = { key: hd.key, starts: hd.starts.slice(), spk: hd.spk, heard: hd };
   $('script').value = hd.key; $('capFixText').value = hd.key; syncVideoScript(); updateCount(); keepEdits();
   capWords = []; if (!running) drawFrame(previewT());
+};
+// ---------- Whisper dans le navigateur : horaire exact de chaque mot (gratuit, sans serveur) ----------
+const WHISPER_WORKER = `
+let asr = null;
+self.onmessage = async e => {
+  const { audio, language } = e.data;
+  try {
+    const T = await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3');
+    T.env.allowLocalModels = false;
+    if (!asr){
+      let gpu = false; try { gpu = !!(self.navigator && navigator.gpu && await navigator.gpu.requestAdapter()); } catch(_){}
+      const files = {};
+      const prog = p => { if (p.status === 'progress' && p.total){ files[p.file] = [p.loaded, p.total]; let a = 0, b = 0; for (const k in files){ a += files[k][0]; b += files[k][1]; } self.postMessage({ type: 'dl', loaded: a, total: b }); } };
+      const mk = dev => T.pipeline('automatic-speech-recognition', 'onnx-community/whisper-base_timestamped',
+        { device: dev, dtype: dev === 'webgpu' ? { encoder_model: 'fp32', decoder_model_merged: 'q4' } : 'q8', progress_callback: prog });
+      try { asr = await mk(gpu ? 'webgpu' : 'wasm'); } catch(err){ if (!gpu) throw err; asr = await mk('wasm'); }
+    }
+    self.postMessage({ type: 'run' });
+    const out = await asr(audio, { return_timestamps: 'word', language, task: 'transcribe', chunk_length_s: 30, stride_length_s: 5 });
+    self.postMessage({ type: 'done', chunks: out.chunks || [] });
+  } catch(err){ self.postMessage({ type: 'err', msg: String((err && err.message) || err) }); }
+};`;
+let whisperW = null;
+function whisperWords(pcm, language, onMsg){
+  return new Promise((res, rej) => {
+    if (!whisperW) whisperW = new Worker(URL.createObjectURL(new Blob([WHISPER_WORKER], { type: 'text/javascript' })), { type: 'module' });
+    whisperW.onmessage = e => { const d = e.data; if (d.type === 'done') res(d.chunks); else if (d.type === 'err') rej(new Error(d.msg)); else onMsg(d); };
+    whisperW.onerror = e => rej(new Error(e.message || 'le module Whisper n\'a pas pu démarrer'));
+    whisperW.postMessage({ audio: pcm, language });
+  });
+}
+$('whisperBtn').onclick = async () => {
+  const m = $('whisperMsg'), btn = $('whisperBtn');
+  if (!(audioRaw && audioRaw.fromVideo)){ m.className = 'msg err'; m.textContent = 'Crée d\'abord les sous-titres de ta vidéo.'; return; }
+  btn.disabled = true; m.className = 'msg'; m.textContent = 'Préparation du son…';
+  try {
+    const pcm = await to16k(audioRaw);
+    const iso = (lang() || 'fr').split(/[-_]/)[0], language = ['ma','dz','tn','eg','lb'].includes(iso) ? 'ar' : iso === 'br' ? 'pt' : iso;
+    const chunks = await whisperWords(pcm, language, d => {
+      if (d.type === 'dl') m.textContent = `Téléchargement de Whisper (une seule fois)… ${Math.round(100 * d.loaded / d.total)} %`;
+      if (d.type === 'run') m.textContent = 'Whisper écoute ta vidéo… (1 à 3 minutes, garde l\'écran allumé)';
+    });
+    // chaque mot entendu + son horaire exact ; on écarte les phrases fantômes que Whisper invente parfois dans les silences
+    const ws = [], st = [];
+    chunks.forEach(c => { const t = Array.isArray(c.timestamp) ? Number(c.timestamp[0]) : NaN; const txt = String(c.text || '').trim();
+      if (!txt || !isFinite(t) || /amara|sous-titr|subtit/i.test(txt)) return; words(txt).forEach(w => { ws.push(w); st.push(Math.max(0, t)); }); });
+    for (let i = 1; i < st.length; i++) if (st[i] < st[i-1]) st[i] = st[i-1];
+    if (ws.length < 3) throw new Error('Whisper n\'a presque rien entendu');
+    const heard = { key: ws.join(' '), starts: st, spk: null };
+    const text = $('script').value;
+    capTimed = { key: heard.key, starts: st.slice(), spk: null, heard };
+    remapTimed(text); // ton texte (paroles corrigées) est posé sur le rythme de Whisper
+    capWords = []; if (!running) drawFrame(previewT());
+    m.className = 'msg ok'; m.textContent = `Rythme recalé avec Whisper ✓ (${ws.length} mots entendus). Lance l'aperçu.`; track('whisper');
+  } catch(e){ m.className = 'msg err'; m.textContent = 'Whisper n\'a pas pu terminer : ' + (e.message || 'erreur') + '. Ton rythme actuel est gardé.'; }
+  finally { btn.disabled = false; }
 };
 let capFixPrev = '';
 $('capFixText').addEventListener('focus', () => { capFixPrev = $('capFixText').value; });
