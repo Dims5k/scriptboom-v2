@@ -1127,12 +1127,19 @@ function remapTimed(text){
   // fin libre côté paroles : on part de la meilleure case de la dernière ligne
   // (les mots de fin qui tiennent dans le son restant coûtent un peu plus qu'un trou : un trou au milieu est rempli en premier)
   const capEnd = Math.max(0, Math.floor((hdur - (hst[n-1] || 0)) / 0.35));
+  // fin libre aussi côté son : si les paroles s'arrêtent avant la fin du chant, on ne les étale pas jusqu'au bout
+  // (la fin manquante est complétée ensuite avec ce que l'IA a entendu)
   let i = n, j = m, st8 = 0, best = -Infinity;
-  for (let x = 0; x <= m; x++) for (const [arr, k] of [[D0, 0], [D1, 1]]){ const v = arr[n*W + x] - 0.3 * Math.min(m - x, capEnd); if (v > best){ best = v; j = x; st8 = k; } }
+  for (let y = 1; y <= n; y++) for (let x = 0; x <= m; x++) for (const [arr, k] of [[D0, 0], [D1, 1]]){
+    if (k === 1 && y < n) continue;
+    const v = arr[y*W + x] - 0.3 * Math.min(m - x, capEnd) + (y < n ? -0.05 * (n - y) : 0);
+    if (v > best){ best = v; i = y; j = x; st8 = k; }
+  }
   const st = new Array(m).fill(null), sp = new Array(m).fill(null), old = heard.starts, ospk = heard.spk;
+  const pairs = []; // (mot entendu, mot des paroles) posés ensemble : sert à apprendre l'orthographe (« chicken » → « Tchiki »)
   while (i > 0 && j > 0){
     const c = i*W + j, t = st8 ? T1[c] : T0[c];
-    if (t === 1 || t === 4){ st[j-1] = old[i-1]; sp[j-1] = ospk ? ospk[i-1] : null; i--; j--; st8 = t === 4 ? 1 : 0; }
+    if (t === 1 || t === 4){ st[j-1] = old[i-1]; sp[j-1] = ospk ? ospk[i-1] : null; pairs.push([i-1, j-1]); i--; j--; st8 = t === 4 ? 1 : 0; }
     else if (t === 2 || t === 6){ i--; st8 = t === 6 ? 1 : 0; }
     else { j--; st8 = t === 5 ? 1 : 0; }
   }
@@ -1155,7 +1162,24 @@ function remapTimed(text){
   }
   for (let j = 1; j < m; j++) if (st[j] < st[j-1]) st[j] = st[j-1];
   const first = al.indexOf(true), last = al.lastIndexOf(true);
-  capTimed = { key: text, starts: st, spk: ospk ? sp.map(x => x || 1) : null, heard, span: [first, last] };
+  capTimed = { key: text, starts: st, spk: ospk ? sp.map(x => x || 1) : null, heard, span: [first, last], pairs };
+}
+// Les paroles s'arrêtent mais ça chante encore (refrain répété plus de fois qu'il n'est écrit) :
+// on complète la fin avec ce que l'IA a entendu, en corrigeant l'orthographe grâce aux mots déjà calés.
+function completeFromHeard(){
+  if (!capTimed || !capTimed.heard || !capTimed.pairs || !capTimed.pairs.length) return 0;
+  const hw = words(capTimed.heard.key), hs = capTimed.heard.starts, lw = words(capTimed.key);
+  const lastH = Math.max(...capTimed.pairs.map(p => p[0]));
+  const rest = hw.slice(lastH + 1);
+  if (rest.length < 4 || (hs[hs.length - 1] - hs[lastH]) < 2) return 0;
+  const nz = w => w.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\p{L}\p{N}]/gu, '');
+  const dict = {};
+  capTimed.pairs.forEach(([i, j]) => { const k = nz(hw[i]); if (!k || !lw[j]) return; const d = dict[k] || (dict[k] = {}); d[lw[j]] = (d[lw[j]] || 0) + 1; });
+  const fix = w => { const d = dict[nz(w)]; return d ? Object.entries(d).sort((a, b) => b[1] - a[1])[0][0] : w; };
+  const text = $('script').value.replace(/\s+$/, '') + '\n' + rest.map(fix).join(' ');
+  $('script').value = text; $('capFixText').value = text; capFixPrev = text;
+  remapTimed(text);
+  return rest.length;
 }
 
 // Génère le script (sujet normal, ou réponse à un commentaire)
@@ -3120,8 +3144,9 @@ $('whisperBtn').onclick = async () => {
     const text = $('script').value;
     capTimed = { key: heard.key, starts: st.slice(), spk: null, heard };
     remapTimed(text); // ton texte (paroles corrigées) est posé sur le rythme de Whisper
+    const added = completeFromHeard(); syncVideoScript(); updateCount(); keepEdits();
     capWords = []; if (!running) drawFrame(previewT());
-    m.className = 'msg ok'; m.textContent = `Rythme recalé avec Whisper ✓ (${ws.length} mots entendus). Lance l'aperçu.`; track('whisper');
+    m.className = 'msg ok'; m.textContent = `Rythme recalé avec Whisper ✓ (${ws.length} mots entendus).` + (added ? ` La fin chantée manquait dans ton texte : ${added} mots ajoutés d'après l'écoute (vérifie-les dans le bloc).` : '') + ` Lance l'aperçu.`; track('whisper');
   } catch(e){ m.className = 'msg err'; m.textContent = 'Whisper n\'a pas pu terminer : ' + (e.message || 'erreur') + '. Ton rythme actuel est gardé.'; }
   finally { btn.disabled = false; }
 };
@@ -3147,6 +3172,7 @@ $('capFixText').addEventListener('input', e => {
       const keep = ws.slice(cutStart, cutEnd).join(' ');
       $('script').value = keep; $('capFixText').value = keep; capFixPrev = keep;
     }
+    completeFromHeard();
   } syncVideoScript(); updateCount(); keepEdits();
   capWords = []; if (!running) drawFrame(previewT());
 });
