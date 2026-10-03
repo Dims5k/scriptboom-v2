@@ -311,6 +311,11 @@ body.cap-dragging{user-select:none;-webkit-user-select:none}
 #sbNet.on{transform:none}
 .quota-tag{margin:6px auto 0;text-align:center;font-size:12.5px;color:#9a9a9a}.quota-tag.low{color:#f6c343}
 .panel.half{max-height:48vh!important}.scrim.clear{background:transparent!important}
+.panel{transition:max-height .3s cubic-bezier(.2,.8,.2,1)}
+.panel.full,.panel.half.full{max-height:calc(100vh - 8px)!important;max-height:calc(100dvh - 8px)!important;border-radius:20px 20px 0 0}
+.panel.growing{transition:none}
+.panel-bar .grow-hint{display:none;appearance:none;border:0;background:none;color:#8a8a8a;font:700 12px Figtree,sans-serif;padding:6px 8px;cursor:pointer}
+@media (max-width:1240px){.panel-bar .grow-hint{display:inline-flex;align-items:center;gap:4px}}
 .cv-privacy{font-size:12.5px;color:#9a9a9a;line-height:1.45;margin:10px 2px 0}
 .ai-card{border:1px solid #3a3320;background:rgba(246,195,67,.06);border-radius:14px;padding:12px 14px;margin:0 0 12px}.ai-card b{color:#f6c343}.ai-card p{margin:6px 0 0;font-size:13.5px;color:#cfcfcf;line-height:1.45}
 .saved-tag{color:#1ed760;opacity:0;transition:opacity .3s;font-weight:600}.saved-tag.on{opacity:1}
@@ -671,7 +676,7 @@ body.cap-dragging{user-select:none;-webkit-user-select:none}
       <p class="note">L'export se fait en temps réel : garde l'écran allumé et la page ouverte jusqu'à la fin. Si tu n'entends rien pendant l'aperçu, désactive le mode silencieux. <a href="/confidentialite" style="color:#8a8a8a">Confidentialité</a></p>
     </div>
     <div class="panel" id="panel" hidden>
-      <div class="panel-bar"><h2 id="panelTitle">Le script</h2><button class="ok-btn only-mobile" id="panelClose">OK</button></div>
+      <div class="panel-bar"><h2 id="panelTitle">Le script</h2><button class="grow-hint" id="panelGrow" type="button" aria-label="Agrandir le volet">⌃ Plein écran</button><button class="ok-btn only-mobile" id="panelClose">OK</button></div>
       <div class="panel-body" id="panelBody">
 <section class="step" data-panel="script" aria-labelledby="s1" hidden>
         <h2 id="s1"><span class="num">1</span>Le script</h2>
@@ -3796,7 +3801,7 @@ function openPanel(name){
   $('panelTitle').textContent = PANEL_TITLES[name] || '';
   $('panel').hidden = false; $('panelBody').scrollTop = 0;
   // Style et Son : volet à mi-hauteur, l'aperçu reste visible au-dessus pendant les réglages
-  const half = isMobile() && (name === 'style' || name === 'son'); $('panel').classList.toggle('half', half); $('scrim').classList.toggle('clear', half);
+  const half = isMobile() && (name === 'style' || name === 'son'); $('panel').classList.toggle('half', half); $('panel').classList.remove('full'); $('scrim').classList.toggle('clear', half); setGrowHint();
   if (half) window.scrollTo({ top: 0, behavior: 'smooth' });
   $('panelBody').style.animation = 'none'; void $('panelBody').offsetWidth; $('panelBody').style.animation = '';
   document.querySelectorAll('.cap').forEach(c => c.classList.toggle('active', c.dataset.open === name));
@@ -3805,6 +3810,7 @@ function openPanel(name){
 }
 function closePanel(){
   if (!isMobile()) return;
+  $('panel').classList.remove('full');
   if (!$('panel').hidden) popNav();
   $('panel').hidden = true; panelNow = null; $('scrim').hidden = true;
   document.querySelectorAll('.cap').forEach(c => c.classList.remove('active'));
@@ -3840,7 +3846,32 @@ function swipeToClose(sheet, scroller, close){
     if (dy > 110 || (fast && dy > 40)) close();
   });
 }
-swipeToClose($('panel'), $('panelBody'), closePanel);
+// Volet en plein écran : glisser la barre vers le haut pour l'agrandir, vers le bas pour revenir à sa taille
+function setGrowHint(){ const g = $('panelGrow'); if (g){ const f = $('panel').classList.contains('full'); g.textContent = f ? '⌄ Réduire' : '⌃ Plein écran'; g.setAttribute('aria-label', f ? 'Réduire le volet' : 'Agrandir le volet'); } }
+function panelFull(on){
+  const p = $('panel'); p.classList.toggle('full', on);
+  $('scrim').classList.toggle('clear', !on && p.classList.contains('half'));
+  setGrowHint();
+}
+$('panelGrow').onclick = () => panelFull(!$('panel').classList.contains('full'));
+(function panelGrowDrag(){
+  const p = $('panel'); let y0 = null, h0 = 0, dy = 0, up = false;
+  p.addEventListener('touchstart', e => {
+    y0 = null; if (!isMobile() || p.classList.contains('full') || !e.target.closest('.panel-bar') || e.target.closest('button')) return;
+    y0 = e.touches[0].clientY; h0 = p.getBoundingClientRect().height; dy = 0; up = false;
+  }, { passive: true });
+  p.addEventListener('touchmove', e => {
+    if (y0 === null) return; dy = e.touches[0].clientY - y0;
+    if (!up && dy < -8){ up = true; p.classList.add('growing'); }
+    if (up){ e.preventDefault(); p.style.setProperty('max-height', Math.min(window.innerHeight - 8, h0 - dy) + 'px', 'important'); }
+  }, { passive: false });
+  p.addEventListener('touchend', () => {
+    if (y0 === null) return; y0 = null; if (!up) return;
+    p.classList.remove('growing'); p.style.removeProperty('max-height');
+    if (dy < -60) panelFull(true);
+  });
+})();
+swipeToClose($('panel'), $('panelBody'), () => { if ($('panel').classList.contains('full')) panelFull(false); else closePanel(); });
 swipeToClose($('ideaCard'), $('ideaCard'), () => closeIdeas());
 $('ideaStrip').onclick = openIdeas; $('ideaClose').onclick = () => closeIdeas();
 $('scrim').onclick = () => { closePanel(); closeIdeas(); $('scrim').hidden = true; };
