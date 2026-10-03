@@ -1081,8 +1081,7 @@ function remapTimed(text){
   // on part TOUJOURS de ce que l'IA a entendu au départ (son rythme est bon), même après plusieurs corrections
   const heard = capTimed.heard || { key: capTimed.key, starts: capTimed.starts, spk: capTimed.spk };
   const oldW = words(heard.key), newW = words(text), n = oldW.length, m = newW.length;
-  if (!m){ capTimed = null; return; }
-  if (oldW.length !== heard.starts.length) return;
+  if (!m || oldW.length !== heard.starts.length) return; // texte vidé un instant (tout sélectionner + coller) : on garde le rythme
   const nz = w => w.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\p{L}\p{N}]/gu, '');
   const a = oldW.map(nz), b = newW.map(nz);
   // Alignement « au son » : chaque mot des paroles prend la place du mot entendu au même endroit,
