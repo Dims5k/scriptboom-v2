@@ -33,7 +33,7 @@ export default async function handler(req, res) {
   const ctxTxt = prevText ? `Contexte : le morceau d'audio précédent se terminait par « ${prevText} ». Cet audio peut commencer au milieu d'un mot ou d'une phrase : ne répète pas ce qui est déjà dans ce contexte, commence au premier mot nouveau.` : '';
   const head = music
     ? `Cet audio de ${dur.toFixed(1)} secondes est un extrait de chanson (rap ou chant) avec de la musique. Transcris EXACTEMENT les paroles chantées ou rappées, mot pour mot : ce sont elles le contenu, pas un bruit. ${hint}
-Ignore seulement les instruments. Garde les répétitions, les onomatopées et les mots coupés tels qu'ils sont chantés (ex. « tu-tu-tu »). Ne traduis pas, ne résume pas, ne corrige pas, n'invente rien : si un passage est incompréhensible, laisse-le de côté plutôt que d'inventer. S'il n'y a aucune parole (passage instrumental), renvoie une liste vide.
+Ignore seulement les instruments. Garde les répétitions, les onomatopées et les mots coupés tels qu'ils sont chantés (ex. « tu-tu-tu »). Un refrain ou un gimmick qui revient s'écrit à chaque fois de la même façon : ne le saute pas et ne le remplace pas par un mot qui sonne pareil (pas de mot anglais ou courant à la place d'un mot inventé ou d'argot). Ne traduis pas, ne résume pas, ne corrige pas, n'invente rien : si un passage est incompréhensible, laisse-le de côté plutôt que d'inventer. S'il n'y a aucune parole (passage instrumental), renvoie une liste vide.
 ${lyrics ? `PAROLES OFFICIELLES fournies par l'utilisateur (orthographe de référence) :
 """
 ${lyrics}

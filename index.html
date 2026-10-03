@@ -3553,8 +3553,7 @@ $('autoSubBtn').onclick = async () => {
       const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || 'Erreur ' + r.status);
       language = language || d.language;
       (d.speakers || []).forEach(x => { if (!speakers.some(y => y.id === x.id)) speakers.push(x); });
-      // en musique, les « reprises » de volume sont les coups de batterie, pas la voix : on ne recale pas dessus
-      (d.segments || []).forEach(x => segs.push({ start: music ? Math.max(t0, x.start + t0) : snapOnset(pcm, rate, x.start + t0, t0, t0 + len), end: Math.min(t0 + len, x.end + t0), speaker: x.speaker || 1, text: x.text }));
+      (d.segments || []).forEach(x => segs.push({ start: snapOnset(pcm, rate, x.start + t0, t0, t0 + len), end: Math.min(t0 + len, x.end + t0), speaker: x.speaker || 1, text: x.text }));
     }
     if (!segs.length) throw new Error('aucune parole entendue dans cette vidéo');
     for (let i = 1; i < segs.length; i++) if (segs[i].start < segs[i-1].start) segs[i].start = segs[i-1].start + 0.05;
