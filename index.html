@@ -855,6 +855,7 @@ body{overflow-x:hidden}
           <div id="capFixTextBox" hidden>
             <p class="sub"><b>Tout corriger d'un coup :</b> modifie le texte ci-dessous comme un texte normal (supprime, ajoute, fusionne des mots). Les mots inchangés gardent leur moment.</p>
             <textarea id="capFixText" dir="auto" style="min-height:120px"></textarea>
+            <button class="btn ghost" id="capFixReset" type="button" style="width:100%;margin-top:6px">↺ Revenir aux mots entendus par l'IA</button>
             <p class="sub">Ou touche une case : laisse vide pour la supprimer, écris plusieurs mots pour en faire plusieurs cases.</p>
           </div>
           <div class="wchips" id="capChips" data-nt></div>
@@ -3057,17 +3058,28 @@ function renderCapChips(){
 }
 $('capFixBox').addEventListener('toggle', () => { if ($('capFixBox').open) renderCapChips(); });
 // Le bloc de texte modifie directement le texte des sous-titres (même effet que de modifier « Le script »)
+$('capFixReset').onclick = () => {
+  if (!capTimed || !capTimed.heard) return;
+  const hd = capTimed.heard; capTimed = { key: hd.key, starts: hd.starts.slice(), spk: hd.spk, heard: hd };
+  $('script').value = hd.key; $('capFixText').value = hd.key; syncVideoScript(); updateCount(); keepEdits();
+  capWords = []; if (!running) drawFrame(previewT());
+};
+let capFixPrev = '';
+$('capFixText').addEventListener('focus', () => { capFixPrev = $('capFixText').value; });
 $('capFixText').addEventListener('input', e => {
+  // collage détecté même quand le téléphone ne le signale pas (remplacement d'un gros bloc de texte)
+  const pasted = e.inputType === 'insertFromPaste' || e.inputType === 'insertReplacementText' || Math.abs($('capFixText').value.length - capFixPrev.length) > 40;
+  capFixPrev = $('capFixText').value;
   // paroles collées depuis un site : on retire [Refrain], [Couplet 1], (x2)…
-  if (e.inputType === 'insertFromPaste'){ const t = $('capFixText'); t.value = t.value.replace(/\[[^\]\n]*\]/g, ' ').replace(/\((?:x|×)\s*\d+\)|\b(?:x|×)\d+\b/gi, ' ').replace(/[ \t]+/g, ' ').replace(/\n\s*\n+/g, '\n').trim(); }
+  if (pasted){ const t = $('capFixText'); t.value = t.value.replace(/\[[^\]\n]*\]/g, ' ').replace(/\((?:x|×)\s*\d+\)|\b(?:x|×)\d+\b/gi, ' ').replace(/[ \t]+/g, ' ').replace(/\n\s*\n+/g, '\n').trim(); }
   $('script').value = $('capFixText').value;
   // paroles de tout le morceau collées sur un extrait : on ne garde que la partie qui correspond au son de la vidéo
-  if (e.inputType === 'insertFromPaste' && audioRaw && audioRaw.fromVideo && capTimed){
+  if (pasted && audioRaw && audioRaw.fromVideo && capTimed){
     remapTimed($('script').value);
     const ws = words($('script').value), sp = capTimed && capTimed.span;
     if (sp && sp[0] >= 0 && (sp[0] > 2 || ws.length - 1 - sp[1] > 2)){
       const keep = ws.slice(Math.max(0, sp[0] > 2 ? sp[0] : 0), ws.length - 1 - sp[1] > 2 ? sp[1] + 1 : ws.length).join(' ');
-      $('script').value = keep; $('capFixText').value = keep;
+      $('script').value = keep; $('capFixText').value = keep; capFixPrev = keep;
     }
   } syncVideoScript(); updateCount(); keepEdits();
   capWords = []; if (!running) drawFrame(previewT());
@@ -3651,6 +3663,7 @@ $('autoSubBtn').onclick = async () => {
     buf.fromVideo = true; audioRaw = buf; audioBuf = buf; voiceBlob = null;
     $('script').value = text; updateCount(); keepEdits();
     capTimed = words(text).length === allWords.length ? { key: text, starts, spk: new Set(spk).size > 1 ? spk : null } : null;
+    if (capTimed) capTimed.heard = { key: capTimed.key, starts: capTimed.starts.slice(), spk: capTimed.spk }; // rythme d'origine, jamais modifié
     { const iso = String(language || '').toLowerCase().split(/[-_]/)[0], cur = lang(), AR = ['ar','ma','dz','tn','eg','lb'];
       const want = iso === 'ar' && AR.includes(cur) ? cur : iso === 'pt' && cur === 'br' ? 'br' : iso;
       if (want && want !== cur && [...$('lang').options].some(o => o.value === want)) $('lang').value = want;
