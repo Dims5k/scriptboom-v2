@@ -233,6 +233,27 @@ body.cap-dragging{user-select:none;-webkit-user-select:none}
 @media (prefers-reduced-motion:reduce){.sb-loading::before{animation-duration:2s}#sbBar{animation:none;background:var(--green,#1ed760)}}
 @keyframes sbBurst{0%{transform:scale(.6);opacity:0}70%{transform:scale(1.06);opacity:1}100%{transform:scale(1)}}
 @media (max-width:1180px){.labo{grid-template-columns:260px minmax(0,1fr) 360px}}
+.labo[hidden],#studio[hidden]{display:none!important}
+.space-switch{position:relative;display:grid;grid-template-columns:1fr 1fr;width:min(420px,calc(100% - 32px));margin:12px auto 4px;padding:4px;border-radius:999px;background:#121212;border:1px solid #242424}
+.space-switch button{appearance:none;border:0;background:none;color:#bdbdbd;font:700 14px Figtree,sans-serif;height:40px;border-radius:999px;cursor:pointer;transition:background .2s,color .2s}
+.space-switch button[aria-selected="true"]{background:#f2f2f2;color:#000}
+#studio{max-width:760px;margin:0 auto;padding:12px 16px 40px}
+#studio h2{margin:6px 0 4px;font:800 22px Figtree,sans-serif}
+.st-target{display:flex;flex-wrap:wrap;align-items:center;gap:10px;background:rgba(30,215,96,.08);border:1px solid rgba(30,215,96,.45);border-radius:16px;padding:12px 14px;margin:12px 0}
+.st-target p{margin:0;flex:1;min-width:180px;font-weight:600}
+.st-drop{display:flex;align-items:center;justify-content:center;gap:8px;min-height:52px;border-radius:16px;border:1.5px dashed #3a3a3a;background:#0e0e0e;color:#eaeaea;font:700 15px Figtree,sans-serif;cursor:pointer;margin:12px 0;position:relative}
+.st-drop input{position:absolute;opacity:0;width:1px;height:1px}
+.st-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+@media (min-width:700px){.st-grid{grid-template-columns:repeat(5,minmax(0,1fr))}}
+.st-grid button{appearance:none;padding:0;border:2px solid transparent;border-radius:14px;overflow:hidden;background:#111;aspect-ratio:9/16;cursor:pointer;position:relative}
+.st-grid button img{width:100%;height:100%;object-fit:cover;display:block}
+.st-grid button[aria-pressed="true"]{border-color:var(--green);box-shadow:0 0 0 2px rgba(30,215,96,.25)}
+.st-grid .st-x{position:absolute;top:6px;right:6px;width:28px;height:28px;border-radius:50%;background:rgba(0,0,0,.65);color:#fff;font-size:14px;display:grid;place-items:center}
+.st-empty{color:#8a8a8a;text-align:center;padding:28px 12px;border-radius:16px;background:#0e0e0e;font-size:14px;line-height:1.5}
+.st-place{position:sticky;bottom:0;margin-top:14px;padding:12px 0 calc(12px + env(safe-area-inset-bottom));background:linear-gradient(transparent,#050505 30%)}
+.st-place .row{display:flex;flex-wrap:wrap;gap:8px}
+.st-place .row button{appearance:none;min-width:48px;height:48px;border-radius:14px;border:1.5px solid #333;background:#111;color:#f2f2f2;font:800 15px Figtree,sans-serif;cursor:pointer}
+.st-place .row button.on{border-color:var(--green);color:var(--green)}
 @media (max-width:1240px){
   .labo{display:block}
   .word{display:none}
@@ -591,6 +612,26 @@ body.cap-dragging{user-select:none;-webkit-user-select:none}
     <button class="btn ghost" id="installBtn" hidden>Installer</button>
   </header>
   <p class="msg ok" id="installMsg" role="status" hidden></p>
+  <div class="space-switch" role="tablist" aria-label="Espace">
+    <button type="button" role="tab" id="spLabo" aria-selected="true">Labo vidéo</button>
+    <button type="button" role="tab" id="spStudio" aria-selected="false">Studio images</button>
+  </div>
+  <section id="studio" aria-label="Studio images" hidden>
+    <h2>Studio images</h2>
+    <p class="sub" style="margin:0">Tes images, prêtes à être placées sur les scènes de ta vidéo. L'éditeur (texte, émojis, filtres) arrive bientôt.</p>
+    <div class="st-target" id="stTarget" hidden>
+      <p id="stTargetTxt"></p>
+      <button class="btn ghost" type="button" id="stCancel" style="padding:9px 16px">Annuler</button>
+    </div>
+    <label class="st-drop"><input type="file" id="stFiles" accept="image/*" multiple>＋ Importer des images</label>
+    <div class="st-grid" id="stGrid"></div>
+    <div class="st-empty" id="stEmpty">Aucune image pour l'instant.<br>Importe des photos de ton téléphone pour commencer.</div>
+    <div class="st-place" id="stPlace" hidden>
+      <p class="sub" id="stPlaceTxt" style="margin:0 0 8px"></p>
+      <div class="row" id="stPlaceRow"></div>
+      <button class="btn" type="button" id="stGo" style="width:100%;margin-top:10px" hidden></button>
+    </div>
+  </section>
   <div class="labo">
     <aside class="idea-card" id="ideaCard" aria-label="Idées">
       <div class="idea-head">
@@ -1697,9 +1738,9 @@ function renderScenes(){
     bKey.onclick = () => { const q = prompt('Que doit montrer cette scène ? (de préférence en anglais, ex. : rain window, old city, crowd)', s.query); if (q && q.trim()) replaceScene(idx, q.trim(), true); };
     const lOwn = document.createElement('label'); lOwn.textContent = '📁 Ma vidéo';
     const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'video/*'; inp.onchange = e => ownScene(idx, e.target.files[0]); lOwn.appendChild(inp);
-    const lImg = document.createElement('label'); lImg.textContent = '🖼 Mon image';
-    const inpI = document.createElement('input'); inpI.type = 'file'; inpI.accept = 'image/*'; inpI.onchange = e => ownImageScene(idx, e.target.files[0]); lImg.appendChild(inpI);
-    acts.append(bOther, bKey, lOwn, lImg);
+    const bImg = document.createElement('button'); bImg.textContent = '🖼 Ajouter une image'; bImg.disabled = !!s.busy;
+    bImg.onclick = () => Studio.open(idx);
+    acts.append(bOther, bKey, lOwn, bImg);
     box.append(p, sm, acts); li.appendChild(box); ol.appendChild(li);
   });
   $('credit').textContent = mediaCredits() || '';
@@ -1744,21 +1785,88 @@ async function ownScene(idx, file){
     msg.className = 'msg ok'; msg.textContent = `Ta vidéo est placée sur la scène ${idx+1}.`; }
   catch(e){ msg.className = 'msg err'; msg.textContent = 'Cette vidéo ne peut pas être lue.'; }
 }
-// Ta propre image sur une scène : réduite (max 1600 px) pour rester fluide sur téléphone, animée par le zoom lent comme les photos
-async function ownImageScene(idx, file){
-  if (!file) return; const msg = $('bgMsg');
+// Image importée : réduite (max 1600 px) pour rester fluide sur téléphone
+async function shrinkImage(file){
+  const src = URL.createObjectURL(file);
   try {
-    const src = URL.createObjectURL(file);
     const big = await new Promise((ok, ko) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => ko(new Error('illisible')); i.src = src; });
     const k = Math.min(1, 1600 / Math.max(big.naturalWidth, big.naturalHeight));
     const c = document.createElement('canvas'); c.width = Math.round(big.naturalWidth * k); c.height = Math.round(big.naturalHeight * k);
-    c.getContext('2d').drawImage(big, 0, 0, c.width, c.height); URL.revokeObjectURL(src);
+    c.getContext('2d').drawImage(big, 0, 0, c.width, c.height);
     const blob = await new Promise(ok => c.toBlob(ok, 'image/jpeg', 0.9)); if (!blob) throw new Error('illisible');
-    const url = URL.createObjectURL(blob); const el = await loadImage(url);
-    setSceneMedia(idx, url, el, { author: 'toi', image: true }, true); renderScenes(); if (!running) drawFrame(sceneStarts[idx] || 0);
-    msg.className = 'msg ok'; msg.textContent = `Ton image est placée sur la scène ${idx+1}.`;
-  } catch(e){ msg.className = 'msg err'; msg.textContent = 'Cette image ne peut pas être lue. Essaie une photo JPG ou PNG.'; }
+    return blob;
+  } finally { URL.revokeObjectURL(src); }
 }
+// Place une image sur une scène : animée par le zoom lent comme les photos libres de droits
+async function placeImageOnScene(idx, blob){
+  const msg = $('bgMsg');
+  const url = URL.createObjectURL(blob); const el = await loadImage(url);
+  setSceneMedia(idx, url, el, { author: 'toi', image: true }, true); renderScenes(); if (!running) drawFrame(sceneStarts[idx] || 0);
+  msg.className = 'msg ok'; msg.textContent = `Ton image est placée sur la scène ${idx+1}.`;
+}
+
+// ---------- Studio images : bibliothèque d'images reliée aux scènes du Labo vidéo ----------
+const Studio = (() => {
+  let lib = [], sel = -1, target = null, pickScene = null, loaded = false;
+  const KEY = () => uk('studio:lib');
+  async function load(){ if (loaded) return; loaded = true;
+    const d = await MediaDB.get(KEY()); if (d && Array.isArray(d.list)) lib = d.list.filter(x => x && x.blob).map(x => ({ id: x.id, blob: x.blob, url: URL.createObjectURL(x.blob) })); render(); }
+  function save(){ MediaDB.set(KEY(), { list: lib.map(x => ({ id: x.id, blob: x.blob })), date: Date.now() }); }
+  function show(on){
+    $('studio').hidden = !on; document.querySelector('.labo').hidden = on;
+    $('spLabo').setAttribute('aria-selected', String(!on)); $('spStudio').setAttribute('aria-selected', String(on));
+    window.scrollTo(0, 0); if (on) load();
+  }
+  function hasScenes(){ return bgMode === 'auto' && scenes.length > 0; }
+  function render(){
+    const grid = $('stGrid'); grid.innerHTML = '';
+    lib.forEach((x, i) => {
+      const b = document.createElement('button'); b.type = 'button'; b.setAttribute('aria-pressed', String(i === sel)); b.setAttribute('aria-label', 'Image ' + (i+1));
+      const im = document.createElement('img'); im.src = x.url; im.alt = ''; b.appendChild(im);
+      const del = document.createElement('span'); del.className = 'st-x'; del.textContent = '✕'; del.setAttribute('role', 'button'); del.setAttribute('aria-label', 'Retirer cette image');
+      del.onclick = e => { e.stopPropagation(); if (!confirm('Retirer cette image du Studio ?')) return; URL.revokeObjectURL(x.url); lib.splice(i, 1); if (sel >= lib.length) sel = lib.length - 1; save(); render(); };
+      b.appendChild(del);
+      b.onclick = () => { sel = i; render(); };
+      grid.appendChild(b);
+    });
+    $('stEmpty').hidden = lib.length > 0;
+    // Bandeau « choisis une image pour la scène N »
+    $('stTarget').hidden = target == null;
+    if (target != null) $('stTargetTxt').textContent = `Choisis ou importe une image pour la scène ${target+1}.`;
+    // Zone pour placer l'image choisie
+    const place = $('stPlace'), row = $('stPlaceRow'), go = $('stGo'); row.innerHTML = '';
+    if (sel < 0){ place.hidden = true; return; }
+    place.hidden = false;
+    if (!hasScenes()){ $('stPlaceTxt').textContent = 'Pour placer cette image dans ta vidéo, crée d\'abord tes scènes dans le Labo vidéo (étape 3).'; go.hidden = true; return; }
+    const dest = target != null ? target : pickScene;
+    $('stPlaceTxt').textContent = target != null ? '' : 'Sur quelle scène placer cette image ?';
+    if (target == null) scenes.forEach((sc, k) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = k + 1; b.className = k === pickScene ? 'on' : ''; b.setAttribute('aria-label', 'Scène ' + (k+1)); b.onclick = () => { pickScene = k; render(); }; row.appendChild(b); });
+    go.hidden = dest == null; if (dest != null) go.textContent = `Placer sur la scène ${dest+1}`;
+  }
+  async function addFiles(files){
+    const fl = [...files].slice(0, 20); if (!fl.length) return;
+    let bad = 0;
+    for (const f of fl){ try { const blob = await shrinkImage(f); lib.unshift({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), blob, url: URL.createObjectURL(blob) }); } catch(e){ bad++; } }
+    while (lib.length > 40){ const x = lib.pop(); URL.revokeObjectURL(x.url); }
+    sel = bad < fl.length ? 0 : sel; save(); render();
+    if (bad) showToast(bad > 1 ? `${bad} images n'ont pas pu être lues. Essaie des photos JPG ou PNG.` : 'Une image n\'a pas pu être lue. Essaie une photo JPG ou PNG.');
+  }
+  async function place(){
+    const dest = target != null ? target : pickScene; if (sel < 0 || dest == null || !scenes[dest]) return;
+    const go = $('stGo'); go.disabled = true;
+    try { await placeImageOnScene(dest, lib[sel].blob); track && track('studio');
+      target = null; pickScene = null; sel = -1; render(); show(false);
+      const li = $('scenesList').children[dest]; if (li) li.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    } catch(e){ showToast('Impossible de placer cette image. Réessaie avec une autre photo.'); }
+    finally { go.disabled = false; }
+  }
+  $('spLabo').onclick = () => { target = null; show(false); };
+  $('spStudio').onclick = () => { target = null; render(); show(true); };
+  $('stCancel').onclick = () => { target = null; sel = -1; render(); show(false); };
+  $('stFiles').onchange = e => { addFiles(e.target.files); e.target.value = ''; };
+  $('stGo').onclick = place;
+  return { open(idx){ target = idx; sel = -1; render(); show(true); } };
+})();
 $('autoBg').onclick = () => { bgPage = 1; findBackgrounds(); };
 $('moreBg').onclick = () => { if (scenes.some(s => s.el) && !confirm('Remplacer TOUTES les scènes par de nouvelles vidéos ? (1 action IA)')) return; bgPage++; findBackgrounds(); };
 
