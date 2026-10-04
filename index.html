@@ -1689,7 +1689,7 @@ function renderScenes(){
     else if (s.el){ const v = document.createElement('video'); v.muted = true; v.playsInline = true; v.setAttribute('playsinline',''); v.preload = 'metadata'; v.src = s.url + '#t=0.5'; li.appendChild(v); }
     else { const d = document.createElement('div'); d.className = 'none'; d.textContent = '—'; li.appendChild(d); }
     const box = document.createElement('div'); const p = document.createElement('p'); p.textContent = s.text;
-    const sm = document.createElement('small'); sm.textContent = s.busy ? 'Recherche…' : s.el ? (s.own ? 'ta vidéo' : s.query) : s.query + ' · pas trouvé, la scène d\'avant continue';
+    const sm = document.createElement('small'); sm.textContent = s.busy ? 'Recherche…' : s.el ? (s.own ? (s.el.tagName === 'IMG' ? 'ton image' : 'ta vidéo') : s.query) : s.query + ' · pas trouvé, la scène d\'avant continue';
     const acts = document.createElement('div'); acts.className = 'sc-actions';
     const bOther = document.createElement('button'); bOther.textContent = '↻ Autre vidéo'; bOther.disabled = !!s.busy;
     bOther.onclick = () => replaceScene(idx, s.query);
@@ -1697,7 +1697,9 @@ function renderScenes(){
     bKey.onclick = () => { const q = prompt('Que doit montrer cette scène ? (de préférence en anglais, ex. : rain window, old city, crowd)', s.query); if (q && q.trim()) replaceScene(idx, q.trim(), true); };
     const lOwn = document.createElement('label'); lOwn.textContent = '📁 Ma vidéo';
     const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'video/*'; inp.onchange = e => ownScene(idx, e.target.files[0]); lOwn.appendChild(inp);
-    acts.append(bOther, bKey, lOwn);
+    const lImg = document.createElement('label'); lImg.textContent = '🖼 Mon image';
+    const inpI = document.createElement('input'); inpI.type = 'file'; inpI.accept = 'image/*'; inpI.onchange = e => ownImageScene(idx, e.target.files[0]); lImg.appendChild(inpI);
+    acts.append(bOther, bKey, lOwn, lImg);
     box.append(p, sm, acts); li.appendChild(box); ol.appendChild(li);
   });
   $('credit').textContent = mediaCredits() || '';
@@ -1741,6 +1743,21 @@ async function ownScene(idx, file){
     setSceneMedia(idx, url, el, { author: 'toi' }, true); renderScenes(); if (!running) drawFrame(sceneStarts[idx] || 0);
     msg.className = 'msg ok'; msg.textContent = `Ta vidéo est placée sur la scène ${idx+1}.`; }
   catch(e){ msg.className = 'msg err'; msg.textContent = 'Cette vidéo ne peut pas être lue.'; }
+}
+// Ta propre image sur une scène : réduite (max 1600 px) pour rester fluide sur téléphone, animée par le zoom lent comme les photos
+async function ownImageScene(idx, file){
+  if (!file) return; const msg = $('bgMsg');
+  try {
+    const src = URL.createObjectURL(file);
+    const big = await new Promise((ok, ko) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => ko(new Error('illisible')); i.src = src; });
+    const k = Math.min(1, 1600 / Math.max(big.naturalWidth, big.naturalHeight));
+    const c = document.createElement('canvas'); c.width = Math.round(big.naturalWidth * k); c.height = Math.round(big.naturalHeight * k);
+    c.getContext('2d').drawImage(big, 0, 0, c.width, c.height); URL.revokeObjectURL(src);
+    const blob = await new Promise(ok => c.toBlob(ok, 'image/jpeg', 0.9)); if (!blob) throw new Error('illisible');
+    const url = URL.createObjectURL(blob); const el = await loadImage(url);
+    setSceneMedia(idx, url, el, { author: 'toi', image: true }, true); renderScenes(); if (!running) drawFrame(sceneStarts[idx] || 0);
+    msg.className = 'msg ok'; msg.textContent = `Ton image est placée sur la scène ${idx+1}.`;
+  } catch(e){ msg.className = 'msg err'; msg.textContent = 'Cette image ne peut pas être lue. Essaie une photo JPG ou PNG.'; }
 }
 $('autoBg').onclick = () => { bgPage = 1; findBackgrounds(); };
 $('moreBg').onclick = () => { if (scenes.some(s => s.el) && !confirm('Remplacer TOUTES les scènes par de nouvelles vidéos ? (1 action IA)')) return; bgPage++; findBackgrounds(); };
@@ -2215,7 +2232,7 @@ function applyVolumes(){
 }));
 
 // ---------- Écoute en direct quand on bouge un curseur (sans lancer l'aperçu) ----------
-function hasOwnVideo(){ return (bgMode === 'own' && !!videoURL) || (bgMode === 'auto' && scenes.some(s => s.own && s.el)); }
+function hasOwnVideo(){ return (bgMode === 'own' && !!videoURL) || (bgMode === 'auto' && scenes.some(s => s.own && s.el && s.el.tagName !== 'IMG')); }
 function updateVideoTrack(){ $('autoSubBox').hidden = !(bgMode === 'own' && videoURL); const on = hasOwnVideo() && !(audioRaw && audioRaw.fromVideo); if ($('videoTrack').hidden === on) { $('videoTrack').hidden = !on; applyVolumes(); } }
 // Simulation : tant que le doigt est sur un curseur, un extrait de 3 s du mix complet tourne en boucle.
 // Chaque son passe par sa vraie piste de la table de mixage : on entend le réglage bouger en direct, par rapport aux autres.
@@ -2288,7 +2305,7 @@ $('mixTest').addEventListener('pointerdown', mixPress);
 $('mixTest').addEventListener('contextmenu', e => e.preventDefault());
 // Le son d'une vidéo passe par la table de mixage (une seule fois par vidéo)
 function routeVideo(el){
-  if (!el || routed.has(el)) return;
+  if (!el || el.tagName === 'IMG' || routed.has(el)) return;
   try { const n = ctx().createMediaElementSource(el); n.connect(buildMix().video); routed.add(el); el.muted = false; } catch(e){}
 }
 function setMoodPill(mood){ document.querySelectorAll('[data-mood]').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.mood === mood))); }
