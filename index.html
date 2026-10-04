@@ -1865,7 +1865,7 @@ const Studio = (() => {
   $('stCancel').onclick = () => { target = null; sel = -1; render(); show(false); };
   $('stFiles').onchange = e => { addFiles(e.target.files); e.target.value = ''; };
   $('stGo').onclick = place;
-  return { open(idx){ target = idx; sel = -1; render(); show(true); } };
+  return { open(idx){ target = idx; sel = -1; render(); show(true); }, labo(){ if (!$('studio').hidden){ target = null; show(false); } } };
 })();
 $('autoBg').onclick = () => { bgPage = 1; findBackgrounds(); };
 $('moreBg').onclick = () => { if (scenes.some(s => s.el) && !confirm('Remplacer TOUTES les scènes par de nouvelles vidéos ? (1 action IA)')) return; bgPage++; findBackgrounds(); };
@@ -4204,19 +4204,21 @@ $('trBtn').onclick = async () => {
 // ---------- Visite guidée (première ouverture, puis bouton ?) ----------
 const TOUR = [
   { el: () => document.querySelector('.orbit'), text: "Voici ton Labo. Ta vidéo est au centre : touche un élément autour d'elle pour le préparer (script, voix, images, style, son). Un élément ne te plaît pas ? Glisse sa bulle vers la croix en bas pour effacer seulement celui-là." },
+  { isNew: true, el: () => document.querySelector('.space-switch'), text: "Deux espaces : le Labo vidéo pour créer ta vidéo, et le Studio images pour tes photos. Passe de l'un à l'autre ici. Dans le Studio, importe tes images : elles restent gardées sur ton appareil." },
+  { isNew: true, el: () => document.querySelector('.cap[data-open="fonds"]'), text: "Dans Fonds, ScriptBoom découpe ton script en scènes et trouve une vidéo pour chacune. Sur chaque scène, « Ajouter une image » ouvre le Studio : choisis ta photo, et elle se place directement sur la scène." },
   { el: () => isMobile() ? $('ideaStrip') : $('ideaCard'), text: "À court d'idées ? Ici, ScriptBoom te propose des sujets, ta semaine entière de vidéos, ou une réponse en vidéo à un commentaire." },
   { el: () => document.querySelector('.recipe'), text: "La recette te montre ce qui est prêt. Chaque élément terminé passe au vert, et le contour de la vidéo se remplit." },
   { el: () => $('export'), text: "Quand tout est vert, appuie sur BOOM : ta vidéo est assemblée et prête à poster. Bonne création !" }
 ];
-let tourI = 0;
+let tourI = 0, tourSteps = TOUR;
 function tourShow(){
-  const st = TOUR[tourI], el = st.el(); if (!el){ tourEnd(); return; }
+  const st = tourSteps[tourI], el = st.el(); if (!el){ tourEnd(); return; }
   el.scrollIntoView({ block: 'center', behavior: 'instant' });
   setTimeout(() => {
     const r = el.getBoundingClientRect(), pad = 8, spot = $('tourSpot'), b = $('tourBubble');
     Object.assign(spot.style, { left: (r.left - pad) + 'px', top: (r.top - pad) + 'px', width: (r.width + pad*2) + 'px', height: (r.height + pad*2) + 'px' });
-    $('tourN').textContent = `${tourI + 1} / ${TOUR.length}`; $('tourText').textContent = st.text;
-    $('tourNext').textContent = tourI === TOUR.length - 1 ? "C'est parti !" : 'Suivant';
+    $('tourN').textContent = (st.isNew ? 'Nouveau · ' : '') + `${tourI + 1} / ${tourSteps.length}`; $('tourText').textContent = st.text;
+    $('tourNext').textContent = tourI === tourSteps.length - 1 ? "C'est parti !" : 'Suivant';
     const bw = b.offsetWidth || 320, bh = b.offsetHeight || 170, vw = window.innerWidth, vh = window.innerHeight;
     let top = r.bottom + pad + 12; if (top + bh > vh - 12) top = Math.max(12, r.top - pad - 12 - bh);
     if (top < 12) top = Math.min(vh - bh - 12, Math.max(12, r.top + 20));
@@ -4224,16 +4226,19 @@ function tourShow(){
     b.style.top = top + 'px'; b.style.left = left + 'px';
   }, 60);
 }
-function tourStart(){ closePanel(); closeIdeas(); tourI = 0; $('tour').hidden = false; tourShow(); }
-function tourEnd(){ $('tour').hidden = true; try { localStorage.setItem('sb_tour', '1'); } catch(e){} if (!isMobile()) openPanel(panelNow || 'script'); }
-$('tourNext').onclick = () => { if (++tourI >= TOUR.length) tourEnd(); else tourShow(); };
+// TOUR_V : à augmenter quand on ajoute des nouveautés ; ceux qui ont déjà vu la visite ne revoient que les étapes « Nouveau »
+const TOUR_V = '2';
+function tourStart(onlyNew){ closePanel(); closeIdeas(); Studio.labo(); tourSteps = onlyNew === true ? TOUR.filter(x => x.isNew) : TOUR; tourI = 0; $('tour').hidden = false; tourShow(); }
+function tourEnd(){ $('tour').hidden = true; try { localStorage.setItem('sb_tour', TOUR_V); } catch(e){} if (!isMobile()) openPanel(panelNow || 'script'); }
+$('tourNext').onclick = () => { if (++tourI >= tourSteps.length) tourEnd(); else tourShow(); };
 $('tourSkip').onclick = tourEnd;
-$('tourBtn').onclick = tourStart;
+$('tourBtn').onclick = () => tourStart(false);
 window.addEventListener('resize', () => { if (!$('tour').hidden) tourShow(); });
 (function autoTour(){
-  let seen = false; try { seen = !!localStorage.getItem('sb_tour'); } catch(e){}
-  if (seen) return;
-  const wait = () => { const gate = $('sbGate'); if (gate && getComputedStyle(gate).display !== 'none') return setTimeout(wait, 700); setTimeout(tourStart, 700); };
+  let seen = null; try { seen = localStorage.getItem('sb_tour'); } catch(e){}
+  if (seen === TOUR_V) return;
+  const onlyNew = !!seen; // déjà vu une ancienne visite : juste les nouveautés
+  const wait = () => { const gate = $('sbGate'); if (gate && getComputedStyle(gate).display !== 'none') return setTimeout(wait, 700); setTimeout(() => tourStart(onlyNew), 700); };
   wait();
 })();
 
