@@ -124,6 +124,10 @@ Réponds en JSON : {"title":"...","caption":"...","hashtags":["#..."]}`, true, [
     }
 
     // mode "script"
+    // Délai global : le script ET la relecture doivent finir avant que le navigateur abandonne (90 s côté appli).
+    // Sans ça, quand Gemini (formule gratuite) est lent, les relances s'additionnent et l'appli affiche « trop de temps ».
+    const t0 = Date.now(), DEADLINE = 65000;
+    const GEN = { timeoutMs: 22000, budgetMs: 30000 }; // pire cas ≈ 52 s
     const reply = b.reply && typeof b.reply.text === 'string' && b.reply.text.trim()
       ? { text: clean(b.reply.text, 400).trim() } : null; // le pseudo reste sur l'appareil : il n'est jamais envoyé à l'IA
     const topic = reply ? reply.text : clean(b.topic, 300).trim();
@@ -158,7 +162,7 @@ ${hookRules}
 Partie 1 : pose le mystère et donne de vraies infos, mais garde la réponse ou la révélation la plus forte pour la partie 2. Elle se termine OBLIGATOIREMENT par un suspense puis une phrase du type « La suite dans la partie 2, abonne-toi pour ne pas la rater. »
 Partie 2 : commence par « Partie 2 » (ou l'équivalent dans la langue) et un rappel d'une phrase, puis livre la révélation promise, et finit par une question qui pousse à commenter.
 ${style}
-Réponds en JSON : {"part1":{"hook":"...","script":"...","keywords":["..."]},"part2":{"hook":"...","script":"...","keywords":["..."]}}`, true);
+Réponds en JSON : {"part1":{"hook":"...","script":"...","keywords":["..."]},"part2":{"hook":"...","script":"...","keywords":["..."]}}`, true, [], GEN);
       parts = [out.part1 || {}, out.part2 || {}];
     } else {
       const out = await askGemini(`Écris un script de voix off en ${lang} pour une vidéo verticale (TikTok/Reels/Shorts) sur le sujet : "${topic}".${replyTxt}${coachTxt}
@@ -168,7 +172,7 @@ ${depth}
 ${hookRules}
 Finis par une phrase qui pousse à s'abonner ou commenter.
 ${style}
-Réponds en JSON : {"hook":"...","script":"...","keywords":["..."]}`, true);
+Réponds en JSON : {"hook":"...","script":"...","keywords":["..."]}`, true, [], GEN);
       parts = [out];
     }
     parts = parts.map(p => ({ script: clean(p.script, 3000).trim(), hook: clean(p.hook, 80).trim(),
@@ -177,12 +181,15 @@ Réponds en JSON : {"hook":"...","script":"...","keywords":["..."]}`, true);
 
     // Vérification des faits : une 2e lecture corrige les chiffres, dates et affirmations douteuses
     let fixes = [], checked = false;
-    if (b.check !== false) {
+    // La relecture ne se lance que s'il reste assez de temps, et elle s'arrête avant la limite
+    const left = DEADLINE - (Date.now() - t0);
+    const chkTimeout = Math.min(20000, left - 2000);
+    if (b.check !== false && chkTimeout >= 10000) {
       try {
         const chk = await askGemini(`Tu es vérificateur de faits pour des vidéos de vulgarisation. Nous sommes le ${today()}. Voici ${parts.length > 1 ? 'les scripts' : 'le script'} (en ${lang}), chacun avec son accroche à l'écran :
 ${parts.map((p, k) => `--- SCRIPT ${k + 1} ---\nAccroche : ${p.hook}\n${p.script}`).join('\n')}
 Relis chaque affirmation. Si un chiffre, une date, un âge, un nom ou une affirmation est faux, périmé, exagéré ou incertain, corrige-le ou reformule-le de façon plus générale et prudente. Un résultat de match, une actualité ou un événement récent que tu ne peux pas vérifier doit être retiré ou mis au conditionnel. Vérifie aussi que l'accroche ne contredit pas le script et ne l'exagère pas ; sinon corrige-la (3 à 6 mots). Ne touche à rien d'autre : garde le style, le ton, la longueur et la fin. Si tout est correct, renvoie les textes à l'identique.
-Réponds en JSON : {"scripts":["script 1 corrigé"${parts.length > 1 ? ', "script 2 corrigé"' : ''}],"hooks":["accroche 1"${parts.length > 1 ? ', "accroche 2"' : ''}],"fixes":["une phrase courte et complète par correction, en français (liste vide si aucune)"]}`, true);
+Réponds en JSON : {"scripts":["script 1 corrigé"${parts.length > 1 ? ', "script 2 corrigé"' : ''}],"hooks":["accroche 1"${parts.length > 1 ? ', "accroche 2"' : ''}],"fixes":["une phrase courte et complète par correction, en français (liste vide si aucune)"]}`, true, [], { timeoutMs: chkTimeout, budgetMs: Math.max(0, left - chkTimeout - 1000) });
         const fixed = Array.isArray(chk.scripts) ? chk.scripts : [], hooks = Array.isArray(chk.hooks) ? chk.hooks : [];
         parts.forEach((p, k) => {
           const f = clean(fixed[k], 3000).trim();
